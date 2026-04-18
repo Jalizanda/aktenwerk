@@ -1,0 +1,16 @@
+rules_version = '2';
+// Single-User-Datenmodell: Jeder Datensatz liegt unter users/{uid}/...
+// Nur der jeweilige Benutzer darf lesen/schreiben.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid}/{collection}/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Alles andere ist per Default verboten.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

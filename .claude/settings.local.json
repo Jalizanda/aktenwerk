@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(perl -0777 -pe ' *)",
+      "Bash(python3 -c \"import json; data = json.load\\(open\\('/Users/ahoepken/FlutterDev/aktenwerk/aktenwerk/assets/data/gerichte.json'\\)\\); print\\(f'OK: {len\\(data\\)} Gerichte geladen'\\); print\\('Beispiel:', data[0]\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(flutter pub *)",
+      "Bash(dart run *)",
+      "Bash(flutter analyze *)",
+      "Bash(perl -i -pe 's/\\\\\\(_, __\\\\\\)/\\(_, _\\)/g' /Users/ahoepken/FlutterDev/aktenwerk/aktenwerk/lib/src/core/router/app_router.dart)",
+      "Bash(flutter build *)"
+    ]
+  }
+}
