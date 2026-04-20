@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../shared/widgets/badges.dart';
 import '../kunden/kunden_repository.dart';
 import 'auftraege_form.dart';
 import 'auftraege_repository.dart';
@@ -156,6 +157,7 @@ class _AuftraegeTable extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.outlineVariant),
           ),
           child: DataTable(
+              showCheckboxColumn: false,
             headingRowColor: WidgetStateProperty.all(
               Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
@@ -231,14 +233,14 @@ class _AuftraegeTable extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
             child: const Text('Abbrechen'),
           ),
           FilledButton.tonal(
             style: FilledButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
             child: const Text('Löschen'),
           ),
         ],
@@ -265,27 +267,18 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    // Farbpalette 1:1 aus der Original-SV-Software (.badge-status-*).
     final (bg, fg) = switch (status) {
-      AuftragStatus.offen => (scheme.surfaceContainerHighest, scheme.onSurface),
-      AuftragStatus.inArbeit => (scheme.primaryContainer, scheme.onPrimaryContainer),
-      AuftragStatus.wartet => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-      AuftragStatus.abgeschlossen => (scheme.secondaryContainer, scheme.onSecondaryContainer),
-      AuftragStatus.abgerechnet => (scheme.surfaceContainerHigh, scheme.onSurface),
-      AuftragStatus.storniert => (scheme.errorContainer, scheme.onErrorContainer),
+      AuftragStatus.offen => (BadgeColors.blueBg, BadgeColors.blueFg),
+      AuftragStatus.inArbeit => (BadgeColors.amberBg, BadgeColors.amberFg),
+      AuftragStatus.wartet => (BadgeColors.slateBg, BadgeColors.slateFg),
+      AuftragStatus.abgeschlossen =>
+        (BadgeColors.greenBg, BadgeColors.greenFg),
+      AuftragStatus.abgerechnet =>
+        (BadgeColors.greenBg, BadgeColors.greenFg),
+      AuftragStatus.storniert => (BadgeColors.redBg, BadgeColors.redFg),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status.label,
-        style: TextStyle(
-            color: fg, fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-    );
+    return PillBadge(text: status.label, background: bg, foreground: fg);
   }
 }
 

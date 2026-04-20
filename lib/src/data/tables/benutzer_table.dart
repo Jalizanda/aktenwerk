@@ -31,7 +31,25 @@ class Benutzer extends Table {
   TextColumn get unterschriftPfad => text().nullable()();
   TextColumn get logoPfad => text().nullable()();
 
+  /// Profilbild als Base64 (Avatar).
+  TextColumn get profilBildBase64 => text().nullable()();
+  TextColumn get profilBildMime => text().nullable()();
+
+  /// Persönliche Grußformel (z. B. "Mit freundlichen Grüßen\nDr. …").
+  TextColumn get grussformel => text().nullable()();
+
   BoolColumn get aktiv => boolean().withDefault(const Constant(true))();
+
+  /// Rolle im Mandanten: 'admin' | 'mitarbeiter' | 'readonly'.
+  TextColumn get rolle => text().withDefault(const Constant('mitarbeiter'))();
+
+  /// Komma-getrennte Liste erlaubter Module (z.B. "auftraege,rechnungen,...").
+  /// `null` = Admin (alle Module). Leer = keine. Vollständige Liste = alle.
+  TextColumn get erlaubteModule => text().nullable()();
+
+  /// Bearbeitungsrecht pro Modul (komma-getrennt). Nur diese Module dürfen
+  /// editiert werden; in anderen erlaubten Modulen ist nur Read-Only erlaubt.
+  TextColumn get bearbeitbareModule => text().nullable()();
 
   TextColumn get extras => text().nullable()();
 

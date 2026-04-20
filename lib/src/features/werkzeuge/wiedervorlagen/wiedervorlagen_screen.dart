@@ -10,6 +10,8 @@ import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'wiedervorlagen_repository.dart';
 
+final _wiedervorlagenQueryProvider = StateProvider<String>((ref) => '');
+
 class WiedervorlagenScreen extends ConsumerWidget {
   const WiedervorlagenScreen({super.key});
   static final _fmt = DateFormat('dd.MM.yyyy', 'de');
@@ -18,6 +20,7 @@ class WiedervorlagenScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(wiedervorlagenListProvider);
     final scope = ref.watch(wiedervorlagenScopeProvider);
+    final query = ref.watch(_wiedervorlagenQueryProvider).trim().toLowerCase();
 
     String scopeLabel(WiedervorlagenScope s) => switch (s) {
           WiedervorlagenScope.alle => 'Alle',
@@ -42,6 +45,9 @@ class WiedervorlagenScreen extends ConsumerWidget {
               onPressed: () => _show(context, ref),
             ),
           ],
+          searchHint: 'Suche Titel, Anlass, Akte …',
+          onSearchChanged: (v) =>
+              ref.read(_wiedervorlagenQueryProvider.notifier).state = v,
           filters: [
             SegmentedButton<WiedervorlagenScope>(
               segments: [
@@ -61,20 +67,34 @@ class WiedervorlagenScreen extends ConsumerWidget {
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
-            data: (items) => items.isEmpty
-                ? const EmptyListState(
-                    icon: Icons.notifications_active_outlined,
-                    title: 'Nichts zu tun')
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (_, i) => _Tile(
-                      item: items[i],
-                      dateFmt: _fmt,
-                    ),
-                  ),
+            data: (rawItems) {
+              final items = query.isEmpty
+                  ? rawItems
+                  : rawItems.where((w) {
+                      final s = [
+                        w.eintrag.titel,
+                        w.eintrag.anlass ?? '',
+                        w.eintrag.beschreibung ?? '',
+                        w.auftrag?.aktenzeichen ?? '',
+                        w.auftrag?.betreff ?? '',
+                      ].join(' ').toLowerCase();
+                      return s.contains(query);
+                    }).toList();
+              return items.isEmpty
+                  ? const EmptyListState(
+                      icon: Icons.notifications_active_outlined,
+                      title: 'Nichts zu tun')
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      itemCount: items.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 6),
+                      itemBuilder: (_, i) => _Tile(
+                        item: items[i],
+                        dateFmt: _fmt,
+                      ),
+                    );
+            },
           ),
         ),
       ],
@@ -212,6 +232,8 @@ class _WiedervorlageFormState
   final _formKey = GlobalKey<FormState>();
   late final _titel =
       TextEditingController(text: widget.eintrag?.eintrag.titel ?? '');
+  late final _anlass = TextEditingController(
+      text: widget.eintrag?.eintrag.anlass ?? '');
   late final _beschreibung = TextEditingController(
       text: widget.eintrag?.eintrag.beschreibung ?? '');
   DateTime _faellig = DateTime.now();
@@ -232,6 +254,7 @@ class _WiedervorlageFormState
   @override
   void dispose() {
     _titel.dispose();
+    _anlass.dispose();
     _beschreibung.dispose();
     super.dispose();
   }
@@ -244,6 +267,7 @@ class _WiedervorlageFormState
     final companion = WiedervorlagenCompanion(
       id: _isEdit ? Value(widget.eintrag!.eintrag.id) : const Value.absent(),
       titel: Value(_titel.text.trim()),
+      anlass: _nt(_anlass),
       beschreibung: _nt(_beschreibung),
       faelligAm: Value(_faellig),
       prioritaet: Value(_prio),
@@ -253,7 +277,7 @@ class _WiedervorlageFormState
     );
     try {
       await ref.read(wiedervorlagenRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -274,8 +298,13 @@ class _WiedervorlageFormState
       title: _isEdit ? 'Wiedervorlage bearbeiten' : 'Neue Wiedervorlage',
       saving: _saving,
       maxHeight: 580,
-      onCancel: () => Navigator.pop(context, false),
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(wiedervorlagenRepositoryProvider)
+              .delete(widget.eintrag!.eintrag.id)
+          : null,
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -293,7 +322,12 @@ class _WiedervorlageFormState
               ),
               const SizedBox(height: 12),
               LabeledField(
-                'Beschreibung',
+                'Anlass / Grund',
+                TextFormField(controller: _anlass),
+              ),
+              const SizedBox(height: 12),
+              LabeledField(
+                'Beschreibung / Notiz',
                 TextFormField(
                     controller: _beschreibung, minLines: 2, maxLines: 4),
               ),

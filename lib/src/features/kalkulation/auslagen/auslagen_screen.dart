@@ -5,10 +5,13 @@ import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'auslagen_repository.dart';
+
+final auslagenQueryProvider = StateProvider<String>((ref) => '');
 
 class AuslagenScreen extends ConsumerWidget {
   const AuslagenScreen({super.key});
@@ -18,6 +21,26 @@ class AuslagenScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(auslagenListProvider);
     final filter = ref.watch(auslagenFilterProvider);
+    final query = ref.watch(auslagenQueryProvider).trim().toLowerCase();
+
+    List<AuslageWithAuftrag> applyQuery(List<AuslageWithAuftrag> items) {
+      if (query.isEmpty) return items;
+      return items.where((a) {
+        final parts = [
+          a.auslage.kategorie,
+          a.auslage.beschreibung,
+          a.auslage.notiz,
+          a.auslage.art,
+          a.auslage.einheit,
+          a.auftrag?.aktenzeichen,
+          a.auftrag?.betreff,
+        ]
+            .whereType<String>()
+            .map((v) => v.toLowerCase())
+            .join(' ');
+        return parts.contains(query);
+      }).toList();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -26,6 +49,9 @@ class AuslagenScreen extends ConsumerWidget {
           icon: Icons.payments_outlined,
           title: 'Auslagen',
           subtitle: 'Auslagen pro Auftrag (Fahrt, Porto, Kopien, Labor …)',
+          searchHint: 'Suche Kategorie, Beschreibung, Aktenzeichen …',
+          onSearchChanged: (v) =>
+              ref.read(auslagenQueryProvider.notifier).state = v,
           actions: [
             FilledButton.icon(
               icon: const Icon(Icons.add),
@@ -52,17 +78,24 @@ class AuslagenScreen extends ConsumerWidget {
             ),
           ],
         ),
+        async.maybeWhen(
+          data: (items) => _KpiStrip(items: applyQuery(items)),
+          orElse: () => const SizedBox.shrink(),
+        ),
         const Divider(height: 1),
         Expanded(
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
-            data: (items) => items.isEmpty
+            data: (all) {
+              final items = applyQuery(all);
+              return items.isEmpty
                 ? const EmptyListState(
                     icon: Icons.payments_outlined,
                     title: 'Keine Auslagen erfasst')
                 : DataTableCard(
                     child: DataTable(
+              showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
@@ -114,7 +147,8 @@ class AuslagenScreen extends ConsumerWidget {
                           ),
                       ],
                     ),
-                  ),
+                  );
+            },
           ),
         ),
       ],
@@ -130,6 +164,87 @@ class AuslagenScreen extends ConsumerWidget {
   }
 }
 
+Future<void> showAuslageEditor(BuildContext context,
+    {AuslageWithAuftrag? eintrag}) async {
+  await showDialog(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => _AuslageForm(eintrag: eintrag),
+  );
+}
+
+class _KpiStrip extends StatelessWidget {
+  const _KpiStrip({required this.items});
+  final List<AuslageWithAuftrag> items;
+  static final _money =
+      NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
+
+  @override
+  Widget build(BuildContext context) {
+    final gesamt =
+        items.fold<double>(0, (s, a) => s + a.auslage.summe);
+    final offen = items
+        .where((a) => !a.auslage.abgerechnet)
+        .fold<double>(0, (s, a) => s + a.auslage.summe);
+    final byArt = <String, double>{};
+    for (final a in items) {
+      final k = a.auslage.art ?? 'sonstiges';
+      byArt[k] = (byArt[k] ?? 0) + a.auslage.summe;
+    }
+    final topArt = byArt.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = topArt.take(3).toList();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: KpiCard(
+              icon: Icons.euro,
+              label: 'Gesamt',
+              value: _money.format(gesamt),
+              accent: BadgeColors.blueFg,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: KpiCard(
+              icon: Icons.hourglass_empty,
+              label: 'noch offen',
+              value: _money.format(offen),
+              accent: BadgeColors.amberFg,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: KpiCard(
+              icon: Icons.bar_chart,
+              label: top.isEmpty
+                  ? 'Top-Art'
+                  : 'Top: ${_labelForArt(top.first.key)}',
+              value: top.isEmpty
+                  ? '—'
+                  : _money.format(top.first.value),
+              accent: BadgeColors.greenFg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _labelForArt(String a) => switch (a) {
+        'fahrt' => 'Fahrt',
+        'schreibauslagen' => 'Schreibauslagen',
+        'kopie_sw' => 'Kopie s/w',
+        'kopie_farbe' => 'Kopie farbig',
+        'lichtbilder' => 'Lichtbilder',
+        'porto' => 'Porto',
+        'fremdleistung' => 'Fremdleistung',
+        _ => 'Sonstiges',
+      };
+}
+
 class _AuslageForm extends ConsumerStatefulWidget {
   const _AuslageForm({this.eintrag});
   final AuslageWithAuftrag? eintrag;
@@ -141,6 +256,7 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
   final _formKey = GlobalKey<FormState>();
   int? _auftragId;
   DateTime _datum = DateTime.now();
+  String _art = 'sonstiges';
   late final _kat =
       TextEditingController(text: widget.eintrag?.auslage.kategorie ?? '');
   late final _beschreibung = TextEditingController(
@@ -156,12 +272,26 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
   bool _abgerechnet = false;
   bool _saving = false;
 
+  static const _artOptions = [
+    ('fahrt', 'Fahrtkosten'),
+    ('schreibauslagen', 'Schreibauslagen'),
+    ('kopie_sw', 'Kopie s/w'),
+    ('kopie_farbe', 'Kopie Farbe'),
+    ('lichtbilder', 'Lichtbilder'),
+    ('porto', 'Porto'),
+    ('fremdleistung', 'Fremdleistung'),
+    ('sonstiges', 'Sonstiges'),
+  ];
+
   @override
   void initState() {
     super.initState();
     _auftragId = widget.eintrag?.auslage.auftragId;
     _datum = widget.eintrag?.auslage.datum ?? DateTime.now();
     _abgerechnet = widget.eintrag?.auslage.abgerechnet ?? false;
+    final rawArt = widget.eintrag?.auslage.art ?? 'sonstiges';
+    final allowed = _artOptions.map((t) => t.$1).toSet();
+    _art = allowed.contains(rawArt) ? rawArt : 'sonstiges';
   }
 
   @override
@@ -185,6 +315,7 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
       id: _isEdit ? Value(widget.eintrag!.auslage.id) : const Value.absent(),
       auftragId: Value(_auftragId),
       datum: Value(_datum),
+      art: Value(_art),
       kategorie: _nt(_kat),
       beschreibung: _nt(_beschreibung),
       menge: Value(menge),
@@ -196,7 +327,7 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
     );
     try {
       await ref.read(auslagenRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -216,8 +347,13 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
     return StandardFormDialog(
       title: _isEdit ? 'Auslage bearbeiten' : 'Neue Auslage',
       saving: _saving,
-      onCancel: () => Navigator.pop(context, false),
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(auslagenRepositoryProvider)
+              .delete(widget.eintrag!.auslage.id)
+          : null,
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -230,13 +366,26 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
                 onChanged: (id) => setState(() => _auftragId = id),
               ),
               const SizedBox(height: 12),
-              Row2(
-                left: DateField(
+              Row3(
+                a: DateField(
                     label: 'Datum',
                     value: _datum,
                     onChanged: (v) =>
                         setState(() => _datum = v ?? DateTime.now())),
-                right: LabeledField(
+                b: LabeledField(
+                  'Art',
+                  DropdownButtonFormField<String>(
+                    initialValue: _art,
+                    isDense: true,
+                    items: [
+                      for (final (key, label) in _artOptions)
+                        DropdownMenuItem(value: key, child: Text(label)),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _art = v ?? 'sonstiges'),
+                  ),
+                ),
+                c: LabeledField(
                     'Kategorie', TextFormField(controller: _kat)),
               ),
               const SizedBox(height: 12),

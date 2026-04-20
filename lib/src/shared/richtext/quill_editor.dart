@@ -3,6 +3,22 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 
+/// Extrahiert den reinen Text aus einem Quill-Delta-JSON-String. Wenn der
+/// String kein Delta ist, wird er unverändert zurückgegeben — so kann
+/// bestehender Plaintext-Inhalt weiterhin gelesen werden.
+String plainTextFromDeltaJson(String? json) {
+  final raw = (json ?? '').trim();
+  if (raw.isEmpty) return '';
+  if (!raw.startsWith('[')) return raw;
+  try {
+    final decoded = jsonDecode(raw);
+    final doc = quill.Document.fromJson(decoded as List);
+    return doc.toPlainText().trimRight();
+  } catch (_) {
+    return raw;
+  }
+}
+
 /// Kompakter Quill-Editor mit Toolbar und JSON-Delta-Serialisierung.
 class RichTextEditor extends StatefulWidget {
   const RichTextEditor({
@@ -38,10 +54,24 @@ class _RichTextEditorState extends State<RichTextEditor> {
     if (json == null || json.isEmpty) {
       return quill.QuillController.basic();
     }
+    final trimmed = json.trim();
+    // Quill-Delta ist JSON-Array; alles andere wird als Plaintext interpretiert.
+    if (trimmed.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        return quill.QuillController(
+          document: quill.Document.fromJson(decoded as List),
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } catch (_) {}
+    }
+    // Legacy-Plaintext: als simple Delta mit einem Insert hochziehen.
     try {
-      final decoded = jsonDecode(json);
+      final doc = quill.Document.fromJson([
+        {'insert': trimmed.endsWith('\n') ? trimmed : '$trimmed\n'}
+      ]);
       return quill.QuillController(
-        document: quill.Document.fromJson(decoded as List),
+        document: doc,
         selection: const TextSelection.collapsed(offset: 0),
       );
     } catch (_) {
@@ -130,13 +160,23 @@ class _RichTextPreviewState extends State<RichTextPreview> {
   }
 
   quill.QuillController _build() {
-    if ((widget.deltaJson ?? '').isEmpty) {
-      return quill.QuillController.basic();
+    final raw = (widget.deltaJson ?? '').trim();
+    if (raw.isEmpty) return quill.QuillController.basic();
+    if (raw.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(raw);
+        return quill.QuillController(
+          document: quill.Document.fromJson(decoded as List),
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } catch (_) {}
     }
     try {
-      final decoded = jsonDecode(widget.deltaJson!);
+      final doc = quill.Document.fromJson([
+        {'insert': raw.endsWith('\n') ? raw : '$raw\n'}
+      ]);
       return quill.QuillController(
-        document: quill.Document.fromJson(decoded as List),
+        document: doc,
         selection: const TextSelection.collapsed(offset: 0),
       );
     } catch (_) {

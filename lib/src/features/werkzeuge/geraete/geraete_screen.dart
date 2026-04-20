@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../shared/widgets/date_field.dart';
+import '../../../shared/widgets/file_upload_section.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'geraete_repository.dart';
@@ -32,20 +33,11 @@ class GeraeteScreen extends ConsumerWidget {
               onPressed: () => _show(context, ref),
             ),
           ],
+          searchHint: 'Suche Bezeichnung, Hersteller, Seriennummer …',
+          onSearchChanged: (v) => ref
+              .read(geraeteFilterProvider.notifier)
+              .update((f) => f.copyWith(query: v)),
           filters: [
-            SizedBox(
-              width: 320,
-              child: TextField(
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Bezeichnung, Hersteller, Seriennummer',
-                ),
-                onChanged: (v) => ref
-                    .read(geraeteFilterProvider.notifier)
-                    .update((f) => f.copyWith(query: v)),
-              ),
-            ),
             Row(mainAxisSize: MainAxisSize.min, children: [
               Checkbox(
                 value: filter.nurAktiv,
@@ -68,6 +60,7 @@ class GeraeteScreen extends ConsumerWidget {
                     title: 'Noch keine Messgeräte')
                 : DataTableCard(
                     child: DataTable(
+              showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
@@ -143,12 +136,12 @@ class GeraeteScreen extends ConsumerWidget {
         content: Text('«${g.bezeichnung}» wird gelöscht.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
               child: const Text('Abbrechen')),
           FilledButton.tonal(
             style: FilledButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
             child: const Text('Löschen'),
           ),
         ],
@@ -167,22 +160,54 @@ class _GeraetForm extends ConsumerStatefulWidget {
 
 class _GeraetFormState extends ConsumerState<_GeraetForm> {
   final _formKey = GlobalKey<FormState>();
+  late final _inv = _tec(widget.geraet?.inventarNr);
   late final _bez = _tec(widget.geraet?.bezeichnung);
+  late final _kategorie = _tec(widget.geraet?.kategorie);
   late final _hersteller = _tec(widget.geraet?.hersteller);
   late final _modell = _tec(widget.geraet?.modell);
   late final _seriennr = _tec(widget.geraet?.seriennummer);
+  late final _anschaffungspreis = _tec(
+      widget.geraet?.anschaffungspreis?.toStringAsFixed(2));
   late final _messbereich = _tec(widget.geraet?.messbereich);
   late final _genauigkeit = _tec(widget.geraet?.genauigkeit);
+  late final _norm = _tec(widget.geraet?.norm);
   late final _standort = _tec(widget.geraet?.standort);
+  late final _pruefstelle = _tec(widget.geraet?.pruefstelle);
+  late final _zertifikat = _tec(widget.geraet?.zertifikatNr);
+  late final _intervall =
+      _tec(widget.geraet?.eichungIntervall?.toString());
   late final _notiz = _tec(widget.geraet?.notiz);
   DateTime? _angeschafft;
   DateTime? _kalibriertAm;
   DateTime? _naechsteKalibrierung;
+  String _status = 'aktiv';
+  String _eichpflicht = 'empfohlen';
   bool _aktiv = true;
   bool _saving = false;
+  UploadedFile? _kalibrierschein;
+  UploadedFile? _handbuch;
+  UploadedFile? _foto;
+
+  static const _kategorien = [
+    'Feuchtemessung',
+    'Thermografie',
+    'Längenmessung',
+    'Schall / Vibration',
+    'Elektrisch',
+    'Chemisch / Schimmel',
+    'Sonstiges',
+  ];
 
   TextEditingController _tec(String? v) =>
       TextEditingController(text: v ?? '');
+
+  static const _statusValues = [
+    'aktiv',
+    'reparatur',
+    'ausser_betrieb',
+    'verkauft'
+  ];
+  static const _eichpflichtValues = ['keine', 'empfohlen', 'pflicht'];
 
   @override
   void initState() {
@@ -191,13 +216,46 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
     _kalibriertAm = widget.geraet?.kalibriertAm;
     _naechsteKalibrierung = widget.geraet?.naechsteKalibrierung;
     _aktiv = widget.geraet?.aktiv ?? true;
+    final rawStatus = widget.geraet?.status ?? 'aktiv';
+    _status =
+        _statusValues.contains(rawStatus) ? rawStatus : 'aktiv';
+    final rawEich = widget.geraet?.eichpflicht ?? 'empfohlen';
+    _eichpflicht = _eichpflichtValues.contains(rawEich)
+        ? rawEich
+        : (rawEich == 'nein' ? 'keine' : 'empfohlen');
+    final g = widget.geraet;
+    if (g?.kalibrierscheinStorageUrl != null &&
+        g!.kalibrierscheinStorageUrl!.isNotEmpty) {
+      _kalibrierschein = UploadedFile(
+        storageUrl: g.kalibrierscheinStorageUrl!,
+        dateiname: g.kalibrierscheinDateiname ?? 'Kalibrierschein',
+        mimeType: g.kalibrierscheinMimeType,
+        groesse: g.kalibrierscheinGroesse,
+      );
+    }
+    if (g?.handbuchStorageUrl != null && g!.handbuchStorageUrl!.isNotEmpty) {
+      _handbuch = UploadedFile(
+        storageUrl: g.handbuchStorageUrl!,
+        dateiname: g.handbuchDateiname ?? 'Handbuch',
+        mimeType: g.handbuchMimeType,
+        groesse: g.handbuchGroesse,
+      );
+    }
+    if (g?.fotoStorageUrl != null && g!.fotoStorageUrl!.isNotEmpty) {
+      _foto = UploadedFile(
+        storageUrl: g.fotoStorageUrl!,
+        dateiname: g.fotoDateiname ?? 'Foto',
+        mimeType: 'image/jpeg',
+      );
+    }
   }
 
   @override
   void dispose() {
     for (final c in [
-      _bez, _hersteller, _modell, _seriennr, _messbereich,
-      _genauigkeit, _standort, _notiz,
+      _inv, _bez, _kategorie, _hersteller, _modell, _seriennr,
+      _anschaffungspreis, _messbereich, _genauigkeit, _norm,
+      _standort, _pruefstelle, _zertifikat, _intervall, _notiz,
     ]) {
       c.dispose();
     }
@@ -209,24 +267,46 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    final anschaffungspreis =
+        double.tryParse(_anschaffungspreis.text.replaceAll(',', '.'));
+    final intervall = int.tryParse(_intervall.text.trim());
     final companion = GeraeteCompanion(
       id: _isEdit ? Value(widget.geraet!.id) : const Value.absent(),
+      inventarNr: _nt(_inv),
       bezeichnung: Value(_bez.text.trim()),
+      kategorie: _nt(_kategorie),
       hersteller: _nt(_hersteller),
       modell: _nt(_modell),
       seriennummer: _nt(_seriennr),
       angeschafftAm: Value(_angeschafft),
+      anschaffungspreis: Value(anschaffungspreis),
+      status: Value(_status),
+      eichpflicht: Value(_eichpflicht),
       kalibriertAm: Value(_kalibriertAm),
       naechsteKalibrierung: Value(_naechsteKalibrierung),
+      eichungIntervall: Value(intervall),
+      pruefstelle: _nt(_pruefstelle),
+      zertifikatNr: _nt(_zertifikat),
       messbereich: _nt(_messbereich),
       genauigkeit: _nt(_genauigkeit),
+      norm: _nt(_norm),
       standort: _nt(_standort),
       aktiv: Value(_aktiv),
       notiz: _nt(_notiz),
+      kalibrierscheinStorageUrl: Value(_kalibrierschein?.storageUrl),
+      kalibrierscheinDateiname: Value(_kalibrierschein?.dateiname),
+      kalibrierscheinMimeType: Value(_kalibrierschein?.mimeType),
+      kalibrierscheinGroesse: Value(_kalibrierschein?.groesse),
+      handbuchStorageUrl: Value(_handbuch?.storageUrl),
+      handbuchDateiname: Value(_handbuch?.dateiname),
+      handbuchMimeType: Value(_handbuch?.mimeType),
+      handbuchGroesse: Value(_handbuch?.groesse),
+      fotoStorageUrl: Value(_foto?.storageUrl),
+      fotoDateiname: Value(_foto?.dateiname),
     );
     try {
       await ref.read(geraeteRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -246,8 +326,13 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
     return StandardFormDialog(
       title: _isEdit ? 'Gerät bearbeiten' : 'Neues Gerät',
       saving: _saving,
-      onCancel: () => Navigator.pop(context, false),
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(geraeteRepositoryProvider)
+              .delete(widget.geraet!.id)
+          : null,
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -255,12 +340,55 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LabeledField(
-                'Bezeichnung',
-                TextFormField(
-                  controller: _bez,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Erforderlich' : null,
+              Row2(
+                flex: const (1, 3),
+                left: LabeledField(
+                    'Inventar-Nr.', TextFormField(controller: _inv)),
+                right: LabeledField(
+                  'Bezeichnung',
+                  TextFormField(
+                    controller: _bez,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Erforderlich'
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row2(
+                left: LabeledField(
+                  'Kategorie',
+                  DropdownButtonFormField<String>(
+                    initialValue: _kategorien.contains(_kategorie.text)
+                        ? _kategorie.text
+                        : null,
+                    isDense: true,
+                    items: [
+                      for (final k in _kategorien)
+                        DropdownMenuItem(value: k, child: Text(k)),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _kategorie.text = v ?? ''),
+                  ),
+                ),
+                right: LabeledField(
+                  'Status',
+                  DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    isDense: true,
+                    items: const [
+                      DropdownMenuItem(value: 'aktiv', child: Text('aktiv')),
+                      DropdownMenuItem(
+                          value: 'reparatur', child: Text('in Reparatur')),
+                      DropdownMenuItem(
+                          value: 'ausser_betrieb',
+                          child: Text('außer Betrieb')),
+                      DropdownMenuItem(
+                          value: 'verkauft', child: Text('verkauft')),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _status = v ?? 'aktiv'),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -277,12 +405,35 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
                 right: LabeledField(
                     'Standort', TextFormField(controller: _standort)),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              Text('Eichung / Kalibrierung',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
               Row2(
                 left: LabeledField(
-                    'Messbereich', TextFormField(controller: _messbereich)),
-                right: LabeledField('Genauigkeit',
-                    TextFormField(controller: _genauigkeit)),
+                  'Eichpflicht',
+                  DropdownButtonFormField<String>(
+                    initialValue: _eichpflicht,
+                    isDense: true,
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'keine', child: Text('keine')),
+                      DropdownMenuItem(
+                          value: 'empfohlen', child: Text('empfohlen')),
+                      DropdownMenuItem(
+                          value: 'pflicht', child: Text('Pflicht')),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _eichpflicht = v ?? 'empfohlen'),
+                  ),
+                ),
+                right: LabeledField(
+                  'Intervall (Monate)',
+                  TextFormField(
+                    controller: _intervall,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               Row3(
@@ -292,7 +443,7 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
                   onChanged: (v) => setState(() => _angeschafft = v),
                 ),
                 b: DateField(
-                  label: 'Kalibriert am',
+                  label: 'Letzte Kalibrierung',
                   value: _kalibriertAm,
                   onChanged: (v) => setState(() => _kalibriertAm = v),
                 ),
@@ -302,6 +453,38 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
                   onChanged: (v) =>
                       setState(() => _naechsteKalibrierung = v),
                 ),
+              ),
+              const SizedBox(height: 12),
+              Row2(
+                left: LabeledField(
+                  'Anschaffungspreis (€)',
+                  TextFormField(
+                    controller: _anschaffungspreis,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                  ),
+                ),
+                right: LabeledField(
+                    'Prüfstelle / Labor',
+                    TextFormField(controller: _pruefstelle)),
+              ),
+              const SizedBox(height: 12),
+              Row2(
+                left: LabeledField('Zertifikats-Nr.',
+                    TextFormField(controller: _zertifikat)),
+                right: LabeledField(
+                    'Norm / Messverfahren',
+                    TextFormField(controller: _norm)),
+              ),
+              const SizedBox(height: 16),
+              Text('Technische Angaben',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Row2(
+                left: LabeledField(
+                    'Messbereich', TextFormField(controller: _messbereich)),
+                right: LabeledField('Genauigkeit',
+                    TextFormField(controller: _genauigkeit)),
               ),
               const SizedBox(height: 12),
               LabeledField(
@@ -316,6 +499,35 @@ class _GeraetFormState extends ConsumerState<_GeraetForm> {
                     onChanged: (v) => setState(() => _aktiv = v ?? true)),
                 const Text('Aktiv / im Einsatz'),
               ]),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 8),
+              FileUploadSection(
+                title: 'Kalibrierschein',
+                storagePrefix: 'geraete/kalibrierscheine',
+                kind: UploadKind.pdf,
+                file: _kalibrierschein,
+                hint:
+                    'PDF des letzten Kalibrierscheins / Zertifikats.',
+                onChanged: (f) => setState(() => _kalibrierschein = f),
+              ),
+              const SizedBox(height: 16),
+              FileUploadSection(
+                title: 'Bedienungsanleitung / Handbuch',
+                storagePrefix: 'geraete/handbuecher',
+                kind: UploadKind.pdf,
+                file: _handbuch,
+                onChanged: (f) => setState(() => _handbuch = f),
+              ),
+              const SizedBox(height: 16),
+              FileUploadSection(
+                title: 'Geräte-Foto',
+                storagePrefix: 'geraete/fotos',
+                kind: UploadKind.image,
+                file: _foto,
+                hint: 'Produktbild des Geräts.',
+                onChanged: (f) => setState(() => _foto = f),
+              ),
             ],
           ),
         ),

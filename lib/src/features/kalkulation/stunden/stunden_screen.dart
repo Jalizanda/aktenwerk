@@ -7,12 +7,16 @@ import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../features/akten/partner/partner_repository.dart';
 import '../../../features/system/benutzer/benutzer_repository.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
+import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'stunden_repository.dart';
+
+final stundenQueryProvider = StateProvider<String>((ref) => '');
 
 class StundenScreen extends ConsumerWidget {
   const StundenScreen({super.key});
@@ -21,6 +25,24 @@ class StundenScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(stundenListProvider);
     final filter = ref.watch(stundenFilterProvider);
+    final query = ref.watch(stundenQueryProvider).trim().toLowerCase();
+
+    List<StundenWithAuftrag> applyQuery(List<StundenWithAuftrag> items) {
+      if (query.isEmpty) return items;
+      return items.where((s) {
+        final parts = [
+          s.stunde.taetigkeit,
+          s.stunde.notiz,
+          s.auftrag?.aktenzeichen,
+          s.auftrag?.betreff,
+          s.auftrag?.bezeichnung,
+        ]
+            .whereType<String>()
+            .map((v) => v.toLowerCase())
+            .join(' ');
+        return parts.contains(query);
+      }).toList();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -29,6 +51,9 @@ class StundenScreen extends ConsumerWidget {
           icon: Icons.schedule_outlined,
           title: 'Stunden',
           subtitle: 'Zeiterfassung pro Auftrag',
+          searchHint: 'Suche Tätigkeit, Notiz, Aktenzeichen, Betreff …',
+          onSearchChanged: (v) =>
+              ref.read(stundenQueryProvider.notifier).state = v,
           actions: [
             FilledButton.icon(
               icon: const Icon(Icons.add),
@@ -59,16 +84,23 @@ class StundenScreen extends ConsumerWidget {
         const Divider(height: 1),
         const _TimerBar(),
         const Divider(height: 1),
+        async.maybeWhen(
+          data: (items) => _AuftragSummary(items: applyQuery(items)),
+          orElse: () => const SizedBox.shrink(),
+        ),
         Expanded(
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
-            data: (items) => items.isEmpty
+            data: (all) {
+              final items = applyQuery(all);
+              return items.isEmpty
                 ? const EmptyListState(
                     icon: Icons.schedule_outlined,
                     title: 'Keine Zeit-Buchungen')
                 : DataTableCard(
                     child: DataTable(
+              showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
@@ -88,7 +120,8 @@ class StundenScreen extends ConsumerWidget {
                         for (final s in items) _row(context, ref, s),
                       ],
                     ),
-                  ),
+                  );
+            },
           ),
         ),
       ],
@@ -140,10 +173,143 @@ class StundenScreen extends ConsumerWidget {
   }
 }
 
+/// Öffnet den Stunden-Editor — auch aus anderen Modulen (z.B. Akten-Tab)
+/// zum direkten Bearbeiten eines Eintrags aufrufbar.
+Future<void> showStundenEditor(BuildContext context,
+    {StundenWithAuftrag? eintrag}) async {
+  await showDialog(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => _StundenForm(eintrag: eintrag),
+  );
+}
+
 String _formatDuration(int minuten) {
   final h = (minuten / 60).floor();
   final m = minuten % 60;
   return '${h.toString()}:${m.toString().padLeft(2, '0')}';
+}
+
+/// Summary-Tabelle pro Auftrag: Akt.-Zeichen, Auftraggeber, Anzahl Einträge,
+/// Stunden, Netto-Betrag — plus Gesamt-KPI in einer Kopfzeile.
+class _AuftragSummary extends StatelessWidget {
+  const _AuftragSummary({required this.items});
+  final List<StundenWithAuftrag> items;
+
+  static final _money =
+      NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    final groups = <int?, _Agg>{};
+    for (final s in items) {
+      final key = s.stunde.auftragId;
+      final agg = groups.putIfAbsent(key, () => _Agg(auftrag: s.auftrag));
+      agg.minuten += s.stunde.minuten;
+      agg.betrag += (s.stunde.minuten / 60.0) * (s.stunde.satz ?? 0);
+      agg.count += 1;
+    }
+    final gesamtMin =
+        items.fold<int>(0, (a, s) => a + s.stunde.minuten);
+    final gesamtEur =
+        items.fold<double>(0, (a, s) => a + (s.stunde.minuten / 60.0) * (s.stunde.satz ?? 0));
+
+    return ExpansionTile(
+      title: Row(
+        children: [
+          const Icon(Icons.summarize_outlined, size: 18),
+          const SizedBox(width: 8),
+          Text('Übersicht pro Auftrag',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Wrap(
+              spacing: 16,
+              children: [
+                _mini('Einträge', '${items.length}'),
+                _mini('Stunden',
+                    '${(gesamtMin / 60).toStringAsFixed(1)} h'),
+                _mini('Betrag', _money.format(gesamtEur)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      tilePadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+      childrenPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DataTable(
+              showCheckboxColumn: false,
+            headingRowColor: WidgetStateProperty.all(
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
+            columns: const [
+              DataColumn(label: Text('Aktenzeichen')),
+              DataColumn(label: Text('Auftraggeber')),
+              DataColumn(label: Text('Betreff')),
+              DataColumn(label: Text('Einträge'), numeric: true),
+              DataColumn(label: Text('Stunden'), numeric: true),
+              DataColumn(label: Text('Betrag €'), numeric: true),
+            ],
+            rows: [
+              for (final g in groups.values)
+                DataRow(cells: [
+                  DataCell(Text(g.auftrag?.aktenzeichen ?? '—',
+                      style: const TextStyle(
+                          fontFamily: 'monospace', fontSize: 12))),
+                  DataCell(Text('—')),
+                  DataCell(SizedBox(
+                      width: 240,
+                      child: Text(g.auftrag?.betreff ?? '',
+                          overflow: TextOverflow.ellipsis))),
+                  DataCell(Text('${g.count}')),
+                  DataCell(Text('${(g.minuten / 60).toStringAsFixed(2)} h')),
+                  DataCell(Text(_money.format(g.betrag),
+                      style:
+                          const TextStyle(fontWeight: FontWeight.w600))),
+                ]),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mini(String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 10,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+                color: BadgeColors.slateFg)),
+        const SizedBox(width: 6),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+class _Agg {
+  _Agg({this.auftrag});
+  final AuftraegeData? auftrag;
+  int minuten = 0;
+  double betrag = 0;
+  int count = 0;
 }
 
 class _TimerBar extends ConsumerStatefulWidget {
@@ -304,6 +470,7 @@ class _StundenForm extends ConsumerStatefulWidget {
 class _StundenFormState extends ConsumerState<_StundenForm> {
   final _formKey = GlobalKey<FormState>();
   int? _auftragId;
+  int? _partnerId;
   DateTime _datum = DateTime.now();
   late final _minuten = TextEditingController(
       text: widget.eintrag?.stunde.minuten.toString() ?? '60');
@@ -320,6 +487,7 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
   void initState() {
     super.initState();
     _auftragId = widget.eintrag?.stunde.auftragId;
+    _partnerId = widget.eintrag?.stunde.partnerId;
     _datum = widget.eintrag?.stunde.datum ?? DateTime.now();
     _abgerechnet = widget.eintrag?.stunde.abgerechnet ?? false;
     _prefillSatz();
@@ -354,6 +522,7 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
     final companion = StundenCompanion(
       id: _isEdit ? Value(widget.eintrag!.stunde.id) : const Value.absent(),
       auftragId: Value(_auftragId),
+      partnerId: Value(_partnerId),
       datum: Value(_datum),
       minuten: Value(minuten),
       satz: Value(satz),
@@ -363,7 +532,7 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
     );
     try {
       await ref.read(stundenRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -384,8 +553,13 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
       title: _isEdit ? 'Zeit-Buchung bearbeiten' : 'Neue Zeit-Buchung',
       saving: _saving,
       maxHeight: 620,
-      onCancel: () => Navigator.pop(context, false),
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(stundenRepositoryProvider)
+              .delete(widget.eintrag!.stunde.id)
+          : null,
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -427,6 +601,11 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
               LabeledField(
                   'Tätigkeit', TextFormField(controller: _taetigkeit)),
               const SizedBox(height: 12),
+              _PartnerDropdown(
+                partnerId: _partnerId,
+                onChanged: (v) => setState(() => _partnerId = v),
+              ),
+              const SizedBox(height: 12),
               LabeledField(
                   'Notiz',
                   TextFormField(
@@ -441,6 +620,39 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
               ]),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PartnerDropdown extends ConsumerWidget {
+  const _PartnerDropdown({required this.partnerId, required this.onChanged});
+  final int? partnerId;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(partnerListProvider);
+    return LabeledField(
+      'Durch Partner/Subunternehmer (optional — zählt dann als Fremdleistung)',
+      async.when(
+        loading: () => const LinearProgressIndicator(),
+        error: (e, _) => Text('Partner laden fehlgeschlagen: $e'),
+        data: (items) => DropdownButtonFormField<int?>(
+          initialValue: items.any((p) => p.id == partnerId) ? partnerId : null,
+          isDense: true,
+          items: [
+            const DropdownMenuItem<int?>(
+                value: null, child: Text('— Eigenleistung —')),
+            for (final p in items)
+              DropdownMenuItem<int?>(
+                value: p.id,
+                child: Text(
+                    '${p.firma}${(p.fachgebiet ?? "").isEmpty ? "" : " · ${p.fachgebiet}"}'),
+              ),
+          ],
+          onChanged: onChanged,
         ),
       ),
     );

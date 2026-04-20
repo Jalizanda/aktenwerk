@@ -3,23 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auth_service.dart';
 import 'firebase_init.dart';
+import 'org_service.dart';
 
-/// Dünne Abstraktion über Firestore mit Benutzer-gebundenem Pfad.
+/// Dünne Abstraktion über Firestore mit **Organisations**-gebundenem Pfad.
 ///
-/// Jede Entität liegt unter `users/{uid}/{collection}/{id}` – damit sind die
-/// Security-Rules einfach und Multi-Device-Sync pro Benutzer möglich.
+/// Jede Entität liegt unter `organizations/{orgId}/{collection}/{id}`.
+/// Security-Rules stellen sicher, dass nur Mitglieder der Org Zugriff haben.
 class FirestoreService {
-  FirestoreService(this._auth);
+  FirestoreService(this._auth, this._currentOrgId);
   final AuthService _auth;
+  final String? _currentOrgId;
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
-  bool get enabled => FirebaseBootstrap.isReady;
-  String? get _uid => _auth.currentUser?.uid;
+  bool get enabled =>
+      FirebaseBootstrap.isReady && _currentOrgId != null && _auth.currentUser != null;
 
-  CollectionReference<Map<String, dynamic>>? userCollection(String name) {
-    final uid = _uid;
-    if (!enabled || uid == null) return null;
-    return _db.collection('users').doc(uid).collection(name);
+  String? get currentOrgId => _currentOrgId;
+
+  CollectionReference<Map<String, dynamic>>? orgCollection(String name) {
+    final orgId = _currentOrgId;
+    if (!enabled || orgId == null) return null;
+    return _db.collection('organizations').doc(orgId).collection(name);
   }
 
   Future<void> upsert(
@@ -27,19 +31,20 @@ class FirestoreService {
     String id,
     Map<String, dynamic> data,
   ) async {
-    final col = userCollection(collection);
+    final col = orgCollection(collection);
     if (col == null) return;
     await col.doc(id).set(
       {
         ...data,
         '_updatedAt': FieldValue.serverTimestamp(),
+        '_updatedByUid': _auth.currentUser?.uid,
       },
       SetOptions(merge: true),
     );
   }
 
   Future<void> delete(String collection, String id) async {
-    final col = userCollection(collection);
+    final col = orgCollection(collection);
     if (col == null) return;
     await col.doc(id).delete();
   }
@@ -48,7 +53,7 @@ class FirestoreService {
     String collection, {
     int? limit,
   }) {
-    final col = userCollection(collection);
+    final col = orgCollection(collection);
     if (col == null) return const Stream.empty();
     var q = col.orderBy('_updatedAt', descending: true);
     if (limit != null) q = q.limit(limit);
@@ -62,5 +67,6 @@ class FirestoreService {
 }
 
 final firestoreServiceProvider = Provider<FirestoreService>((ref) {
-  return FirestoreService(ref.watch(authServiceProvider));
+  final orgId = ref.watch(currentOrgIdProvider).valueOrNull;
+  return FirestoreService(ref.watch(authServiceProvider), orgId);
 });

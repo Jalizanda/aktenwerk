@@ -5,5 +5,137 @@
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "hosting": [
+    {
+      "target": "app",
+      "public": "build/web",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/assets/**",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          ]
+        },
+        {
+          "source": "/canvaskit/**",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          ]
+        },
+        {
+          "source": "/icons/**",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=86400" }
+          ]
+        },
+        {
+          "source": "/main.dart.js",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/flutter.js",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/flutter_bootstrap.js",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/flutter_service_worker.js",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/version.json",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/manifest.json",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          ]
+        },
+        {
+          "source": "/",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+            { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+          ]
+        },
+        {
+          "source": "**/*.html",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+            { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "marketing",
+      "public": "website",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false,
+      "headers": [
+        {
+          "source": "**/*.@(js|css|woff2|woff|ttf|svg|png|jpg|jpeg|webp)",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=604800" }
+          ]
+        },
+        {
+          "source": "**/*.html",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=3600" }
+          ]
+        }
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "aktenwerk-88c35",
+          "appId": "1:370251812666:android:33666dbe304b52a6508a03",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "aktenwerk-88c35",
+          "configurations": {
+            "android": "1:370251812666:android:33666dbe304b52a6508a03",
+            "web": "1:370251812666:web:09513da5a7d43f9b508a03"
+          }
+        }
+      }
+    }
   }
 }

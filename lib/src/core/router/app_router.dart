@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/akten/akte/akte_screen.dart';
+import '../../features/akten/akte/akten_screen.dart';
 import '../../features/akten/auftraege/auftraege_screen.dart';
+import '../../features/akten/dokumente/dokumente_screen.dart';
 import '../../features/akten/eingangsrechnungen/eingangsrechnungen_screen.dart';
 import '../../features/akten/erlaeuterungen/erlaeuterungen_screen.dart';
 import '../../features/akten/gutachten/gutachten_screen.dart';
@@ -21,12 +24,16 @@ import '../../features/kalkulation/kalkulation/kalkulation_screen.dart';
 import '../../features/kalkulation/stunden/stunden_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/system/benutzer/benutzer_screen.dart';
+import '../../features/system/admin/admin_screen.dart';
 import '../../features/system/einstellungen/einstellungen_screen.dart';
+import '../../features/system/org/organisation_screen.dart';
 import '../../features/werkzeuge/fotos/fotos_screen.dart';
 import '../../features/werkzeuge/geraete/geraete_screen.dart';
 import '../../features/werkzeuge/jveg_rechner/jveg_rechner_screen.dart';
 import '../../features/werkzeuge/normen/normen_screen.dart';
+import '../../features/akten/partner/partner_screen.dart';
 import '../../features/werkzeuge/ortstermin/ortstermin_screen.dart';
+import '../../features/werkzeuge/serienbrief/serienbrief_screen.dart';
 import '../../features/werkzeuge/termine/termine_screen.dart';
 import '../../features/werkzeuge/textbausteine/textbausteine_screen.dart';
 import '../../features/werkzeuge/wiedervorlagen/wiedervorlagen_screen.dart';
@@ -40,6 +47,13 @@ GoRouter buildRouter() {
         routes: [
           GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
           GoRoute(path: '/kunden', builder: (_, _) => const KundenScreen()),
+          GoRoute(path: '/akten', builder: (_, _) => const AktenScreen()),
+          GoRoute(
+              path: '/akte/:id',
+              builder: (_, state) => AkteScreen(
+                    auftragId:
+                        int.parse(state.pathParameters['id'] ?? '0'),
+                  )),
           GoRoute(
               path: '/auftraege',
               builder: (_, _) => const AuftraegeScreen()),
@@ -55,6 +69,9 @@ GoRouter buildRouter() {
           GoRoute(
               path: '/eingangsrechnungen',
               builder: (_, _) => const EingangsrechnungenScreen()),
+          GoRoute(
+              path: '/dokumente',
+              builder: (_, _) => const DokumenteScreen()),
           GoRoute(
               path: '/lieferanten',
               builder: (_, _) => const LieferantenScreen()),
@@ -83,6 +100,10 @@ GoRouter buildRouter() {
           GoRoute(
               path: '/ortstermin',
               builder: (_, _) => const OrtsterminScreen()),
+          GoRoute(
+              path: '/serienbrief',
+              builder: (_, _) => const SerienbriefScreen()),
+          GoRoute(path: '/partner', builder: (_, _) => const PartnerScreen()),
           GoRoute(path: '/opos', builder: (_, _) => const OposScreen()),
           GoRoute(path: '/steuer', builder: (_, _) => const SteuerScreen()),
           GoRoute(
@@ -96,6 +117,10 @@ GoRouter buildRouter() {
               builder: (_, _) => const EinstellungenScreen()),
           GoRoute(
               path: '/benutzer', builder: (_, _) => const BenutzerScreen()),
+          GoRoute(
+              path: '/organisation',
+              builder: (_, _) => const OrganisationScreen()),
+          GoRoute(path: '/admin', builder: (_, _) => const AdminScreen()),
         ],
       ),
     ],

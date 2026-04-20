@@ -1,13 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
-/// Initialisiert Firebase für alle Plattformen.
-///
-/// Sobald `flutterfire configure` gelaufen ist, existiert
-/// `lib/firebase_options.dart` und enthält die plattform­spezifische
-/// Konfiguration. Solange die Datei fehlt oder der Aufruf scheitert,
-/// läuft die App trotzdem weiter – Cloud-Features werden dann einfach
-/// nicht benutzt.
+import '../../../firebase_options.dart';
+
+/// Initialisiert Firebase für alle Plattformen mit den von
+/// `flutterfire configure` erzeugten Optionen.
 class FirebaseBootstrap {
   FirebaseBootstrap._();
 
@@ -20,15 +17,9 @@ class FirebaseBootstrap {
   static Future<void> init() async {
     if (_ready) return;
     try {
-      // Dynamischer Import via deferred library ist in Dart nicht nötig –
-      // wir versuchen einfach, die Default-App zu initialisieren.
-      // `DefaultFirebaseOptions.currentPlatform` kann hier noch nicht
-      // hart referenziert werden, solange die Datei fehlen darf, daher
-      // greifen wir auf `Firebase.initializeApp` ohne Options zurück
-      // – das funktioniert auf iOS/Android, wenn die native Plist/
-      // google-services.json vorhanden sind, und schlägt andernfalls
-      // kontrolliert fehl.
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       _ready = true;
     } catch (e, st) {
       _ready = false;

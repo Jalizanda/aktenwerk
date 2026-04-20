@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../data/database/app_database.dart';
 import 'benutzer_repository.dart';
@@ -48,10 +52,20 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
   late final _bic = _tec(widget.benutzer?.bic);
   late final _bank = _tec(widget.benutzer?.bank);
   late final _bestellungsText = _tec(widget.benutzer?.bestellungsText);
+  late final _gruss = _tec(widget.benutzer?.grussformel);
   late final _standardSatz =
       _tec(widget.benutzer?.standardStundensatz?.toStringAsFixed(2));
+  String? _profilBildBase64;
+  String? _profilBildMime;
 
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _profilBildBase64 = widget.benutzer?.profilBildBase64;
+    _profilBildMime = widget.benutzer?.profilBildMime;
+  }
 
   TextEditingController _tec(String? v) => TextEditingController(text: v ?? '');
 
@@ -62,7 +76,7 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
       _strasse, _plz, _ort,
       _telefon, _mobil, _email, _website,
       _steuerNr, _ustId, _iban, _bic, _bank,
-      _bestellungsText, _standardSatz,
+      _bestellungsText, _gruss, _standardSatz,
     ]) {
       c.dispose();
     }
@@ -93,6 +107,9 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
       bic: _nt(_bic),
       bank: _nt(_bank),
       bestellungsText: _nt(_bestellungsText),
+      grussformel: _nt(_gruss),
+      profilBildBase64: Value(_profilBildBase64),
+      profilBildMime: Value(_profilBildMime),
       standardStundensatz:
           satz == null ? const Value(null) : Value(satz),
     );
@@ -111,6 +128,46 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickProfilBild() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final f = result.files.first;
+    if (f.bytes == null || f.size > 1 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Max. 1 MB — bitte kleinere Datei wählen.')));
+      }
+      return;
+    }
+    setState(() {
+      _profilBildBase64 = base64Encode(f.bytes!);
+      _profilBildMime = _mimeForExt(f.extension);
+    });
+  }
+
+  String _mimeForExt(String? ext) {
+    switch ((ext ?? '').toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'svg':
+        return 'image/svg+xml';
+      default:
+        return 'image/png';
     }
   }
 
@@ -265,12 +322,108 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
                           maxLines: 6,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _L(
+                        'Persönliche Grußformel',
+                        TextFormField(
+                          controller: _gruss,
+                          minLines: 2,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Mit freundlichen Grüßen\n{Vorname} {Nachname}',
+                          ),
+                        ),
+                      ),
+                    ]),
+                    _Section('Profilbild', children: [
+                      _AvatarPanel(
+                        base64: _profilBildBase64,
+                        mime: _profilBildMime,
+                        onPick: _pickProfilBild,
+                        onRemove: () => setState(() {
+                          _profilBildBase64 = null;
+                          _profilBildMime = null;
+                        }),
+                      ),
                     ]),
                   ],
                 ),
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AvatarPanel extends StatelessWidget {
+  const _AvatarPanel({
+    required this.base64,
+    required this.mime,
+    required this.onPick,
+    required this.onRemove,
+  });
+  final String? base64;
+  final String? mime;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final has = base64 != null && base64!.isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: has
+              ? (mime == 'image/svg+xml'
+                  ? SvgPicture.memory(base64Decode(base64!),
+                      fit: BoxFit.cover)
+                  : Image.memory(base64Decode(base64!), fit: BoxFit.cover))
+              : Icon(Icons.person_outline,
+                  size: 44,
+                  color: Theme.of(context).colorScheme.outline),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                has
+                    ? 'Profilbild hinterlegt (${mime ?? "image"})'
+                    : 'Kein Profilbild',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'PNG, JPG oder SVG · quadratisch, max. 1 MB.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        if (has)
+          IconButton(
+            tooltip: 'Profilbild entfernen',
+            icon: const Icon(Icons.delete_outline, size: 18),
+            onPressed: onRemove,
+          ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.upload_file, size: 16),
+          label: Text(has ? 'Ersetzen' : 'Profilbild wählen'),
+          onPressed: onPick,
         ),
       ],
     );

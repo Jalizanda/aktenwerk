@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/form_widgets.dart';
 import '../kunden/kunden_repository.dart';
 import 'auftraege_repository.dart';
 
@@ -65,34 +66,36 @@ class _AuftragPickerFieldState extends ConsumerState<AuftragPickerField> {
 
   @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: widget.label,
-        isDense: true,
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_resolved != null)
+    return LabeledField(
+      widget.label,
+      InputDecorator(
+        decoration: InputDecoration(
+          isDense: true,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_resolved != null)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => widget.onChanged(null),
+                  tooltip: 'Entfernen',
+                ),
               IconButton(
-                icon: const Icon(Icons.clear, size: 18),
-                onPressed: () => widget.onChanged(null),
-                tooltip: 'Entfernen',
+                icon: const Icon(Icons.search, size: 18),
+                onPressed: _open,
+                tooltip: 'Suchen',
               ),
-            IconButton(
-              icon: const Icon(Icons.search, size: 18),
-              onPressed: _open,
-              tooltip: 'Suchen',
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: _open,
-        child: _resolved == null
-            ? Text('Auswählen …',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant))
-            : Text(_display(_resolved!), overflow: TextOverflow.ellipsis),
+        child: InkWell(
+          onTap: _open,
+          child: _resolved == null
+              ? Text('Auswählen …',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant))
+              : Text(_display(_resolved!), overflow: TextOverflow.ellipsis),
+        ),
       ),
     );
   }
@@ -178,7 +181,7 @@ class _AuftragPickerDialogState
                           AuftragStatusX.fromDb(r.auftrag.status).label,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        onTap: () => Navigator.pop(context, r),
+                        onTap: () => Navigator.of(context, rootNavigator: true).pop(r),
                       );
                     },
                   );

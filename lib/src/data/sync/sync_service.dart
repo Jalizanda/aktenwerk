@@ -19,6 +19,9 @@ class SyncService {
   final AppDatabase _db;
   final FirestoreService _fs;
 
+  /// True, wenn Firebase initialisiert und ein User angemeldet ist.
+  bool get enabled => _fs.enabled;
+
   Future<void> syncAll() async {
     if (!_fs.enabled) return;
     await pushKunden();
@@ -36,8 +39,50 @@ class SyncService {
     await pushFortbildungen();
     await pushGutachten();
     await pushAnschreiben();
+    await pushFotos();
+    await pushDokumente();
     await pushBenutzer();
     await pushEinstellungen();
+  }
+
+  /// Dokumente (PDFs/Word/…) werden nur als Metadaten gespiegelt;
+  /// der eigentliche Datei-Inhalt liegt in Firebase Storage (storageUrl).
+  Future<void> pushDokumente() async {
+    final rows = await _db.select(_db.dokumente).get();
+    for (final r in rows) {
+      await _fs.upsert('dokumente', r.id.toString(), {
+        'auftragId': r.auftragId,
+        'titel': r.titel,
+        'beschreibung': r.beschreibung,
+        'kategorie': r.kategorie,
+        'mimeType': r.mimeType,
+        'dateigroesse': r.dateigroesse,
+        'storageUrl': r.storageUrl,
+        'storagePfad': r.storagePfad,
+        'datum': r.datum.toIso8601String(),
+      });
+    }
+  }
+
+  /// Fotos werden nur mit Metadaten in Firestore abgelegt — die Bilddaten
+  /// selbst liegen in Firebase Storage (storageUrl).
+  Future<void> pushFotos() async {
+    final rows = await _db.select(_db.fotos).get();
+    for (final r in rows) {
+      await _fs.upsert('fotos', r.id.toString(), {
+        'auftragId': r.auftragId,
+        'gutachtenId': r.gutachtenId,
+        'titel': r.titel,
+        'beschreibung': r.beschreibung,
+        'mimeType': r.mimeType,
+        'storageUrl': r.storageUrl,
+        'storagePfad': r.storagePfad,
+        'aufnahmeAm': r.aufnahmeAm?.toIso8601String(),
+        'lat': r.lat,
+        'lon': r.lon,
+        'reihenfolge': r.reihenfolge,
+      });
+    }
   }
 
   Future<void> pushKunden() async {
@@ -339,7 +384,7 @@ class SyncService {
   /// Minimaler Stub für Kunden – dient als Blaupause für weitere Entitäten.
   Future<int> pullKunden() async {
     if (!_fs.enabled) return 0;
-    final col = _fs.userCollection('kunden');
+    final col = _fs.orgCollection('kunden');
     if (col == null) return 0;
     final snap = await col.get();
     var count = 0;

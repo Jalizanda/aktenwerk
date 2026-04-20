@@ -18,10 +18,28 @@ class Lieferanten extends Table {
 
   TextColumn get kategorie => text().nullable()();
   TextColumn get kundennummer => text().nullable()();
-  TextColumn get ustId => text().nullable()();
 
+  /// DATEV-Kreditorennummer (SKR03/SKR04: 70000–99999).
+  TextColumn get kreditornummer => text().nullable()();
+
+  TextColumn get ustId => text().nullable()();
+  TextColumn get steuerNr => text().nullable()();
+
+  /// Standard-Zahlungsziel in Tagen (bei neuer Eingangsrechnung vorbefüllt).
+  IntColumn get zahlungszielTage =>
+      integer().withDefault(const Constant(14))();
+  /// Zahlungsweise: `ueberweisung` | `lastschrift` | `kreditkarte` | `paypal`.
+  TextColumn get zahlungsweise =>
+      text().withDefault(const Constant('ueberweisung'))();
+
+  TextColumn get bank => text().nullable()();
+  TextColumn get kontoinhaber => text().nullable()();
   TextColumn get iban => text().nullable()();
   TextColumn get bic => text().nullable()();
+
+  /// SEPA-Mandat (bei Lastschrift).
+  TextColumn get glaeubigerId => text().nullable()();
+  TextColumn get mandatRef => text().nullable()();
 
   TextColumn get notiz => text().nullable()();
   TextColumn get extras => text().nullable()();

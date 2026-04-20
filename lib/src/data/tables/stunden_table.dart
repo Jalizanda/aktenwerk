@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'auftraege_table.dart';
+import 'partner_table.dart';
 
 /// Stunden-Buchungen pro Auftrag.
 class Stunden extends Table {
@@ -7,6 +8,11 @@ class Stunden extends Table {
 
   IntColumn get auftragId =>
       integer().nullable().references(Auftraege, #id, onDelete: KeyAction.cascade)();
+
+  /// Partner/Subunternehmer, der die Leistung erbracht hat. Wenn gesetzt
+  /// zählt die Buchung als Fremdleistung (nicht in eigene Stunden-KPIs).
+  IntColumn get partnerId =>
+      integer().nullable().references(Partner, #id, onDelete: KeyAction.setNull)();
 
   DateTimeColumn get datum => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get beginn => dateTime().nullable()();

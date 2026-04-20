@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aktenwerk — Die Sachverständigen-Suite für Bausachverständige</title>
+<meta name="description" content="Aktenwerk ist die komplette Akten-, Gutachten- und Abrechnungssoftware für Bausachverständige. Multi-Mandant, Cloud-Sync, SEPA-QR, JVEG-Rechner, Textbausteine nach Zöller, DIBt-Lastzonen, 11-Tab-Auftragsakte, Admin-Bereich." />
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<meta name="theme-color" content="#0f172a">
+
+<meta property="og:title" content="Aktenwerk — Sachverständigen-Suite">
+<meta property="og:description" content="Akten, Gutachten, Rechnungen, JVEG, SEPA-QR — alles in einer modernen Cloud-App für Bausachverständige.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://aktenwerk.app">
+</head>
+<body>
+
+<!-- ======== NAVBAR ======== -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a href="#top" class="nav-brand">
+      <img src="logo.svg" alt="Aktenwerk" height="42">
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Funktionen</a>
+      <a href="#module">Module</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#zielgruppe">Zielgruppe</a>
+      <a href="#preise">Preise</a>
+      <a href="#faq">FAQ</a>
+      <a href="#kontakt">Kontakt</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="https://app.aktenwerk.app" class="btn btn-ghost">Anmelden</a>
+      <a href="https://app.aktenwerk.app" class="btn btn-primary">Registrieren</a>
+    </div>
+  </div>
+</header>
+
+<!-- ======== HERO ======== -->
+<section id="top" class="hero">
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <div class="hero-eyebrow">Sachverständigen-Suite · Cloud · Multi-Mandant</div>
+      <h1>Aktenwerk.<br><span class="accent">Die Software für Bausachverständige.</span></h1>
+      <p class="hero-sub">
+        Akten, Gutachten, Rechnungen nach JVEG, Termine, Textbausteine, Kalkulation und Fotodokumentation —
+        alles in einer modernen Cloud-App. Entwickelt für öffentlich bestellte Sachverständige,
+        Bauingenieure und Energieberater, die ihre Zeit lieber mit Gutachten verbringen als mit Word.
+      </p>
+      <div class="hero-ctas">
+        <a href="https://app.aktenwerk.app" class="btn btn-primary btn-lg">Jetzt kostenlos registrieren</a>
+        <a href="#features" class="btn btn-outline btn-lg">Funktionen ansehen</a>
+      </div>
+      <div class="hero-bullets">
+        <div><span class="dot"></span> <b>Cloud-Multi-Mandant</b> — Demo-Mandant + eigener Produktiv-Mandant</div>
+        <div><span class="dot"></span> <b>SEPA-QR / GiroCode</b> auf jeder Rechnung nach EPC-069-12</div>
+        <div><span class="dot"></span> <b>Offline-fähige PWA</b> — auch beim Ortstermin nutzbar</div>
+        <div><span class="dot"></span> <b>DSGVO-konform</b> — Hosting in Frankfurt, verschlüsselt</div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="mockup">
+        <div class="mockup-bar">
+          <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
+          <div class="mockup-url">app.aktenwerk.app</div>
+        </div>
+        <div class="mockup-body">
+          <div class="mockup-sidebar">
+            <div class="mockup-logo">
+              <img src="logo.svg" alt="" style="height:32px;">
+            </div>
+            <div class="mockup-navgroup">AKTEN</div>
+            <div class="mockup-navitem active">📁 Auftragsakten</div>
+            <div class="mockup-navitem">📨 Angebote</div>
+            <div class="mockup-navitem">📑 Gutachten</div>
+            <div class="mockup-navitem">💶 Rechnungen</div>
+            <div class="mockup-navgroup">WERKZEUGE</div>
+            <div class="mockup-navitem">🏷 Artikel</div>
+            <div class="mockup-navitem">⏱ Stunden</div>
+          </div>
+          <div class="mockup-content">
+            <div class="mockup-kpis">
+              <div class="kpi"><div class="kpi-label">Offene Aufträge</div><div class="kpi-value">8</div></div>
+              <div class="kpi"><div class="kpi-label">In Bearbeitung</div><div class="kpi-value">5</div></div>
+              <div class="kpi"><div class="kpi-label">Umsatz YTD</div><div class="kpi-value">48.620 €</div></div>
+              <div class="kpi"><div class="kpi-label">Conversion</div><div class="kpi-value">72 %</div></div>
+            </div>
+            <div class="mockup-akte">
+              <div class="mockup-akte-head">
+                <div>
+                  <span class="az">📁 2026-001</span>
+                  <span class="az-ext">⚖ 12 OH 4/26</span>
+                </div>
+                <span class="badge">In Bearbeitung</span>
+              </div>
+              <div class="mockup-akte-title">Feuchtigkeitsschäden Keller · selbständiges Beweisverfahren</div>
+              <div class="mockup-akte-meta">Amtsgericht Duisburg · Richter Dr. Schwerdtfeger · Lindenweg 7, Duisburg · Schnee Zone 1 · Wind Zone 2</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== FEATURES ======== -->
+<section id="features" class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Funktionen</div>
+      <h2>Alles, was der Sachverständigen-Alltag braucht</h2>
+      <p class="lead">Über 26 Module — entwickelt mit Input aus echten Bausachverständigen-Handbüchern (Zöller/Seibel, BVS, Reguvis) und nach den kanonischen Gutachten-Strukturen.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="feature">
+        <div class="ico" style="background:#fff7ed; color:#ea580c">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <h3>Auftragsakte mit 11 Tabs</h3>
+        <p>Der zentrale Drehpunkt pro Auftrag: Stammdaten, Stunden, Auslagen, Rechnungen, Angebote, Gutachten, Fotos, Dokumente, Normen, Messgeräte und Erläuterungstermine — alles in einer Ansicht. Kennzahlen und Finanzen pro Akte auf einen Blick.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#eff6ff; color:#1d4ed8">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <h3>Multi-Mandant &amp; Admin</h3>
+        <p>Mehrere Mandanten (Organisationen) in einem Account: Demo-Mandant zum Ausprobieren + eigene Produktiv-Mandanten. Rollen-basierte Zugriffe (Owner / Admin / Mitarbeiter / Readonly), Einladungs-Codes, Super-Admin-Freischaltung pro Nutzer.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#f0fdf4; color:#166534">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3>Gutachten nach Zöller</h3>
+        <p>13-Abschnitte-Struktur nach Handbuch für Bausachverständige. Rich-Text-Editor, Vorlagen für Bauschaden/Beweissicherung/Mängel mit Template-Texten pro Abschnitt, Word- und PDF-Export mit Briefkopf und Lichtbildanlage.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fef3c7; color:#b45309">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </div>
+        <h3>JVEG-Abrechnung komplett</h3>
+        <p>§ 9 Honorar (M1/M2/M3), § 5 Fahrtkosten, § 7 Schreibauslagen (1.000er-Blöcke mit Ausfertigungen), Lichtbilder (1./weitere), Kopien s/w + farbig mit Staffel. Automatische Übernahme aus Stunden- und Auslagenerfassung.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#eef2ff; color:#4338ca">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 2a1 1 0 00-1 1v1H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 10-2 0v1H10V3a1 1 0 00-1-1zm10 9H5v9h14v-9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 14h3m0 0h3m-3 0v3m0-3v-3"/></svg>
+        </div>
+        <h3>SEPA-QR / GiroCode</h3>
+        <p>Auf jeder Rechnung automatisch ein EPC-069-12 QR-Code unten rechts. Kunde scannt mit Banking-App — Empfänger, IBAN, Betrag, Verwendungszweck sind vorausgefüllt. Schnellere Bezahlung, weniger Überweisungsfehler.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fef2f2; color:#991b1b">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3>Timer &amp; Stunden</h3>
+        <p>Stoppuhr mit Start / Pause / Stopp live im Stunden-Modul. Auftrag wählen, Tätigkeit eintippen, Start — beim Stopp wird automatisch gebucht. Übersicht pro Auftrag mit Stunden + Netto-Betrag. Direkte Übernahme in die JVEG-Rechnung.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fff7ed; color:#ea580c">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        </div>
+        <h3>Angebote mit Pipeline</h3>
+        <p>7-stufiger Status (Anfrage / Angebot raus / Nachverhandlung / Angenommen / AB versendet / Abgelehnt / Abgelaufen). Pipeline-KPIs: offenes Volumen, Gewonnen, Conversion-Rate. Auftragsbestätigung auf Knopfdruck, dann „→ in Auftrag umwandeln".</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#f0fdf4; color:#166534">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3>Foto-Dokumentation</h3>
+        <p>Multi-Upload pro Akte mit Raum-Zuordnung, Beschreibung, GPS-Koordinaten und Aufnahmedatum. Firebase Storage im Hintergrund, automatische Einbindung ins Gutachten als Lichtbildanlage.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#eff6ff; color:#1d4ed8">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+        </div>
+        <h3>Ortstermin-Modus</h3>
+        <p>Fokussierte Mobile-Oberfläche. Akte wählen, Fotos hochladen, Sprachnotizen einsprechen, Timer für Dauer — alles offline-fähig als PWA. Beim Speichern werden die Notizen automatisch an die Akte gehängt.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fef3c7; color:#b45309">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3>OPOS &amp; Mahnwesen</h3>
+        <p>Offene Forderungen sortiert nach Verzug. Mahnstufen-Skala nach SV-Standard (&gt;0 Tage / &gt;14 / &gt;35) mit farbigen Zeilen-Hintergründen. Badges: „im Ziel / Erinnerung / 1. Mahnung / 2. Mahnung".</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#eef2ff; color:#4338ca">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <h3>Steuer &amp; BWA</h3>
+        <p>USt-Voranmeldung pro Quartal mit Jahres-Summe, BWA-Monatstabelle (Erlöse / USt-Schuld / Ausgaben / Vorsteuer / Ergebnis), Umsatz-Bar-Chart Monat für Monat, Sachgebiete-Pie-Chart.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fff7ed; color:#ea580c">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3>Termine &amp; Fristen</h3>
+        <p>Ortstermine und Abgabefristen zusammengeführt. 4-Stufen-Farbeskalation: rot (überfällig), orange (≤7 Tage), gelb (≤14 Tage), grün (&gt;14 Tage). Dashboard zeigt nächste 5 Fristen auf einen Blick.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#f0fdf4; color:#166534">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+        </div>
+        <h3>Messgeräte-Verwaltung</h3>
+        <p>Inventar-Nr., Seriennummer, Kalibrierung mit Intervall und Prüfstelle. Eskalations-Warnung: rot bei überfälliger, orange bei ≤ 60 Tagen fälliger Kalibrierung. Zuordnung zum Auftrag als Junction-Tabelle.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fef2f2; color:#991b1b">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3>Erläuterungstermine</h3>
+        <p>Mündliche Gutachten vor Gericht: Ladungsdatum, Gericht/Saal/Richter, Parteien. JVEG-Vergütung live berechnen (Dauer + Wartezeit + Fahrt), Status (geplant / geladen / vorbereitet / durchgeführt / vergütet).</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#eef2ff; color:#4338ca">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3-2 3 2 3-2 3 2z"/></svg>
+        </div>
+        <h3>Eingangsrechnungen</h3>
+        <p>Lieferantenrechnungen mit Auto-Fill aus dem Lieferanten-Stamm (Adresse, USt-IdNr, Kategorie, Zahlungsweise, Zahlungsziel). Skonto mit % + Frist, DATEV-SKR-Konto und Kostenstelle, Multi-Beleg-Upload.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#f0fdf4; color:#166534">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h18v18H3zM3 9h18M9 3v18"/></svg>
+        </div>
+        <h3>Kalkulation mit Gewerken</h3>
+        <p>Kostenschätzung pro Auftrag mit Gewerke-Gruppierung (Rohbau, Estrich, Fenster, …). Ist-/Soll-Übersicht aus Stunden + Auslagen + Rechnungen, Kostenlimit-Warnung ab 90 %.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#fff7ed; color:#ea580c">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+        </div>
+        <h3>Globale Suche &amp; Befangenheits-Register</h3>
+        <p>Volltextsuche über alle Akten, Gutachten, Rechnungen und Angebote aus der Top-Bar. Separates Befangenheits-Register: Auftraggeber, Richter, Gerichte mit Live-Filter — die Prüfung vor neuer Auftragsannahme.</p>
+      </div>
+
+      <div class="feature">
+        <div class="ico" style="background:#eff6ff; color:#1d4ed8">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        </div>
+        <h3>Gerichts-Datenbank</h3>
+        <p>158 deutsche Gerichte (Amts-, Land-, Oberlandesgerichte) mit Adresse und Telefonnummer integriert. Beim Anlegen eines Auftraggebers vom Typ „Gericht" per Klick übernehmen — Firma, Adresse, Telefon werden automatisch gefüllt.</p>
+      </div>
+    </div>
+
+    <div class="feature-more">
+      <div>Außerdem: <b>Formeln</b> (=2×3) in allen Zahlenfeldern · <b>Aufgaben-Liste</b> pro Auftrag · <b>Wiedervorlagen</b> mit Scope-Filtern · <b>Artikel-Kalkulation</b> aus Unterleistungen · <b>Rückfragen-Stellungnahmen</b> · <b>Fortbildungs-Tracker</b> mit 30h-Progress · <b>DIBt-Lastzonen</b> (Schnee/Wind) · <b>PLZ→Ort-Autocomplete</b> · <b>Geocoding</b> · <b>iCal-Export</b> · <b>Auto-Backup</b> · <b>PWA-Installation</b> · <b>Benutzerverwaltung</b> mit Rollen · <b>Rich-Text-Editor</b> (Quill) · <b>Hilfe- &amp; Release-Notes-Dialog</b> direkt in der App.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== DASHBOARD-SCREENSHOT ======== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Dashboard</div>
+      <h2>Der tägliche Überblick</h2>
+      <p class="lead">Vier KPI-Kacheln, 9 Info-Kacheln mit Finanzen, Pipeline, Stunden, Heute, Fristen, Umsatz-Chart, Kalibrierung, Fortbildung und Akten-Liste. Alle mit Links direkt ins passende Modul.</p>
+    </div>
+
+    <div class="dash-showcase">
+      <div class="dash-card"><div class="dash-label">Finanzen</div><div class="dash-hint">Offene Forderungen · davon überfällig · Umsatz Monat mit Vormonatsvergleich</div></div>
+      <div class="dash-card"><div class="dash-label">Pipeline</div><div class="dash-hint">Offene Angebote (Anzahl + Summe) · Conversion-Rate</div></div>
+      <div class="dash-card"><div class="dash-label">Stunden</div><div class="dash-hint">Heute · Diese Woche · Noch nicht abgerechnet (€)</div></div>
+      <div class="dash-card"><div class="dash-label">Heute im Blick</div><div class="dash-hint">Ortstermine heute · Wiedervorlagen heute · Überfällige Fristen</div></div>
+      <div class="dash-card"><div class="dash-label">Nächste Abgabefristen</div><div class="dash-hint">5er-Liste mit 4-Stufen-Farbeskalation</div></div>
+      <div class="dash-card"><div class="dash-label">Nächster Ortstermin</div><div class="dash-hint">Adresse, Maps-Link, Telefon, E-Mail</div></div>
+      <div class="dash-card"><div class="dash-label">Umsatz 6 Monate</div><div class="dash-hint">Bar-Chart netto — Puls des Geschäfts</div></div>
+      <div class="dash-card"><div class="dash-label">Geräte-Kalibrierung</div><div class="dash-hint">Überfällig (rot) · ≤ 60 Tage (orange)</div></div>
+      <div class="dash-card"><div class="dash-label">Fortbildungsstunden</div><div class="dash-hint">Progress gegen 30h/Jahr (IHK-Wiederbestellung)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== MODULE ======== -->
+<section id="module" class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Module</div>
+      <h2>Über 26 Module in einer App</h2>
+    </div>
+    <div class="modules-grid">
+      <div class="mod-col">
+        <h4>Akten</h4>
+        <ul>
+          <li><b>Auftragsakten</b> — zentraler Drehpunkt mit 11 Tabs</li>
+          <li><b>Auftraggeber</b> — mit Gerichts-Datenbank</li>
+          <li><b>Angebote</b> — Pipeline mit 7 Status</li>
+          <li><b>Aufträge</b> — 4 Arten, 5 Tabs, Aufgaben &amp; Geräte</li>
+          <li><b>Gutachten</b> — Zöller-13 mit Vorlagen</li>
+          <li><b>Erläuterungstermine</b> — JVEG live</li>
+          <li><b>Rechnungen</b> — 4 Typen, SEPA-QR</li>
+          <li><b>Eingangsrechnungen</b> — SKR + Skonto</li>
+          <li><b>Dokumente</b> — Cloud Storage</li>
+          <li><b>Lieferanten</b> — mit SEPA-Mandaten</li>
+        </ul>
+      </div>
+      <div class="mod-col">
+        <h4>Werkzeuge</h4>
+        <ul>
+          <li><b>Artikel / Leistungen</b> — Kalkuliert</li>
+          <li><b>Messgeräte</b> — Kalibrierung</li>
+          <li><b>Normen</b> — Bibliothek &amp; Akten</li>
+          <li><b>Textbausteine</b> — 70+ Bausteine</li>
+          <li><b>Stunden</b> — Timer</li>
+          <li><b>Auslagen</b> — JVEG-Defaults</li>
+          <li><b>Kalkulation</b> — Gewerke + Ist/Soll</li>
+          <li><b>Anschreiben</b> — 11 Vorlagen</li>
+          <li><b>Fotos</b> — Lichtbildanlage</li>
+          <li><b>Termine</b> — Eskalations-Farben</li>
+          <li><b>Wiedervorlagen</b> — Scope-Filter</li>
+          <li><b>Ortstermin-Modus</b> — Mobile</li>
+          <li><b>JVEG-Rechner</b> — § 9 / 5 / 7</li>
+        </ul>
+      </div>
+      <div class="mod-col">
+        <h4>Auswertung &amp; System</h4>
+        <ul>
+          <li><b>Dashboard</b> — 9 Kacheln</li>
+          <li><b>OPOS / Mahnwesen</b> — Mahnstufen</li>
+          <li><b>Steuer &amp; BWA</b> — USt-VA, Charts</li>
+          <li><b>Jahresbericht</b> — IHK/HWK</li>
+          <li><b>Fortbildungen</b> — + Befangenheit</li>
+          <li><b>Einstellungen</b> — Nummernkreise</li>
+          <li><b>Benutzer</b> — Profil + Briefkopf</li>
+          <li><b>Administration</b> — User + Mandanten</li>
+          <li><b>Hilfe</b> — Anleitung in der App</li>
+          <li><b>Release-Notes</b> — Changelog</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== WORKFLOW ======== -->
+<section id="workflow" class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Arbeitsablauf</div>
+      <h2>Von der Anfrage zur bezahlten Rechnung — in einem System</h2>
+    </div>
+    <div class="workflow">
+      <div class="step"><div class="step-num">1</div><h4>Anfrage</h4><p>Lead erfassen, Angebot erstellen, bei Zusage auf Knopfdruck in Auftrag umwandeln — Akte wird automatisch angelegt.</p></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><div class="step-num">2</div><h4>Ortstermin</h4><p>Timer starten, Fotos mit Raum-Zuordnung aufnehmen, Messgeräte zuordnen, Notizen direkt in der Akte.</p></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><div class="step-num">3</div><h4>Gutachten</h4><p>13 Abschnitte mit Textbausteinen befüllen, Vorlagen nutzen, Lichtbildanlage wird automatisch aus Fotos erzeugt.</p></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><div class="step-num">4</div><h4>Rechnung</h4><p>Honorar aus Stunden + Auslagen übernehmen, JVEG-Auslagen-Vorlage einfügen, SEPA-QR automatisch, PDF-Versand.</p></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><div class="step-num">5</div><h4>Zahlung</h4><p>OPOS-Überwachung, Mahnstufen farbig, DATEV-Export für den Steuerberater, USt-Voranmeldung pro Quartal.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== ZIELGRUPPE ======== -->
+<section id="zielgruppe" class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Für wen</div>
+      <h2>Gemacht für Sachverständige, die täglich Gutachten schreiben</h2>
+    </div>
+    <div class="grid-4">
+      <div class="audience">
+        <div class="aud-ico">⚖</div>
+        <h4>Gerichtsgutachter</h4>
+        <p>Gerichtsakten, Beweisbeschlüsse, Richter-Briefanrede, JVEG-Abrechnung, Rückfragen-Stellungnahmen. Alles, was das Gericht erwartet.</p>
+      </div>
+      <div class="audience">
+        <div class="aud-ico">🏠</div>
+        <h4>Privatgutachter</h4>
+        <p>Privatkunden, Versicherungen, Anwälte. Angebote, Schadensgutachten, Wertermittlungen, Beweissicherung.</p>
+      </div>
+      <div class="audience">
+        <div class="aud-ico">🔬</div>
+        <h4>Spezialisten</h4>
+        <p>Schäden an Gebäuden, Schimmel, Fenster &amp; Fassade, Putz/WDVS, Estrich. Mit fachgerechten Bausteinen und Normen-Referenzen.</p>
+      </div>
+      <div class="audience">
+        <div class="aud-ico">⚡</div>
+        <h4>Energieberater</h4>
+        <p>BAFA / BEG-EM-Beratung, iSFP, GEG-Nachweise, BlowerDoor, Thermografie — mit eigenen Textbausteinen und Kalkulationsartikeln.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== FAKTEN ======== -->
+<section class="section section-dark">
+  <div class="container facts">
+    <div class="fact"><div class="fact-num">26+</div><div class="fact-label">Module in einer App</div></div>
+    <div class="fact"><div class="fact-num">158</div><div class="fact-label">Deutsche Gerichte hinterlegt</div></div>
+    <div class="fact"><div class="fact-num">70+</div><div class="fact-label">Textbausteine nach Fachbüchern</div></div>
+    <div class="fact"><div class="fact-num">11</div><div class="fact-label">Tabs in jeder Auftragsakte</div></div>
+  </div>
+</section>
+
+<!-- ======== PREISE ======== -->
+<section id="preise" class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Preise</div>
+      <h2>Starte kostenlos — später fair &amp; transparent</h2>
+      <p class="lead">Aktenwerk befindet sich aktuell im frühen Zugang. Registriere dich jetzt und nutze die App in der Demo-Version mit Beispieldaten. Nach Freischaltung deines Mandanten arbeitest du mit deinen eigenen Daten.</p>
+    </div>
+
+    <div class="price-grid">
+      <div class="price-card">
+        <div class="price-badge">Kostenlos</div>
+        <h3>Demo-Zugang</h3>
+        <div class="price">0 €<span>/Monat</span></div>
+        <ul>
+          <li>✓ Direkter Zugriff auf alle Funktionen</li>
+          <li>✓ Vollständige Demodaten zum Testen</li>
+          <li>✓ Kein Kreditkarten-Zwang</li>
+          <li>✓ Nur Lesezugriff auf Demo-Mandant</li>
+        </ul>
+        <a href="https://app.aktenwerk.app" class="btn btn-outline btn-lg" style="width:100%;">Jetzt testen</a>
+      </div>
+
+      <div class="price-card price-featured">
+        <div class="price-badge">Empfohlen</div>
+        <h3>Sachverständige</h3>
+        <div class="price">auf Anfrage</div>
+        <ul>
+          <li>✓ Eigener Produktiv-Mandant</li>
+          <li>✓ Unbegrenzte Akten, Rechnungen, Gutachten</li>
+          <li>✓ Cloud-Sync über mehrere Geräte</li>
+          <li>✓ SEPA-QR, DATEV-Export</li>
+          <li>✓ Supportkanal direkt zum Entwickler</li>
+        </ul>
+        <a href="#kontakt" class="btn btn-primary btn-lg" style="width:100%;">Kontakt aufnehmen</a>
+      </div>
+
+      <div class="price-card">
+        <div class="price-badge">Team</div>
+        <h3>Büro / Kanzlei</h3>
+        <div class="price">auf Anfrage</div>
+        <ul>
+          <li>✓ Mehrere Benutzer pro Mandant</li>
+          <li>✓ Rollen (Owner/Admin/Mitarbeiter/Readonly)</li>
+          <li>✓ Einladungs-Codes, Nutzer-Verwaltung</li>
+          <li>✓ Eigene E-Mail-Domain möglich</li>
+          <li>✓ Individuelles Logo &amp; Briefkopf</li>
+        </ul>
+        <a href="#kontakt" class="btn btn-outline btn-lg" style="width:100%;">Anfragen</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== FAQ ======== -->
+<section id="faq" class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">FAQ</div>
+      <h2>Häufige Fragen</h2>
+    </div>
+    <div class="faq">
+      <details><summary>Wo werden die Daten gespeichert?</summary><p>Die Daten liegen in einer verschlüsselten Google-Cloud-Firestore-Datenbank in der Region Frankfurt (europe-west3). Zusätzlich werden große Dateien (Fotos, Dokumente) in Firebase Storage abgelegt — ebenfalls in der EU. Die Daten sind durch Org-Membership-Rules abgesichert: Nur Mitglieder deines Mandanten haben Zugriff.</p></details>
+      <details><summary>Kann ich Aktenwerk auch offline nutzen?</summary><p>Ja. Die App ist als Progressive Web App (PWA) implementiert. Beim ersten Aufruf werden die Bundle-Dateien im Browser zwischengespeichert. Die lokale Drift-SQLite-Datenbank (WASM) hält deine Daten auch ohne Verbindung bereit — ideal für den Ortstermin. Beim nächsten Online-Gang wird synchronisiert.</p></details>
+      <details><summary>Wie funktioniert Multi-Mandant?</summary><p>Jeder Nutzer wird nach der Registrierung vom Administrator freigeschaltet und bekommt automatisch Lesezugriff auf den Demo-Mandanten. Für die produktive Arbeit legst du einen eigenen Mandanten an (z. B. „Mein SV-Büro"). Kollegen lädst du per 8-stelligem Einladungscode mit Rolle (Admin/Mitarbeiter/Readonly) ein. Wechseln zwischen Mandanten über den Org-Switcher rechts oben.</p></details>
+      <details><summary>Wie erstelle ich PDF-Dokumente?</summary><p>Alle Gutachten, Rechnungen, Angebote und Anschreiben werden als druckfertige A4-PDFs generiert — mit Logo oben rechts, Absender-Mini-Zeile, Empfänger-Block links, Metadaten rechts, Positionen-Tabelle mit Langtext, Summen-Block und Fußzeile. Rechnungen bekommen zusätzlich einen SEPA-QR-Code nach EPC-069-12 unten rechts.</p></details>
+      <details><summary>Kann ich DATEV exportieren?</summary><p>Ja. In Steuer &amp; BWA kannst du DATEV-CSV-Exporte für Erlöse und Eingangsrechnungen ziehen. Die SKR03/04-Kategorie wird dabei pro Eingangsrechnung erfasst. Dein Steuerberater kann die CSV direkt einlesen.</p></details>
+      <details><summary>Ist das DSGVO-konform?</summary><p>Ja. Daten liegen verschlüsselt in der EU (Frankfurt), Zugriff ist über Org-Membership-Rules und SuperAdmin-Freischaltung abgesichert. Eine DSGVO-Auftragsverarbeitungs-Vereinbarung ist auf Anfrage möglich.</p></details>
+      <details><summary>Was kostet Aktenwerk?</summary><p>Aktuell im frühen Zugang. Der Demo-Zugang ist dauerhaft kostenlos. Für produktive Nutzung mit eigenem Mandanten erstellen wir dir gerne ein individuelles Angebot — siehe <a href="#kontakt">Kontakt</a>.</p></details>
+      <details><summary>Was passiert nach der Registrierung?</summary><p>Nach der Registrierung siehst du einen Warte-Screen. Der Administrator erhält eine Benachrichtigung und schaltet deinen Account frei (in der Regel innerhalb weniger Stunden). Danach kannst du entweder direkt den Demo-Mandanten erkunden oder einen eigenen Mandanten anlegen.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ======== DEMO / CTA ======== -->
+<section id="demo" class="section section-cta">
+  <div class="container cta-inner">
+    <div>
+      <div class="eyebrow">Kostenlos starten</div>
+      <h2>Aktenwerk direkt im Browser öffnen</h2>
+      <p>Registriere dich mit Google oder E-Mail. Nach Freischaltung bekommst du automatisch Lesezugriff auf den Demo-Mandanten mit Beispieldaten und kannst zusätzlich deinen eigenen Mandanten anlegen.</p>
+      <div class="hero-ctas">
+        <a href="https://app.aktenwerk.app" class="btn btn-primary btn-lg">Zur App →</a>
+        <a href="#kontakt" class="btn btn-outline btn-lg">Kontakt aufnehmen</a>
+      </div>
+    </div>
+    <div class="cta-visual">
+      <img src="icon.svg" alt="" style="width:160px; height:160px; filter: drop-shadow(0 10px 30px rgba(234,88,12,0.35));">
+    </div>
+  </div>
+</section>
+
+<!-- ======== KONTAKT ======== -->
+<section id="kontakt" class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">Kontakt</div>
+      <h2>Lust auf einen Termin?</h2>
+      <p class="lead">Aktenwerk wird von Alexander Höpken entwickelt — Dipl.-Ing. (FH), M. Eng., Sachverständiger und Bauelemente-Experte.</p>
+    </div>
+    <div class="kontakt-grid">
+      <div class="kontakt-card">
+        <div class="kontakt-icon">📮</div>
+        <div class="kontakt-label">Anschrift</div>
+        <div>Alexander Höpken<br>Auf dem Stemmingholt 21<br>46499 Hamminkeln</div>
+      </div>
+      <div class="kontakt-card">
+        <div class="kontakt-icon">📞</div>
+        <div class="kontakt-label">Telefon</div>
+        <div><a href="tel:+4915251975042">+49 152 519 75 042</a></div>
+      </div>
+      <div class="kontakt-card">
+        <div class="kontakt-icon">✉</div>
+        <div class="kontakt-label">E-Mail</div>
+        <div><a href="mailto:hello@aktenwerk.app">hello@aktenwerk.app</a></div>
+      </div>
+      <div class="kontakt-card">
+        <div class="kontakt-icon">🌐</div>
+        <div class="kontakt-label">Webseite SV-Büro</div>
+        <div><a href="https://bauelemente-experte.de" target="_blank">bauelemente-experte.de</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== FOOTER ======== -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <img src="logo.svg" alt="Aktenwerk" height="38" style="filter: brightness(0) invert(1);">
+      <p>Die Software für Bausachverständige.</p>
+    </div>
+    <div class="footer-cols">
+      <div>
+        <h5>Produkt</h5>
+        <a href="#features">Funktionen</a>
+        <a href="#module">Module</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#preise">Preise</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div>
+        <h5>App</h5>
+        <a href="https://app.aktenwerk.app">Anmelden</a>
+        <a href="https://app.aktenwerk.app">Registrieren</a>
+      </div>
+      <div>
+        <h5>Rechtliches</h5>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+      </div>
+      <div>
+        <h5>Kontakt</h5>
+        <a href="mailto:hello@aktenwerk.app">hello@aktenwerk.app</a>
+        <a href="https://bauelemente-experte.de" target="_blank">bauelemente-experte.de</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-copy">
+    © 2026 Aktenwerk · entwickelt von Alexander Höpken
+  </div>
+</footer>
+
+<script>
+// Smooth scroll für Anker-Links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', (e) => {
+    const id = a.getAttribute('href');
+    if (id.length > 1 && document.querySelector(id)) {
+      e.preventDefault();
+      document.querySelector(id).scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+  });
+});
+</script>
+</body>
+</html>

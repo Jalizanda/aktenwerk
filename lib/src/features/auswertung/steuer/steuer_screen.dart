@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../features/akten/eingangsrechnungen/eingangsrechnungen_repository.dart';
 import '../../../features/akten/rechnungen/rechnungen_repository.dart';
+import '../../../shared/charts/chart_theme.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 
 class SteuerScreen extends ConsumerStatefulWidget {
@@ -131,17 +133,22 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
+                barTouchData: ChartStyle.barTouchData(
+                  format: (v) => NumberFormat.currency(
+                          locale: 'de_DE', symbol: '€', decimalDigits: 0)
+                      .format(v),
+                ),
                 barGroups: [
                   for (var m = 0; m < 12; m++)
                     BarChartGroupData(x: m, barRods: [
-                      BarChartRodData(
-                          toY: einnahmen[m],
-                          color: theme.colorScheme.primary,
-                          width: 14),
-                      BarChartRodData(
-                          toY: ausgaben[m],
-                          color: theme.colorScheme.error,
-                          width: 14),
+                      ChartStyle.bar(einnahmen[m],
+                          from: AppTheme.accent600,
+                          to: AppTheme.accent500,
+                          width: 12),
+                      ChartStyle.bar(ausgaben[m],
+                          from: const Color(0xFF1D4ED8),
+                          to: const Color(0xFF3B82F6),
+                          width: 12),
                     ]),
                 ],
                 titlesData: FlTitlesData(
@@ -152,17 +159,13 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
                           getTitlesWidget: (v, _) => Text(
                               v.toStringAsFixed(0),
                               style: const TextStyle(fontSize: 11)))),
-                  rightTitles: const AxisTitles(),
-                  topTitles: const AxisTitles(),
-                  bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (v, _) => Text(
-                                _monat(v.toInt()),
-                                style: const TextStyle(fontSize: 11),
-                              ))),
+                  rightTitles: ChartStyle.emptyAxis(),
+                  topTitles: ChartStyle.emptyAxis(),
+                  bottomTitles: ChartStyle.bottomLabels(const [
+                    'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'
+                  ]),
                 ),
-                gridData: FlGridData(show: true),
+                gridData: ChartStyle.gridData(),
                 borderData: FlBorderData(show: false),
               ),
             ),
@@ -170,14 +173,199 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
           const SizedBox(height: 16),
           Row(children: [
             _LegendItem(
-                color: theme.colorScheme.primary, label: 'Einnahmen'),
+                color: AppTheme.accent600, label: 'Einnahmen'),
             const SizedBox(width: 24),
             _LegendItem(
-                color: theme.colorScheme.error, label: 'Ausgaben'),
+                color: const Color(0xFF1D4ED8), label: 'Ausgaben'),
           ]),
+          const SizedBox(height: 28),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _KategorienPie(
+                  titel: 'Einnahmen nach Kategorie',
+                  daten: _einnahmenNachKategorie(rechnungen),
+                  orangePalette: true,
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: _KategorienPie(
+                  titel: 'Ausgaben nach Kategorie',
+                  daten: _ausgabenNachKategorie(eingangs),
+                  orangePalette: false,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Text('USt-Voranmeldung pro Quartal',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          _ustVoranmeldung(context, rechnungen, eingangs, money),
+          const SizedBox(height: 24),
+          Text('BWA-Monatsübersicht', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          _bwaMonatstabelle(context, rechnungen, eingangs, money),
         ],
       ),
     );
+  }
+
+  /// USt-Voranmeldung pro Quartal: Anzahl Rechnungen, Erlöse netto,
+  /// USt (Schuld), Vorsteuer, USt-Zahllast.
+  Widget _ustVoranmeldung(
+      BuildContext context,
+      List<RechnungWithKunde> rechnungen,
+      List<EingangsrechnungWithAuftrag> eingangs,
+      NumberFormat money) {
+    final scheme = Theme.of(context).colorScheme;
+    final rows = <_QRow>[];
+    for (var q = 1; q <= 4; q++) {
+      final monStart = (q - 1) * 3 + 1;
+      final monEnd = q * 3;
+      int anzahl = 0;
+      double erloese = 0, ust = 0, vor = 0;
+      for (final r in rechnungen) {
+        final d = r.rechnung.rechnungsdatum;
+        if (d == null || d.year != _jahr) continue;
+        if (d.month < monStart || d.month > monEnd) continue;
+        if (r.rechnung.status == 'storniert') continue;
+        anzahl++;
+        erloese += r.rechnung.netto;
+        ust += r.rechnung.ustBetrag;
+      }
+      for (final e in eingangs) {
+        final d = e.rechnung.rechnungsdatum;
+        if (d == null || d.year != _jahr) continue;
+        if (d.month < monStart || d.month > monEnd) continue;
+        vor += e.rechnung.ustBetrag;
+      }
+      rows.add(_QRow(q, anzahl, erloese, ust, vor));
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DataTable(
+              showCheckboxColumn: false,
+        headingRowColor:
+            WidgetStateProperty.all(scheme.surfaceContainerHighest),
+        columns: const [
+          DataColumn(label: Text('Quartal')),
+          DataColumn(label: Text('Rechnungen'), numeric: true),
+          DataColumn(label: Text('Erlöse netto €'), numeric: true),
+          DataColumn(label: Text('USt (Schuld) €'), numeric: true),
+          DataColumn(label: Text('Vorsteuer €'), numeric: true),
+          DataColumn(label: Text('Zahllast €'), numeric: true),
+        ],
+        rows: [
+          for (final r in rows)
+            DataRow(cells: [
+              DataCell(Text('Q${r.q} $_jahr',
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text('${r.anzahl}')),
+              DataCell(Text(money.format(r.erloese))),
+              DataCell(Text(money.format(r.ust))),
+              DataCell(Text(money.format(r.vor))),
+              DataCell(Text(money.format(r.ust - r.vor),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: (r.ust - r.vor) > 0
+                          ? Theme.of(context).colorScheme.error
+                          : null))),
+            ]),
+          // Jahres-Zeile
+          DataRow(
+            color: WidgetStateProperty.all(scheme.surfaceContainerHighest),
+            cells: [
+              const DataCell(Text('Jahr',
+                  style: TextStyle(fontWeight: FontWeight.w700))),
+              DataCell(Text('${rows.fold<int>(0, (a, r) => a + r.anzahl)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              DataCell(Text(
+                  money.format(rows.fold<double>(0, (a, r) => a + r.erloese)),
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              DataCell(Text(
+                  money.format(rows.fold<double>(0, (a, r) => a + r.ust)),
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              DataCell(Text(
+                  money.format(rows.fold<double>(0, (a, r) => a + r.vor)),
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              DataCell(Text(
+                  money.format(rows.fold<double>(
+                      0, (a, r) => a + r.ust - r.vor)),
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bwaMonatstabelle(
+      BuildContext context,
+      List<RechnungWithKunde> rechnungen,
+      List<EingangsrechnungWithAuftrag> eingangs,
+      NumberFormat money) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DataTable(
+              showCheckboxColumn: false,
+        headingRowColor:
+            WidgetStateProperty.all(scheme.surfaceContainerHighest),
+        columns: const [
+          DataColumn(label: Text('Monat')),
+          DataColumn(label: Text('Erlöse netto €'), numeric: true),
+          DataColumn(label: Text('USt-Schuld €'), numeric: true),
+          DataColumn(label: Text('Ausgaben netto €'), numeric: true),
+          DataColumn(label: Text('Vorsteuer €'), numeric: true),
+          DataColumn(label: Text('Ergebnis €'), numeric: true),
+        ],
+        rows: [
+          for (var m = 1; m <= 12; m++) _bwaMonat(context, m, rechnungen, eingangs, money),
+        ],
+      ),
+    );
+  }
+
+  DataRow _bwaMonat(
+      BuildContext context,
+      int m,
+      List<RechnungWithKunde> rechnungen,
+      List<EingangsrechnungWithAuftrag> eingangs,
+      NumberFormat money) {
+    double erl = 0, ust = 0, ausg = 0, vor = 0;
+    for (final r in rechnungen) {
+      final d = r.rechnung.rechnungsdatum;
+      if (d == null || d.year != _jahr || d.month != m) continue;
+      if (r.rechnung.status == 'storniert') continue;
+      erl += r.rechnung.netto;
+      ust += r.rechnung.ustBetrag;
+    }
+    for (final e in eingangs) {
+      final d = e.rechnung.rechnungsdatum;
+      if (d == null || d.year != _jahr || d.month != m) continue;
+      ausg += e.rechnung.netto;
+      vor += e.rechnung.ustBetrag;
+    }
+    return DataRow(cells: [
+      DataCell(Text(_monat(m - 1))),
+      DataCell(Text(money.format(erl))),
+      DataCell(Text(money.format(ust))),
+      DataCell(Text(money.format(ausg))),
+      DataCell(Text(money.format(vor))),
+      DataCell(Text(money.format(erl - ausg),
+          style: const TextStyle(fontWeight: FontWeight.w600))),
+    ]);
   }
 
   String _monat(int i) => const [
@@ -194,6 +382,197 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
         'Nov',
         'Dez'
       ][i];
+
+  // ---------- Kategorien-Aggregation ----------
+
+  Map<String, double> _einnahmenNachKategorie(
+      List<RechnungWithKunde> rechnungen) {
+    final m = <String, double>{};
+    for (final r in rechnungen) {
+      if (r.rechnung.status == 'storniert') continue;
+      final d = r.rechnung.rechnungsdatum;
+      if (d == null || d.year != _jahr) continue;
+      // Kategorie aus Auftragsart ableiten: JVEG = Gericht, sonst Privat.
+      final key = r.rechnung.typ == 'jveg'
+          ? 'Gericht / JVEG'
+          : r.rechnung.typ == 'gutschrift'
+              ? 'Gutschrift'
+              : r.rechnung.typ == 'korrektur'
+                  ? 'Rechnungs-Korrektur'
+                  : 'Privat-Rechnung';
+      m[key] = (m[key] ?? 0) + r.rechnung.netto;
+    }
+    return m;
+  }
+
+  Map<String, double> _ausgabenNachKategorie(
+      List<EingangsrechnungWithAuftrag> eingangs) {
+    final m = <String, double>{};
+    for (final e in eingangs) {
+      if (e.rechnung.status == 'storniert') continue;
+      final d = e.rechnung.rechnungsdatum;
+      if (d == null || d.year != _jahr) continue;
+      final key = (e.rechnung.kategorie ?? '').trim().isEmpty
+          ? 'Sonstige Ausgaben'
+          : e.rechnung.kategorie!.trim();
+      m[key] = (m[key] ?? 0) + e.rechnung.netto;
+    }
+    return m;
+  }
+}
+
+/// Pie-Chart mit Legende — zeigt Beträge pro Kategorie aufgeschlüsselt.
+/// Orange-Palette für Einnahmen, Blau-Palette für Ausgaben.
+class _KategorienPie extends StatelessWidget {
+  const _KategorienPie({
+    required this.titel,
+    required this.daten,
+    required this.orangePalette,
+  });
+  final String titel;
+  final Map<String, double> daten;
+  final bool orangePalette;
+
+  static final _money =
+      NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 0);
+
+  List<Color> get _palette => orangePalette
+      ? const [
+          AppTheme.accent600,
+          AppTheme.accent500,
+          Color(0xFFFB923C),
+          Color(0xFFFED7AA),
+          Color(0xFFB45309),
+          Color(0xFF7C2D12),
+        ]
+      : const [
+          Color(0xFF1D4ED8),
+          Color(0xFF3B82F6),
+          Color(0xFF60A5FA),
+          Color(0xFF93C5FD),
+          Color(0xFF1E3A8A),
+          Color(0xFF475569),
+        ];
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = daten.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = entries.fold<double>(0, (s, e) => s + e.value);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.slate200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(titel,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  )),
+          const SizedBox(height: 4),
+          Text(_money.format(total),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: orangePalette
+                      ? AppTheme.accent600
+                      : const Color(0xFF1D4ED8))),
+          const SizedBox(height: 12),
+          if (entries.isEmpty)
+            const SizedBox(
+              height: 180,
+              child: Center(
+                child: Text('Keine Daten im aktuellen Jahr.',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            )
+          else
+            SizedBox(
+              height: 180,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 30,
+                        pieTouchData: PieTouchData(
+                          touchCallback: (event, response) {},
+                        ),
+                        sections: [
+                          for (var i = 0; i < entries.length; i++)
+                            PieChartSectionData(
+                              value: entries[i].value,
+                              color: _palette[i % _palette.length],
+                              title:
+                                  '${(entries[i].value / total * 100).toStringAsFixed(0)}%',
+                              radius: 55,
+                              titleStyle: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < entries.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: _palette[i % _palette.length],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    entries[i].key,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                                Text(
+                                  _money.format(entries[i].value),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {
@@ -232,6 +611,15 @@ class _Stat extends StatelessWidget {
       ),
     );
   }
+}
+
+class _QRow {
+  final int q;
+  final int anzahl;
+  final double erloese;
+  final double ust;
+  final double vor;
+  _QRow(this.q, this.anzahl, this.erloese, this.ust, this.vor);
 }
 
 class _LegendItem extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../shared/widgets/form_widgets.dart';
 import 'kunden_form.dart';
 import 'kunden_repository.dart';
 
@@ -52,36 +53,38 @@ class _KundenPickerFieldState extends ConsumerState<KundenPickerField> {
   @override
   Widget build(BuildContext context) {
     final k = _resolved;
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: widget.label,
-        isDense: true,
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (k != null)
+    return LabeledField(
+      widget.label,
+      InputDecorator(
+        decoration: InputDecoration(
+          isDense: true,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (k != null)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  tooltip: 'Entfernen',
+                  onPressed: () => widget.onChanged(null),
+                ),
               IconButton(
-                icon: const Icon(Icons.clear, size: 18),
-                tooltip: 'Entfernen',
-                onPressed: () => widget.onChanged(null),
+                icon: const Icon(Icons.search, size: 18),
+                tooltip: 'Suchen',
+                onPressed: _openSearch,
               ),
-            IconButton(
-              icon: const Icon(Icons.search, size: 18),
-              tooltip: 'Suchen',
-              onPressed: _openSearch,
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: _openSearch,
-        child: k == null
-            ? Text(
-                'Auswählen …',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-              )
-            : Text(kundeAnzeigename(k)),
+        child: InkWell(
+          onTap: _openSearch,
+          child: k == null
+              ? Text(
+                  'Auswählen …',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                )
+              : Text(kundeAnzeigename(k)),
+        ),
       ),
     );
   }
@@ -174,7 +177,7 @@ class _KundenPickerDialogState extends ConsumerState<_KundenPickerDialog> {
                               .join(' ')
                               .trim(),
                         ].where((s) => s.isNotEmpty).join(' · ')),
-                        onTap: () => Navigator.pop(context, k),
+                        onTap: () => Navigator.of(context, rootNavigator: true).pop(k),
                       );
                     },
                   );

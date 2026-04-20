@@ -1,159 +1,207 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/icons/heroicons.dart';
 import '../../core/router/nav_destinations.dart';
+import '../../core/theme/app_theme.dart';
+import '../../data/sync/auth_service.dart';
+import '../../data/sync/org_service.dart';
+import '../auth/user_approval_service.dart';
+import '../search/search_dialog.dart';
+import '../system/help/help_dialog.dart';
+import '../system/help/release_notes_dialog.dart';
+import '../system/org/org_onboarding_dialog.dart';
+import '../system/org/org_switcher.dart';
+import 'timer_widget.dart';
 
 /// Haupt-Layout mit linker Seitenleiste und Content-Bereich.
-/// Entspricht dem zweispaltigen Layout der SV-Software.
-class AppShell extends StatelessWidget {
+/// Orientiert sich 1:1 am Original (Tailwind slate/orange, Inter).
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
 
-  static const double _sidebarWidth = 260;
+  static const double _sidebarWidth = 256;
   static const double _collapsedBreakpoint = 900;
 
   @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  bool _onboardingShown = false;
+
+  void _maybeShowOnboarding() {
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+    final currentOrg = ref.read(currentOrgIdProvider).valueOrNull;
+    final orgs = ref.read(myOrgsProvider).valueOrNull;
+    // Nur prüfen, wenn die Liste der Orgs geladen ist.
+    if (orgs == null) return;
+    final hasOrg = currentOrg != null && orgs.any((o) => o.id == currentOrg);
+    if (!hasOrg && orgs.isEmpty && !_onboardingShown) {
+      _onboardingShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showOrgOnboardingDialog(context);
+      });
+    } else if (!hasOrg && orgs.isNotEmpty) {
+      // User hat Orgs, aber keine ausgewählt → erste auswählen.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(currentOrgIdProvider.notifier).set(orgs.first.id);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Listener auf Auth/Org-Status → Onboarding anstoßen.
+    ref.listen(authStateProvider, (_, _) => _maybeShowOnboarding());
+    ref.listen(myOrgsProvider, (_, _) => _maybeShowOnboarding());
+    ref.listen(currentOrgIdProvider, (_, _) => _maybeShowOnboarding());
+    // Initial (wenn beim Build bereits alles geladen ist).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowOnboarding());
     final width = MediaQuery.sizeOf(context).width;
-    final showSidebar = width >= _collapsedBreakpoint;
+    final showSidebar = width >= AppShell._collapsedBreakpoint;
+    const sidebarWidth = AppShell._sidebarWidth;
     final currentPath = GoRouterState.of(context).uri.path;
-    final currentItem = findNavItem(currentPath);
+    // findNavItem(currentPath) wird nicht mehr fürs Top-Bar benötigt —
+    // der Modul-Titel wird ausschließlich im jeweiligen ModuleHeader angezeigt.
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: scheme.surfaceContainerLow,
       drawer: showSidebar
           ? null
-          : Drawer(
-              child: _Sidebar(currentPath: currentPath),
-            ),
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Text(
-              'Aktenwerk',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            if (currentItem != null) ...[
-              const SizedBox(width: 16),
-              Text(
-                '›  ${currentItem.label}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Globale Suche',
-            onPressed: () {},
-            icon: const Icon(Icons.search),
-          ),
-          IconButton(
-            tooltip: 'Einstellungen',
-            onPressed: () => context.go('/einstellungen'),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+          : Drawer(child: _Sidebar(currentPath: currentPath)),
       body: Row(
         children: [
           if (showSidebar)
             SizedBox(
-              width: _sidebarWidth,
+              width: sidebarWidth,
               child: _Sidebar(currentPath: currentPath),
             ),
-          if (showSidebar) const VerticalDivider(width: 1),
-          Expanded(child: child),
-        ],
-      ),
-    );
-  }
-}
-
-class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.currentPath});
-  final String currentPath;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
-          for (final section in navSections) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-              child: Row(
-                children: [
-                  Icon(section.icon,
-                      size: 16, color: scheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Text(
-                    section.title.toUpperCase(),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                        ),
+          Expanded(
+            child: Column(
+              children: [
+                const _TopBar(),
+                Expanded(
+                  child: Container(
+                    color: scheme.surfaceContainerLow,
+                    child: widget.child,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            for (final item in section.items)
-              _NavTile(item: item, selected: currentPath == item.path),
-            const SizedBox(height: 6),
-          ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _NavTile extends StatelessWidget {
-  const _NavTile({required this.item, required this.selected});
-  final NavItem item;
-  final bool selected;
+/// Kompakte Top-Bar mit Globaler Suche, Org-Switcher und Einstellungen.
+/// Der Modul-Titel wird bewusst NICHT mehr hier dupliziert — jedes Modul
+/// trägt seinen Titel inkl. Kurzbeschreibung im eigenen [ModuleHeader].
+class _TopBar extends StatelessWidget {
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SearchField(
+              onSubmit: (_) => showGlobalSearch(context),
+              onTap: () => showGlobalSearch(context),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const TimerWidget(),
+          const SizedBox(width: 12),
+          const OrgSwitcher(),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'Hilfe & Anleitung',
+            onPressed: () => showHelpDialog(context),
+            icon: Icon(Icons.help_outline,
+                color: scheme.onSurfaceVariant),
+          ),
+          IconButton(
+            tooltip: 'Release-Notes',
+            onPressed: () => showReleaseNotesDialog(context),
+            icon: Icon(Icons.campaign_outlined,
+                color: scheme.onSurfaceVariant),
+          ),
+          IconButton(
+            tooltip: 'Einstellungen',
+            onPressed: () => GoRouter.of(context).go('/einstellungen'),
+            icon: Icon(Icons.settings_outlined,
+                color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Permanent sichtbares Such-Feld in der Top-Bar (read-only, öffnet Dialog).
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.onSubmit, required this.onTap});
+  final ValueChanged<String> onSubmit;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
       child: Material(
-        color: selected ? scheme.primaryContainer : Colors.transparent,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: () => context.go(item.path),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          onTap: onTap,
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                Icon(
-                  item.icon,
-                  size: 20,
-                  color: selected
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 12),
+                Icon(Icons.search,
+                    size: 18, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    item.label,
+                    'Global suchen … (Kunden, Aufträge, Rechnungen, Normen …)',
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: selected
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurface,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.w400,
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Text(
+                    '⌘K',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -161,6 +209,214 @@ class _NavTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Sidebar extends ConsumerWidget {
+  const _Sidebar({required this.currentPath});
+  final String currentPath;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final isSuperAdmin =
+        ref.watch(currentUserDocProvider).valueOrNull?.isSuperAdmin ?? false;
+    return Container(
+      decoration: BoxDecoration(
+        // Gleicher Ton wie der Modul-Bereich (surfaceContainerLow = slate50)
+        // — Kacheln und Cards setzen sich dadurch in Weiß klar ab.
+        color: scheme.surfaceContainerLow,
+        border: Border(right: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _BrandHeader(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              children: [
+                for (final section in navSections) ...[
+                  if (section.items.any((i) =>
+                          !i.superAdminOnly || isSuperAdmin) &&
+                      (section.items.length > 1 ||
+                          section.items.first.path != '/'))
+                    _SectionLabel(section.title),
+                  for (final item in section.items)
+                    if (!item.superAdminOnly || isSuperAdmin)
+                      _NavItem(item: item, active: currentPath == item.path),
+                ],
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+          _VersionFooter(),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: InkWell(
+        onTap: () => GoRouter.of(context).go('/'),
+        // Logo nimmt die volle Spaltenbreite ein und skaliert proportional.
+        child: SizedBox(
+          width: double.infinity,
+          child: SvgPicture.asset(
+            'assets/images/logo.svg',
+            fit: BoxFit.contain,
+            alignment: Alignment.centerLeft,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.08 * 10.5,
+          color: AppTheme.slate400,
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatefulWidget {
+  const _NavItem({required this.item, required this.active});
+  final NavItem item;
+  final bool active;
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.active;
+    final bg = active
+        ? AppTheme.accent50
+        : _hover
+            ? AppTheme.slate100
+            : Colors.transparent;
+    final textColor = active
+        ? AppTheme.accent700
+        : _hover
+            ? AppTheme.slate900
+            : AppTheme.slate600;
+    final iconColor = active
+        ? AppTheme.accent600
+        : _hover
+            ? AppTheme.slate900
+            : AppTheme.slate500;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => GoRouter.of(context).go(widget.item.path),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border(
+              left: BorderSide(
+                color: active ? AppTheme.accent600 : Colors.transparent,
+                width: 3,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              HeroIcon(name: widget.item.icon, size: 18, color: iconColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.item.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: textColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VersionFooter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: AppTheme.slate200)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981), // emerald-500
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Aktenwerk v1.0',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.slate500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'aktenwerk.app',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.accent600,
+            ),
+          ),
+        ],
       ),
     );
   }

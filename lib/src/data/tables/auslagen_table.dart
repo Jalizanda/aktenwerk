@@ -9,6 +9,10 @@ class Auslagen extends Table {
       integer().nullable().references(Auftraege, #id, onDelete: KeyAction.cascade)();
 
   DateTimeColumn get datum => dateTime().withDefault(currentDateAndTime)();
+
+  /// Art der Auslage: fahrt | schreibauslagen | kopie_sw | kopie_farbe |
+  /// lichtbilder | porto | fremdleistung | sonstiges
+  TextColumn get art => text().nullable()();
   TextColumn get kategorie => text().nullable()();
   TextColumn get beschreibung => text().nullable()();
 

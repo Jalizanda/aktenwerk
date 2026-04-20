@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../features/system/konten/debitor_service.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'lieferanten_repository.dart';
@@ -27,20 +28,9 @@ class LieferantenScreen extends ConsumerWidget {
               onPressed: () => _show(context, ref),
             ),
           ],
-          filters: [
-            SizedBox(
-              width: 320,
-              child: TextField(
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Firma, Ort, Kategorie',
-                ),
-                onChanged: (v) =>
-                    ref.read(lieferantenQueryProvider.notifier).state = v,
-              ),
-            ),
-          ],
+          searchHint: 'Suche Firma, Ort, Kategorie …',
+          onSearchChanged: (v) =>
+              ref.read(lieferantenQueryProvider.notifier).state = v,
         ),
         const Divider(height: 1),
         Expanded(
@@ -53,6 +43,7 @@ class LieferantenScreen extends ConsumerWidget {
                     title: 'Keine Lieferanten erfasst')
                 : DataTableCard(
                     child: DataTable(
+              showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
@@ -112,12 +103,12 @@ class LieferantenScreen extends ConsumerWidget {
         content: Text('«${l.firma}» wird gelöscht.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
               child: const Text('Abbrechen')),
           FilledButton.tonal(
             style: FilledButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
             child: const Text('Löschen'),
           ),
         ],
@@ -143,25 +134,49 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
   late final _strasse = _tec(widget.lieferant?.strasse);
   late final _plz = _tec(widget.lieferant?.plz);
   late final _ort = _tec(widget.lieferant?.ort);
+  late final _land = _tec(widget.lieferant?.land);
   late final _telefon = _tec(widget.lieferant?.telefon);
   late final _email = _tec(widget.lieferant?.email);
   late final _website = _tec(widget.lieferant?.website);
   late final _kategorie = _tec(widget.lieferant?.kategorie);
   late final _kdnr = _tec(widget.lieferant?.kundennummer);
   late final _ustId = _tec(widget.lieferant?.ustId);
+  late final _steuerNr = _tec(widget.lieferant?.steuerNr);
+  late final _zahlungsziel = _tec(
+      (widget.lieferant?.zahlungszielTage ?? 14).toString());
+  late final _bank = _tec(widget.lieferant?.bank);
+  late final _kontoinhaber = _tec(widget.lieferant?.kontoinhaber);
   late final _iban = _tec(widget.lieferant?.iban);
   late final _bic = _tec(widget.lieferant?.bic);
+  late final _glaeubigerId = _tec(widget.lieferant?.glaeubigerId);
+  late final _mandatRef = _tec(widget.lieferant?.mandatRef);
   late final _notiz = _tec(widget.lieferant?.notiz);
+  String _zahlungsweise =
+      _normZahl(null);
   bool _saving = false;
 
   TextEditingController _tec(String? v) =>
       TextEditingController(text: v ?? '');
 
+  static String _normZahl(String? v) {
+    const allowed = ['ueberweisung', 'lastschrift', 'kreditkarte', 'paypal'];
+    return allowed.contains(v) ? v! : 'ueberweisung';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _zahlungsweise = _normZahl(widget.lieferant?.zahlungsweise);
+  }
+
   @override
   void dispose() {
     for (final c in [
-      _firma, _ansprech, _strasse, _plz, _ort, _telefon, _email, _website,
-      _kategorie, _kdnr, _ustId, _iban, _bic, _notiz,
+      _firma, _ansprech, _strasse, _plz, _ort, _land,
+      _telefon, _email, _website,
+      _kategorie, _kdnr, _ustId, _steuerNr, _zahlungsziel,
+      _bank, _kontoinhaber, _iban, _bic,
+      _glaeubigerId, _mandatRef, _notiz,
     ]) {
       c.dispose();
     }
@@ -173,6 +188,13 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    final ziel = int.tryParse(_zahlungsziel.text.trim()) ?? 14;
+    String? kreditor = widget.lieferant?.kreditornummer;
+    if (kreditor == null || kreditor.isEmpty) {
+      kreditor = await ref
+          .read(debitorKreditorServiceProvider)
+          .nextKreditornummer();
+    }
     final companion = LieferantenCompanion(
       id: _isEdit ? Value(widget.lieferant!.id) : const Value.absent(),
       firma: Value(_firma.text.trim()),
@@ -180,19 +202,28 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
       strasse: _nt(_strasse),
       plz: _nt(_plz),
       ort: _nt(_ort),
+      land: _nt(_land),
       telefon: _nt(_telefon),
       email: _nt(_email),
       website: _nt(_website),
       kategorie: _nt(_kategorie),
       kundennummer: _nt(_kdnr),
+      kreditornummer: Value(kreditor),
       ustId: _nt(_ustId),
+      steuerNr: _nt(_steuerNr),
+      zahlungszielTage: Value(ziel),
+      zahlungsweise: Value(_zahlungsweise),
+      bank: _nt(_bank),
+      kontoinhaber: _nt(_kontoinhaber),
       iban: _nt(_iban),
       bic: _nt(_bic),
+      glaeubigerId: _nt(_glaeubigerId),
+      mandatRef: _nt(_mandatRef),
       notiz: _nt(_notiz),
     );
     try {
       await ref.read(lieferantenRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -212,8 +243,15 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
     return StandardFormDialog(
       title: _isEdit ? 'Lieferant bearbeiten' : 'Neuer Lieferant',
       saving: _saving,
-      onCancel: () => Navigator.pop(context, false),
+      maxWidth: 900,
+      maxHeight: 820,
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(lieferantenRepositoryProvider)
+              .delete(widget.lieferant!.id)
+          : null,
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -221,59 +259,112 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LabeledField(
-                'Firma',
-                TextFormField(
-                  controller: _firma,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Erforderlich' : null,
+              FormSection('Basis', children: [
+                Row2(
+                  left: LabeledField(
+                    'Firma *',
+                    TextFormField(
+                      controller: _firma,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Erforderlich'
+                          : null,
+                    ),
+                  ),
+                  right: LabeledField('Kategorie',
+                      TextFormField(controller: _kategorie)),
                 ),
-              ),
-              const SizedBox(height: 12),
-              LabeledField('Ansprechpartner',
-                  TextFormField(controller: _ansprech)),
-              const SizedBox(height: 12),
-              LabeledField('Straße', TextFormField(controller: _strasse)),
-              const SizedBox(height: 12),
-              Row2(
-                flex: const (1, 3),
-                left: LabeledField('PLZ', TextFormField(controller: _plz)),
-                right: LabeledField('Ort', TextFormField(controller: _ort)),
-              ),
-              const SizedBox(height: 12),
-              Row2(
-                left: LabeledField(
-                    'Telefon', TextFormField(controller: _telefon)),
-                right: LabeledField(
-                    'E-Mail', TextFormField(controller: _email)),
-              ),
-              const SizedBox(height: 12),
-              Row2(
-                left: LabeledField(
+                const SizedBox(height: 12),
+                LabeledField('Ansprechpartner',
+                    TextFormField(controller: _ansprech)),
+              ]),
+              FormSection('Adresse', children: [
+                LabeledField('Straße', TextFormField(controller: _strasse)),
+                const SizedBox(height: 12),
+                Row3(
+                  a: LabeledField('PLZ', TextFormField(controller: _plz)),
+                  b: LabeledField('Ort', TextFormField(controller: _ort)),
+                  c: LabeledField('Land', TextFormField(controller: _land)),
+                ),
+              ]),
+              FormSection('Kontakt', children: [
+                Row2(
+                  left: LabeledField(
+                      'Telefon', TextFormField(controller: _telefon)),
+                  right: LabeledField(
+                      'E-Mail', TextFormField(controller: _email)),
+                ),
+                const SizedBox(height: 12),
+                LabeledField(
                     'Website', TextFormField(controller: _website)),
-                right: LabeledField(
-                    'Kategorie', TextFormField(controller: _kategorie)),
-              ),
-              const SizedBox(height: 12),
-              Row2(
-                left: LabeledField(
-                    'Kundennummer', TextFormField(controller: _kdnr)),
-                right: LabeledField(
-                    'USt-ID', TextFormField(controller: _ustId)),
-              ),
-              const SizedBox(height: 12),
-              Row2(
-                flex: const (3, 1),
-                left: LabeledField(
-                    'IBAN', TextFormField(controller: _iban)),
-                right: LabeledField(
-                    'BIC', TextFormField(controller: _bic)),
-              ),
-              const SizedBox(height: 12),
-              LabeledField(
-                'Notiz',
-                TextFormField(controller: _notiz, minLines: 2, maxLines: 5),
-              ),
+              ]),
+              FormSection('Steuer & Zahlung', children: [
+                Row3(
+                  a: LabeledField(
+                      'Kundennr.', TextFormField(controller: _kdnr)),
+                  b: LabeledField(
+                      'USt-IdNr.', TextFormField(controller: _ustId)),
+                  c: LabeledField(
+                      'Steuer-Nr.', TextFormField(controller: _steuerNr)),
+                ),
+                const SizedBox(height: 12),
+                Row2(
+                  left: LabeledField(
+                    'Zahlungsziel (Tage)',
+                    TextFormField(
+                      controller: _zahlungsziel,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  right: LabeledField(
+                    'Zahlungsweise',
+                    DropdownButtonFormField<String>(
+                      initialValue: _zahlungsweise,
+                      isDense: true,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'ueberweisung', child: Text('Überweisung')),
+                        DropdownMenuItem(
+                            value: 'lastschrift', child: Text('Lastschrift')),
+                        DropdownMenuItem(
+                            value: 'kreditkarte', child: Text('Kreditkarte')),
+                        DropdownMenuItem(
+                            value: 'paypal', child: Text('PayPal')),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _zahlungsweise = v ?? 'ueberweisung'),
+                    ),
+                  ),
+                ),
+              ]),
+              FormSection('Bankverbindung', children: [
+                Row2(
+                  left: LabeledField(
+                      'Bank', TextFormField(controller: _bank)),
+                  right: LabeledField('Kontoinhaber',
+                      TextFormField(controller: _kontoinhaber)),
+                ),
+                const SizedBox(height: 12),
+                Row2(
+                  flex: const (3, 1),
+                  left: LabeledField(
+                      'IBAN', TextFormField(controller: _iban)),
+                  right: LabeledField(
+                      'BIC', TextFormField(controller: _bic)),
+                ),
+                if (_zahlungsweise == 'lastschrift') ...[
+                  const SizedBox(height: 12),
+                  Row2(
+                    left: LabeledField('Gläubiger-ID',
+                        TextFormField(controller: _glaeubigerId)),
+                    right: LabeledField('Mandatsreferenz',
+                        TextFormField(controller: _mandatRef)),
+                  ),
+                ],
+              ]),
+              FormSection('Notiz', children: [
+                TextFormField(
+                    controller: _notiz, minLines: 2, maxLines: 5),
+              ]),
             ],
           ),
         ),

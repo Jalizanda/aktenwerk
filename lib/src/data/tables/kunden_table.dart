@@ -27,6 +27,12 @@ class Kunden extends Table {
   TextColumn get steuerNr => text().nullable()();
   TextColumn get ustId => text().nullable()();
 
+  /// Aktenzeichen-Präfix (z.B. "12 OH 4/26" bei Gerichten).
+  TextColumn get aktenpraefix => text().nullable()();
+
+  /// DATEV-Debitorennummer (SKR03: 10000–69999, SKR04: 10000–69999).
+  TextColumn get debitornummer => text().nullable()();
+
   TextColumn get notiz => text().nullable()();
   TextColumn get extras => text().nullable()();
 

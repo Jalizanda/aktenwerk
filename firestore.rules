@@ -1,14 +1,184 @@
 rules_version = '2';
-// Single-User-Datenmodell: Jeder Datensatz liegt unter users/{uid}/...
-// Nur der jeweilige Benutzer darf lesen/schreiben.
+// Multi-Tenant-Datenmodell mit Approval-Workflow:
+// - /users/{uid}                           : App-User + approved + isSuperAdmin-Flag
+// - /organizations/{orgId}                 : Metadaten der Org (approved-Flag)
+// - /organizations/{orgId}/members/{uid}   : Mitgliedschaft + Rolle (owner/admin/member/readonly)
+// - /organizations/{orgId}/{coll}/{docId}  : Nutzdaten (nur Mitglieder, nur wenn User+Org approved)
+// - /users/{uid}/memberships/{orgId}       : Reverse-Lookup der eigenen Orgs
+// - /invites/{code}                        : Einladungs-Token
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /users/{uid}/{collection}/{docId} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Alles andere ist per Default verboten.
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc(request.auth.uid).data.isSuperAdmin == true;
+    }
+
+    // Hardcoded Bootstrap-Admin: Nur diese E-Mail darf sich selbst mit
+    // isSuperAdmin=true anlegen. Jede andere Adresse kann das Feld nicht
+    // auf true setzen.
+    function isBootstrapAdminEmail() {
+      return isSignedIn()
+        && request.auth.token.email == 'alexander.hoepken@gmail.com';
+    }
+
+    function isApprovedUser() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc(request.auth.uid).data.approved == true;
+    }
+
+    function isOrgMember(orgId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function orgRole(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && (orgRole(orgId) == 'owner' || orgRole(orgId) == 'admin');
+    }
+
+    function isOrgWriter(orgId) {
+      return isOrgMember(orgId)
+        && (orgRole(orgId) == 'owner' || orgRole(orgId) == 'admin' || orgRole(orgId) == 'member');
+    }
+
+    function isOrgApproved(orgId) {
+      return exists(/databases/$(database)/documents/organizations/$(orgId))
+        && get(/databases/$(database)/documents/organizations/$(orgId)).data.approved == true;
+    }
+
+    // ---- Users (Global) ----
+    match /users/{uid} {
+      // Jeder eingeloggte User darf sein eigenes Doc lesen/anlegen.
+      allow read: if isSignedIn() && (request.auth.uid == uid || isSuperAdmin());
+      // Create: Jeder eingeloggte User darf sein eigenes Doc anlegen.
+      // Approved/isSuperAdmin=true darf dabei NUR die Bootstrap-Admin-E-Mail
+      // setzen. Alle anderen müssen approved=false und isSuperAdmin=false
+      // erzeugen und vom Admin freigeschaltet werden.
+      allow create: if isSignedIn() && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(
+                      ['email', 'displayName', 'approved', 'isSuperAdmin',
+                       'createdAt', 'approvedAt', 'approvedBy'])
+                    && (
+                      // Normale Registrierung: approved + isSuperAdmin MUSS false sein
+                      (request.resource.data.approved == false
+                        && request.resource.data.isSuperAdmin == false)
+                      // Oder Bootstrap-E-Mail darf sich selbst freischalten
+                      || isBootstrapAdminEmail()
+                    );
+      // Update: Eigener User darf nur harmlose Felder ändern (keine Selbst-
+      // Freischaltung!). Die Bootstrap-Admin-E-Mail darf ihre Flags notfalls
+      // selbst korrigieren (idempotent). Super-Admins dürfen alles.
+      allow update: if isSignedIn()
+                    && (
+                      // Selbst-Update: approved/isSuperAdmin dürfen NICHT verändert werden
+                      (request.auth.uid == uid
+                        && request.resource.data.approved == resource.data.approved
+                        && request.resource.data.isSuperAdmin == resource.data.isSuperAdmin)
+                      // Bootstrap-E-Mail darf sich selbst approved/isSuperAdmin setzen
+                      || (request.auth.uid == uid && isBootstrapAdminEmail())
+                      // Super-Admin darf alles
+                      || isSuperAdmin()
+                    );
+      allow delete: if isSuperAdmin();
+
+      // Reverse-Lookup der Mitgliedschaften.
+      match /memberships/{orgId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // Liste aller Users (für Admin-Ansicht).
+    match /users/{document=**} {
+      allow list: if isSuperAdmin();
+    }
+
+    // ---- Organizations ----
+    match /organizations/{orgId} {
+      // Anlegen: Super-Admin darf Orgs mit beliebigem Namen/approved-Flag
+      // anlegen (z.B. Demo-Mandant, Produktiv-Mandant im Setup-Schritt).
+      // Normale Nutzer dürfen nur ihre eigene Org mit approved=false anlegen.
+      allow create: if isSuperAdmin()
+                    || (isApprovedUser()
+                        && request.resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.approved == false);
+      // Lesen: Mitglieder + Super-Admin.
+      allow read: if isOrgMember(orgId) || isSuperAdmin();
+      // Aktualisieren: Super-Admin (kann approved setzen) oder Org-Owner/Admin
+      // (dürfen `approved`-Feld NICHT selbst ändern).
+      allow update: if isSuperAdmin()
+                    || (isOrgAdmin(orgId)
+                        && request.resource.data.approved == resource.data.approved
+                        && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow delete: if isSuperAdmin()
+                    || (isOrgMember(orgId) && orgRole(orgId) == 'owner');
+
+      // Mitgliederliste
+      match /members/{memberUid} {
+        allow read: if isOrgMember(orgId) || isSuperAdmin();
+        // Erstinitialisierung beim Org-Create: Der erstellende User trägt sich als Owner ein.
+        allow create: if isSignedIn()
+                      && request.auth.uid == memberUid
+                      && request.resource.data.role == 'owner'
+                      && get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerUid == request.auth.uid;
+        // Invite-Redemption: Der eingeladene User darf sich selbst eintragen.
+        allow create: if isSignedIn()
+                      && request.auth.uid == memberUid
+                      && request.resource.data.inviteCode is string
+                      && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode))
+                      && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.orgId == orgId
+                      && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.role == request.resource.data.role
+                      && request.resource.data.role != 'owner';
+        // Admin darf weitere Mitglieder hinzufügen/aktualisieren, außer Owner-Rolle.
+        allow create, update: if isOrgAdmin(orgId)
+                              && (request.resource.data.role != 'owner' || orgRole(orgId) == 'owner');
+        allow delete: if isOrgAdmin(orgId)
+                      && (resource.data.role != 'owner' || orgRole(orgId) == 'owner');
+        // Mitglied darf sich selbst entfernen (verlassen), außer es ist der Owner.
+        allow delete: if isSignedIn()
+                      && request.auth.uid == memberUid
+                      && resource.data.role != 'owner';
+        allow read, write: if isSuperAdmin();
+      }
+
+      // Nutzdaten (Kunden, Aufträge, Gutachten, Rechnungen, …)
+      // — Nur Mitglieder + Org muss approved sein.
+      match /{collection}/{docId} {
+        allow read: if (isOrgMember(orgId) && isOrgApproved(orgId)) || isSuperAdmin();
+        allow create, update: if (isOrgWriter(orgId) && isOrgApproved(orgId)) || isSuperAdmin();
+        allow delete: if (isOrgWriter(orgId) && isOrgApproved(orgId)) || isSuperAdmin();
+      }
+    }
+
+    // Liste aller Organizations (für Super-Admin).
+    match /organizations/{document=**} {
+      allow list: if isSuperAdmin();
+    }
+
+    // ---- Invites ----
+    match /invites/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && isOrgAdmin(request.resource.data.orgId)
+                    && request.resource.data.invitedByUid == request.auth.uid;
+      allow update: if isSignedIn() && isOrgAdmin(resource.data.orgId);
+      allow delete: if isSignedIn();
+    }
+
+    // Default-Deny.
     match /{document=**} {
       allow read, write: if false;
     }

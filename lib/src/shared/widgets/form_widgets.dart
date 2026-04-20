@@ -88,16 +88,22 @@ class DialogHeader extends StatelessWidget {
     required this.title,
     required this.onClose,
     this.trailing,
+    this.icon,
   });
   final String title;
   final VoidCallback? onClose;
   final Widget? trailing;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
         child: Row(
           children: [
+            if (icon != null) ...[
+              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: Text(
                 title,
@@ -170,15 +176,89 @@ class StandardFormDialog extends StatelessWidget {
     this.saving = false,
     this.maxWidth = 760,
     this.maxHeight = 760,
+    this.footerLeading,
+    this.onDelete,
+    this.deleteConfirmText,
+    this.icon,
   });
 
   final String title;
   final Widget body;
+  final IconData? icon;
   final VoidCallback onCancel;
   final VoidCallback onSave;
   final bool saving;
   final double maxWidth;
   final double maxHeight;
+
+  /// Zusätzliche Aktionen links im Footer (z.B. „Drucken" / „In Auftrag umwandeln").
+  final Widget? footerLeading;
+
+  /// Löschen-Callback (Papierkorb unten links). Wenn gesetzt, zeigt der Dialog
+  /// einen Löschen-Button mit Bestätigungs-Dialog. Nach dem Löschen wird der
+  /// Form-Dialog automatisch geschlossen (der Callback muss das nicht selbst tun).
+  final Future<void> Function()? onDelete;
+
+  /// Text der Löschen-Bestätigung (Standard: „Eintrag wirklich löschen?").
+  final String? deleteConfirmText;
+
+  Widget _buildLeading(BuildContext context) {
+    final trash = onDelete == null
+        ? null
+        : IconButton(
+            tooltip: 'Löschen',
+            icon: const Icon(Icons.delete_outline),
+            color: Theme.of(context).colorScheme.error,
+            onPressed: saving
+                ? null
+                : () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      useRootNavigator: true,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Löschen?'),
+                        content: Text(deleteConfirmText ??
+                            'Eintrag wirklich löschen?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context,
+                                    rootNavigator: true)
+                                .pop(false),
+                            child: const Text('Abbrechen'),
+                          ),
+                          FilledButton.tonal(
+                            style: FilledButton.styleFrom(
+                                foregroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .error),
+                            onPressed: () => Navigator.of(context,
+                                    rootNavigator: true)
+                                .pop(true),
+                            child: const Text('Löschen'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await onDelete!();
+                      if (context.mounted) {
+                        Navigator.of(context, rootNavigator: true).pop(true);
+                      }
+                    }
+                  },
+          );
+    if (trash == null && footerLeading == null) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ?trash,
+        if (footerLeading != null) ...[
+          if (trash != null) const SizedBox(width: 4),
+          footerLeading!,
+        ],
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Dialog(
@@ -188,14 +268,20 @@ class StandardFormDialog extends StatelessWidget {
               BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
           child: Column(
             children: [
-              DialogHeader(title: title, onClose: saving ? null : onCancel),
+              DialogHeader(
+                  title: title,
+                  icon: icon,
+                  onClose: saving ? null : onCancel),
               const Divider(height: 1),
-              Expanded(child: body),
+              Expanded(
+                child: Container(color: Colors.white, child: body),
+              ),
               const Divider(height: 1),
               DialogFooter(
                 onCancel: onCancel,
                 onSave: onSave,
                 saving: saving,
+                extraLeading: _buildLeading(context),
               ),
             ],
           ),

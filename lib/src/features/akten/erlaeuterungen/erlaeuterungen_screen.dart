@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../shared/widgets/date_field.dart';
@@ -32,20 +33,9 @@ class ErlaeuterungenScreen extends ConsumerWidget {
               onPressed: () => _show(context, ref),
             ),
           ],
-          filters: [
-            SizedBox(
-              width: 320,
-              child: TextField(
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Gericht, Richter, Aktenzeichen',
-                ),
-                onChanged: (v) =>
-                    ref.read(erlaeuterungenQueryProvider.notifier).state = v,
-              ),
-            ),
-          ],
+          searchHint: 'Suche Gericht, Richter, Aktenzeichen …',
+          onSearchChanged: (v) =>
+              ref.read(erlaeuterungenQueryProvider.notifier).state = v,
         ),
         const Divider(height: 1),
         Expanded(
@@ -58,6 +48,7 @@ class ErlaeuterungenScreen extends ConsumerWidget {
                     title: 'Keine Erläuterungstermine')
                 : DataTableCard(
                     child: DataTable(
+              showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
@@ -116,6 +107,15 @@ class ErlaeuterungenScreen extends ConsumerWidget {
   }
 }
 
+Future<void> showErlaeuterungEditor(BuildContext context,
+    {ErlaeuterungWithAuftrag? eintrag}) async {
+  await showDialog(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => _ErlaeuterungForm(eintrag: eintrag),
+  );
+}
+
 class _ErlaeuterungForm extends ConsumerStatefulWidget {
   const _ErlaeuterungForm({this.eintrag});
   final ErlaeuterungWithAuftrag? eintrag;
@@ -128,15 +128,32 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
   final _formKey = GlobalKey<FormState>();
   int? _auftragId;
   DateTime? _termin;
+  DateTime? _ladungsdatum;
+  DateTime? _vergueteAm;
   TimeOfDay _uhrzeit = const TimeOfDay(hour: 9, minute: 0);
   String _status = 'geplant';
+  String _honorargruppe = 'M2';
+
   late final _gericht = _tec(widget.eintrag?.eintrag.gericht);
+  late final _gerichtsort = _tec(widget.eintrag?.eintrag.gerichtsort);
   late final _saal = _tec(widget.eintrag?.eintrag.saal);
   late final _richter = _tec(widget.eintrag?.eintrag.richter);
   late final _ort = _tec(widget.eintrag?.eintrag.ort);
+  late final _azExtern = _tec(widget.eintrag?.eintrag.azExtern);
+  late final _parteien = _tec(widget.eintrag?.eintrag.parteien);
   late final _vorbereitung = _tec(widget.eintrag?.eintrag.vorbereitung);
   late final _notiz = _tec(widget.eintrag?.eintrag.notiz);
   late final _protokoll = _tec(widget.eintrag?.eintrag.protokoll);
+  late final _dauerStd = _tec(
+      (widget.eintrag?.eintrag.dauerStunden ?? 1).toStringAsFixed(1));
+  late final _wartezeitStd = _tec(
+      (widget.eintrag?.eintrag.wartezeitStunden ?? 0).toStringAsFixed(1));
+  late final _fahrtKm = _tec(
+      (widget.eintrag?.eintrag.fahrtKm ?? 0).toStringAsFixed(0));
+  late final _kmSatz = _tec(
+      (widget.eintrag?.eintrag.kmSatz ?? 0.42).toStringAsFixed(2));
+  late final _stundensatz = _tec(
+      (widget.eintrag?.eintrag.stundensatz ?? 110).toStringAsFixed(2));
   bool _saving = false;
 
   TextEditingController _tec(String? v) =>
@@ -145,19 +162,26 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
   @override
   void initState() {
     super.initState();
-    _auftragId = widget.eintrag?.eintrag.auftragId;
-    final t = widget.eintrag?.eintrag.terminAm;
+    final e = widget.eintrag?.eintrag;
+    _auftragId = e?.auftragId;
+    final t = e?.terminAm;
     _termin = t;
     if (t != null) {
       _uhrzeit = TimeOfDay(hour: t.hour, minute: t.minute);
     }
-    _status = widget.eintrag?.eintrag.status ?? 'geplant';
+    _ladungsdatum = e?.ladungsdatum;
+    _vergueteAm = e?.vergueteAm;
+    _status = e?.status ?? 'geplant';
+    _honorargruppe = e?.honorargruppe ?? 'M2';
   }
 
   @override
   void dispose() {
     for (final c in [
-      _gericht, _saal, _richter, _ort, _vorbereitung, _notiz, _protokoll,
+      _gericht, _gerichtsort, _saal, _richter, _ort,
+      _azExtern, _parteien,
+      _vorbereitung, _notiz, _protokoll,
+      _dauerStd, _wartezeitStd, _fahrtKm, _kmSatz, _stundensatz,
     ]) {
       c.dispose();
     }
@@ -172,6 +196,47 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
         _uhrzeit.hour, _uhrzeit.minute);
   }
 
+  double _num(TextEditingController c, double fb) =>
+      double.tryParse(c.text.replaceAll(',', '.')) ?? fb;
+
+  _VergBerechnung _berechne() {
+    final dauer = _num(_dauerStd, 0);
+    final wartezeit = _num(_wartezeitStd, 0);
+    final km = _num(_fahrtKm, 0);
+    final kms = _num(_kmSatz, 0.42);
+    final satz = _num(_stundensatz, 0);
+    final termin = satz * (dauer + wartezeit);
+    final fahrt = km * kms;
+    final netto = termin + fahrt;
+    final ust = netto * 0.19;
+    final brutto = netto + ust;
+    return _VergBerechnung(
+      dauer: dauer,
+      wartezeit: wartezeit,
+      km: km,
+      kmSatz: kms,
+      satz: satz,
+      termin: termin,
+      fahrt: fahrt,
+      netto: netto,
+      ust: ust,
+      brutto: brutto,
+    );
+  }
+
+  void _applyHonorargruppe(String g) {
+    // M1 = 90 €, M2 = 110 €, M3 = 130 € (JVEG § 9)
+    final map = {'M1': '90', 'M2': '110', 'M3': '130'};
+    if (map.containsKey(g)) {
+      setState(() {
+        _honorargruppe = g;
+        _stundensatz.text = map[g]!;
+      });
+    } else {
+      setState(() => _honorargruppe = g);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -181,11 +246,22 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
           : const Value.absent(),
       auftragId: Value(_auftragId),
       terminAm: Value(_combined()),
+      ladungsdatum: Value(_ladungsdatum),
+      vergueteAm: Value(_vergueteAm),
       ort: _nt(_ort),
       gericht: _nt(_gericht),
+      gerichtsort: _nt(_gerichtsort),
       saal: _nt(_saal),
       richter: _nt(_richter),
+      azExtern: _nt(_azExtern),
+      parteien: _nt(_parteien),
       status: Value(_status),
+      honorargruppe: Value(_honorargruppe),
+      dauerStunden: Value(_num(_dauerStd, 0)),
+      wartezeitStunden: Value(_num(_wartezeitStd, 0)),
+      fahrtKm: Value(_num(_fahrtKm, 0)),
+      kmSatz: Value(_num(_kmSatz, 0.42)),
+      stundensatz: Value(_num(_stundensatz, 0)),
       vorbereitung: _nt(_vorbereitung),
       notiz: _nt(_notiz),
       protokoll: _nt(_protokoll),
@@ -194,7 +270,7 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
       await ref
           .read(erlaeuterungenRepositoryProvider)
           .upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -211,14 +287,23 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
 
   @override
   Widget build(BuildContext context) {
+    final b = _berechne();
+    final money =
+        NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
     return StandardFormDialog(
-      title:
-          _isEdit ? 'Erläuterungstermin bearbeiten' : 'Neuer Erläuterungstermin',
+      title: _isEdit
+          ? 'Erläuterungstermin bearbeiten'
+          : 'Neuer Erläuterungstermin',
       saving: _saving,
-      maxWidth: 840,
-      maxHeight: 780,
-      onCancel: () => Navigator.pop(context, false),
+      maxWidth: 1000,
+      maxHeight: 880,
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(erlaeuterungenRepositoryProvider)
+              .delete(widget.eintrag!.eintrag.id)
+          : null,
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -226,98 +311,318 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AuftragPickerField(
-                auftragId: _auftragId,
-                onChanged: (id) => setState(() => _auftragId = id),
-              ),
-              const SizedBox(height: 12),
-              Row3(
-                a: DateField(
-                  label: 'Datum',
-                  value: _termin,
-                  onChanged: (v) => setState(() => _termin = v),
-                ),
-                b: LabeledField(
-                  'Uhrzeit',
-                  InkWell(
-                    onTap: () async {
-                      final t = await showTimePicker(
-                        context: context,
-                        initialTime: _uhrzeit,
-                      );
-                      if (t != null) setState(() => _uhrzeit = t);
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(isDense: true),
-                      child: Text(
-                          '${_uhrzeit.hour.toString().padLeft(2, '0')}:${_uhrzeit.minute.toString().padLeft(2, '0')}'),
+              FormSection('Termin', children: [
+                Row3(
+                  a: DateField(
+                    label: 'Datum',
+                    value: _termin,
+                    onChanged: (v) => setState(() => _termin = v),
+                  ),
+                  b: LabeledField(
+                    'Uhrzeit',
+                    InkWell(
+                      onTap: () async {
+                        final t = await showTimePicker(
+                          context: context,
+                          initialTime: _uhrzeit,
+                        );
+                        if (t != null) setState(() => _uhrzeit = t);
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(isDense: true),
+                        child: Text(
+                            '${_uhrzeit.hour.toString().padLeft(2, '0')}:${_uhrzeit.minute.toString().padLeft(2, '0')}'),
+                      ),
                     ),
                   ),
-                ),
-                c: LabeledField(
-                  'Status',
-                  DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isDense: true,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'geplant', child: Text('geplant')),
-                      DropdownMenuItem(
-                          value: 'durchgefuehrt',
-                          child: Text('durchgeführt')),
-                      DropdownMenuItem(
-                          value: 'verschoben',
-                          child: Text('verschoben')),
-                      DropdownMenuItem(
-                          value: 'abgesagt', child: Text('abgesagt')),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => _status = v ?? 'geplant'),
+                  c: DateField(
+                    label: 'Ladungsdatum',
+                    value: _ladungsdatum,
+                    onChanged: (v) => setState(() => _ladungsdatum = v),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row2(
-                left: LabeledField(
-                  'Gericht',
-                  TextFormField(controller: _gericht),
+                const SizedBox(height: 12),
+                Row2(
+                  left: LabeledField(
+                    'Status',
+                    DropdownButtonFormField<String>(
+                      initialValue: _status,
+                      isDense: true,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'geplant', child: Text('geplant')),
+                        DropdownMenuItem(
+                            value: 'geladen', child: Text('geladen')),
+                        DropdownMenuItem(
+                            value: 'vorbereitet',
+                            child: Text('vorbereitet')),
+                        DropdownMenuItem(
+                            value: 'durchgefuehrt',
+                            child: Text('durchgeführt')),
+                        DropdownMenuItem(
+                            value: 'verguetet',
+                            child: Text('vergütet')),
+                        DropdownMenuItem(
+                            value: 'abgesagt', child: Text('abgesagt')),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _status = v ?? 'geplant'),
+                    ),
+                  ),
+                  right: AuftragPickerField(
+                    auftragId: _auftragId,
+                    onChanged: (id) => setState(() => _auftragId = id),
+                  ),
                 ),
-                right: LabeledField(
-                  'Saal',
-                  TextFormField(controller: _saal),
+              ]),
+              FormSection('Gericht / Ort', children: [
+                Row2(
+                  left: LabeledField(
+                      'Gericht', TextFormField(controller: _gericht)),
+                  right: LabeledField(
+                      'Gerichtsort',
+                      TextFormField(controller: _gerichtsort)),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row2(
-                left: LabeledField(
-                  'Richter/in',
-                  TextFormField(controller: _richter),
+                const SizedBox(height: 12),
+                Row3(
+                  a: LabeledField(
+                      'Saal', TextFormField(controller: _saal)),
+                  b: LabeledField('Richter/in',
+                      TextFormField(controller: _richter)),
+                  c: LabeledField(
+                      'Ort / Adresse', TextFormField(controller: _ort)),
                 ),
-                right: LabeledField(
-                  'Ort / Adresse',
-                  TextFormField(controller: _ort),
+              ]),
+              FormSection('Verfahren', children: [
+                Row2(
+                  left: LabeledField('Geschäftszeichen',
+                      TextFormField(controller: _azExtern)),
+                  right: LabeledField(
+                      'Parteien / Rubrum',
+                      TextFormField(controller: _parteien)),
                 ),
-              ),
-              const SizedBox(height: 16),
-              LabeledField(
-                'Vorbereitung',
-                TextFormField(
-                    controller: _vorbereitung, minLines: 3, maxLines: 5),
-              ),
-              const SizedBox(height: 12),
-              LabeledField(
-                'Notiz',
-                TextFormField(controller: _notiz, minLines: 2, maxLines: 4),
-              ),
-              const SizedBox(height: 12),
-              LabeledField(
-                'Protokoll',
-                TextFormField(
-                    controller: _protokoll, minLines: 3, maxLines: 6),
-              ),
+              ]),
+              FormSection('JVEG-Vergütung', children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row2(
+                            left: LabeledField(
+                              'Honorargruppe (§ 9)',
+                              DropdownButtonFormField<String>(
+                                initialValue: _honorargruppe,
+                                isDense: true,
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: 'M1',
+                                      child: Text('M1 (90 €/h)')),
+                                  DropdownMenuItem(
+                                      value: 'M2',
+                                      child: Text('M2 (110 €/h)')),
+                                  DropdownMenuItem(
+                                      value: 'M3',
+                                      child: Text('M3 (130 €/h)')),
+                                  DropdownMenuItem(
+                                      value: 'custom',
+                                      child: Text('frei')),
+                                ],
+                                onChanged: (v) =>
+                                    _applyHonorargruppe(v ?? 'M2'),
+                              ),
+                            ),
+                            right: LabeledField(
+                              'Stundensatz (€)',
+                              TextFormField(
+                                controller: _stundensatz,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row2(
+                            left: LabeledField(
+                              'Termindauer (Std.)',
+                              TextFormField(
+                                controller: _dauerStd,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            right: LabeledField(
+                              'Wartezeit (Std.)',
+                              TextFormField(
+                                controller: _wartezeitStd,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row2(
+                            left: LabeledField(
+                              'Fahrt (km)',
+                              TextFormField(
+                                controller: _fahrtKm,
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            right: LabeledField(
+                              '€/km (§ 5)',
+                              TextFormField(
+                                controller: _kmSatz,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          DateField(
+                            label: 'Vergütet am',
+                            value: _vergueteAm,
+                            onChanged: (v) =>
+                                setState(() => _vergueteAm = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: _VergSumCard(b: b, money: money),
+                    ),
+                  ],
+                ),
+              ]),
+              FormSection('Vorbereitung / Protokoll', children: [
+                LabeledField(
+                  'Vorbereitung',
+                  TextFormField(
+                      controller: _vorbereitung, minLines: 3, maxLines: 5),
+                ),
+                const SizedBox(height: 12),
+                LabeledField(
+                  'Protokoll',
+                  TextFormField(
+                      controller: _protokoll, minLines: 3, maxLines: 6),
+                ),
+                const SizedBox(height: 12),
+                LabeledField(
+                  'Notiz',
+                  TextFormField(controller: _notiz, minLines: 2, maxLines: 3),
+                ),
+              ]),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VergBerechnung {
+  final double dauer;
+  final double wartezeit;
+  final double km;
+  final double kmSatz;
+  final double satz;
+  final double termin;
+  final double fahrt;
+  final double netto;
+  final double ust;
+  final double brutto;
+  const _VergBerechnung({
+    required this.dauer,
+    required this.wartezeit,
+    required this.km,
+    required this.kmSatz,
+    required this.satz,
+    required this.termin,
+    required this.fahrt,
+    required this.netto,
+    required this.ust,
+    required this.brutto,
+  });
+}
+
+class _VergSumCard extends StatelessWidget {
+  const _VergSumCard({required this.b, required this.money});
+  final _VergBerechnung b;
+  final NumberFormat money;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.slate200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Live-Berechnung',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 10),
+          _row('Termin',
+              '${b.dauer.toStringAsFixed(1)} h × ${money.format(b.satz)}',
+              money.format(b.satz * b.dauer)),
+          if (b.wartezeit > 0)
+            _row('Wartezeit',
+                '${b.wartezeit.toStringAsFixed(1)} h × ${money.format(b.satz)}',
+                money.format(b.satz * b.wartezeit)),
+          if (b.km > 0)
+            _row('Fahrt',
+                '${b.km.toStringAsFixed(0)} km × ${money.format(b.kmSatz)}',
+                money.format(b.fahrt)),
+          const Divider(),
+          _row('Netto', '', money.format(b.netto), bold: true),
+          _row('USt 19 %', '', money.format(b.ust)),
+          _row('Brutto', '', money.format(b.brutto), bold: true, large: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String l, String sub, String v,
+      {bool bold = false, bool large = false}) {
+    final s = TextStyle(
+      fontSize: large ? 14 : 12.5,
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l, style: s),
+                if (sub.isNotEmpty)
+                  Text(sub,
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF64748B))),
+              ],
+            ),
+          ),
+          Text(v, style: s),
+        ],
       ),
     );
   }

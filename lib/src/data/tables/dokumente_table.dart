@@ -16,6 +16,11 @@ class Dokumente extends Table {
   TextColumn get mimeType => text().nullable()();
   IntColumn get dateigroesse => integer().nullable()();
 
+  /// Firebase-Storage-Pfad relativ zum Org-Ordner (organizations/{orgId}/pfad).
+  TextColumn get storagePfad => text().nullable()();
+  /// Öffentliche Download-URL aus Firebase Storage.
+  TextColumn get storageUrl => text().nullable()();
+
   BlobColumn get daten => blob().nullable()();
 
   DateTimeColumn get datum => dateTime().withDefault(currentDateAndTime)();

@@ -90,28 +90,40 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
       );
 
   Widget _loggedOutActions(AuthService auth) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Text(
-            'Melde dich an, um Daten mit Firestore zu synchronisieren.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+        Text(
+          'Melde dich an, um Daten mit Firestore zu synchronisieren.',
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
-        const SizedBox(width: 12),
-        FilledButton.tonalIcon(
-          onPressed: _busy
-              ? null
-              : () => _handle(() => auth.signInAnonymously(),
-                  successMsg: 'Anonym angemeldet'),
-          icon: const Icon(Icons.person_outline),
-          label: const Text('Anonym anmelden'),
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: _busy ? null : () => _openLogin(auth),
-          icon: const Icon(Icons.mail_outline),
-          label: const Text('E-Mail-Login'),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF1F2937),
+                side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant),
+              ),
+              onPressed: _busy
+                  ? null
+                  : () => _handle(
+                        () => auth.signInWithGoogle(),
+                        successMsg: 'Mit Google angemeldet.',
+                      ),
+              icon: const _GoogleLogo(),
+              label: const Text('Mit Google anmelden'),
+            ),
+            FilledButton.icon(
+              onPressed: _busy ? null : () => _openLogin(auth),
+              icon: const Icon(Icons.mail_outline),
+              label: const Text('E-Mail / Passwort'),
+            ),
+          ],
         ),
       ],
     );
@@ -213,12 +225,6 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Abbrechen')),
-          TextButton(
-              onPressed: () => Navigator.pop(
-                  context,
-                  _LoginResult(emailController.text,
-                      pwController.text, register: true)),
-              child: const Text('Registrieren')),
           FilledButton(
               onPressed: () => Navigator.pop(
                   context,
@@ -229,12 +235,8 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
     );
     if (result == null) return;
     await _handle(
-      () => result.register
-          ? auth.registerWithEmail(result.email, result.password)
-          : auth.signInWithEmail(result.email, result.password),
-      successMsg: result.register
-          ? 'Registriert und angemeldet.'
-          : 'Angemeldet.',
+      () => auth.signInWithEmail(result.email, result.password),
+      successMsg: 'Angemeldet.',
     );
   }
 }
@@ -242,8 +244,59 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
 class _LoginResult {
   final String email;
   final String password;
-  final bool register;
-  _LoginResult(this.email, this.password, {this.register = false});
+  _LoginResult(this.email, this.password);
+}
+
+/// 18×18-Google-Logo als SVG für den Login-Button.
+class _GoogleLogo extends StatelessWidget {
+  const _GoogleLogo();
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Vereinfachtes "G" in den Google-Farben.
+    final colors = [
+      const Color(0xFF4285F4),
+      const Color(0xFF34A853),
+      const Color(0xFFFBBC05),
+      const Color(0xFFEA4335),
+    ];
+    final rect = Offset.zero & size;
+    final c = size.width / 2;
+    final r = size.width * 0.45;
+    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = size.width * 0.18;
+    final rect2 = Rect.fromCircle(center: Offset(c, c), radius: r);
+    final sweeps = [
+      (-40.0, 90.0, colors[0]),
+      (50.0, 90.0, colors[1]),
+      (140.0, 90.0, colors[2]),
+      (230.0, 90.0, colors[3]),
+    ];
+    for (final s in sweeps) {
+      paint.color = s.$3;
+      canvas.drawArc(rect2, s.$1 * 3.141592653 / 180,
+          s.$2 * 3.141592653 / 180, false, paint);
+    }
+    // Kleine horizontale Linie als "G-Strich"
+    final linePaint = Paint()
+      ..color = colors[0]
+      ..strokeWidth = size.width * 0.14
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+        Offset(c, c), Offset(rect.right - size.width * 0.05, c), linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _StatusChip extends StatelessWidget {

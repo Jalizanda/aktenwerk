@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Formularfeld mit deutschem Datum und Kalender-Picker.
+import 'form_widgets.dart';
+
+/// Formularfeld mit deutschem Datum und Kalender-Picker. Label steht —
+/// einheitlich zu allen anderen Feldern — **über** dem Eingabefeld.
 class DateField extends StatefulWidget {
   const DateField({
     super.key,
@@ -28,35 +31,37 @@ class _DateFieldState extends State<DateField> {
   @override
   Widget build(BuildContext context) {
     final text = widget.value == null ? '' : _fmt.format(widget.value!);
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: widget.label,
-        isDense: true,
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.value != null)
+    return LabeledField(
+      widget.label,
+      InputDecorator(
+        decoration: InputDecoration(
+          isDense: true,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.value != null)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => widget.onChanged(null),
+                  tooltip: 'Datum löschen',
+                ),
               IconButton(
-                icon: const Icon(Icons.clear, size: 18),
-                onPressed: () => widget.onChanged(null),
-                tooltip: 'Datum löschen',
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                onPressed: _pick,
+                tooltip: 'Kalender',
               ),
-            IconButton(
-              icon: const Icon(Icons.calendar_today_outlined, size: 18),
-              onPressed: _pick,
-              tooltip: 'Kalender',
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: _pick,
-        child: Text(
-          text,
-          style: text.isEmpty
-              ? TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)
-              : null,
+        child: InkWell(
+          onTap: _pick,
+          child: Text(
+            text,
+            style: text.isEmpty
+                ? TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)
+                : null,
+          ),
         ),
       ),
     );

@@ -2,7 +2,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
+import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'textbausteine_repository.dart';
@@ -22,7 +24,8 @@ class TextbausteineScreen extends ConsumerWidget {
         ModuleHeader(
           icon: Icons.text_snippet_outlined,
           title: 'Textbausteine',
-          subtitle: 'Wiederverwendbare Textblöcke für Gutachten und Anschreiben',
+          subtitle:
+              'Wiederverwendbare Textblöcke für Gutachten und Anschreiben',
           actions: [
             FilledButton.icon(
               icon: const Icon(Icons.add),
@@ -30,20 +33,11 @@ class TextbausteineScreen extends ConsumerWidget {
               onPressed: () => _show(context, ref),
             ),
           ],
+          searchHint: 'Suche Titel oder Inhalt …',
+          onSearchChanged: (v) => ref
+              .read(textbausteineFilterProvider.notifier)
+              .update((f) => f.copyWith(query: v)),
           filters: [
-            SizedBox(
-              width: 320,
-              child: TextField(
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Titel oder Inhalt',
-                ),
-                onChanged: (v) => ref
-                    .read(textbausteineFilterProvider.notifier)
-                    .update((f) => f.copyWith(query: v)),
-              ),
-            ),
             DropdownButtonHideUnderline(
               child: DropdownButton<String?>(
                 value: filter.kategorie,
@@ -84,13 +78,97 @@ class TextbausteineScreen extends ConsumerWidget {
                 ? const EmptyListState(
                     icon: Icons.text_snippet_outlined,
                     title: 'Keine Textbausteine')
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) =>
-                        _BausteinTile(baustein: items[i]),
+                : DataTableCard(
+                    child: DataTable(
+                      showCheckboxColumn: false,
+                      headingRowColor: WidgetStateProperty.all(
+                        Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerLow,
+                      ),
+                      columns: const [
+                        DataColumn(
+                            label: SizedBox(width: 28, child: Text(''))),
+                        DataColumn(label: Text('Titel / Kürzel')),
+                        DataColumn(label: Text('Kategorie')),
+                        DataColumn(label: Text('Sachgebiet')),
+                        DataColumn(label: Text('Inhalt (Vorschau)')),
+                        DataColumn(
+                            label: SizedBox(width: 28, child: Text(''))),
+                        DataColumn(
+                            label: SizedBox(width: 28, child: Text(''))),
+                      ],
+                      rows: [
+                        for (final b in items)
+                          DataRow(
+                            onSelectChanged: (_) => _show(context, ref, b),
+                            cells: [
+                              DataCell(IconButton(
+                                tooltip: b.favorit
+                                    ? 'Favorit entfernen'
+                                    : 'Als Favorit markieren',
+                                icon: Icon(
+                                  b.favorit
+                                      ? Icons.star
+                                      : Icons.star_outline,
+                                  size: 18,
+                                  color: b.favorit
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .tertiary
+                                      : null,
+                                ),
+                                onPressed: () async {
+                                  await ref
+                                      .read(textbausteineRepositoryProvider)
+                                      .upsert(TextbausteineCompanion(
+                                        id: Value(b.id),
+                                        favorit: Value(!b.favorit),
+                                      ));
+                                },
+                              )),
+                              DataCell(SizedBox(
+                                width: 220,
+                                child: Text(
+                                  b.titel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              )),
+                              DataCell(b.kategorie == null
+                                  ? const Text('—')
+                                  : _KatBadge(text: b.kategorie!)),
+                              DataCell(Text(b.sachgebiet ?? '—',
+                                  style: const TextStyle(fontSize: 12.5))),
+                              DataCell(SizedBox(
+                                width: 460,
+                                child: Text(
+                                  _vorschau(b.inhalt),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: AppTheme.slate500),
+                                ),
+                              )),
+                              DataCell(IconButton(
+                                tooltip: 'Bearbeiten',
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 18),
+                                onPressed: () => _show(context, ref, b),
+                              )),
+                              DataCell(IconButton(
+                                tooltip: 'Löschen',
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18),
+                                onPressed: () => _confirm(context, ref, b),
+                              )),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
           ),
         ),
@@ -98,92 +176,66 @@ class TextbausteineScreen extends ConsumerWidget {
     );
   }
 
+  /// Liefert den reinen Text (Quill-Delta → Plaintext) gekürzt für die Liste.
+  String _vorschau(String? raw) {
+    final plain = plainTextFromDeltaJson(raw);
+    if (plain.isEmpty) return '—';
+    return plain.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
   Future<void> _show(BuildContext context, WidgetRef ref,
       [TextbausteineData? b]) async {
     await showDialog(
-        context: context, builder: (_) => _BausteinForm(baustein: b));
+        context: context,
+        useRootNavigator: true,
+        builder: (_) => _BausteinForm(baustein: b));
+  }
+
+  Future<void> _confirm(
+      BuildContext context, WidgetRef ref, TextbausteineData b) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Textbaustein löschen?'),
+        content: Text('«${b.titel}» wird gelöscht.'),
+        actions: [
+          TextButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(textbausteineRepositoryProvider).delete(b.id);
+    }
   }
 }
 
-class _BausteinTile extends ConsumerWidget {
-  const _BausteinTile({required this.baustein});
-  final TextbausteineData baustein;
-
+class _KatBadge extends StatelessWidget {
+  const _KatBadge({required this.text});
+  final String text;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.slate100,
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => showDialog(
-          context: context,
-          builder: (_) => _BausteinForm(baustein: baustein),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      baustein.favorit ? Icons.star : Icons.star_outline,
-                      size: 20,
-                      color: baustein.favorit
-                          ? Theme.of(context).colorScheme.tertiary
-                          : null,
-                    ),
-                    onPressed: () async {
-                      await ref
-                          .read(textbausteineRepositoryProvider)
-                          .upsert(TextbausteineCompanion(
-                            id: Value(baustein.id),
-                            favorit: Value(!baustein.favorit),
-                          ));
-                    },
-                  ),
-                  Expanded(
-                    child: Text(
-                      baustein.titel,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ),
-                  if (baustein.kategorie != null)
-                    Chip(
-                      label: Text(baustein.kategorie!),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  IconButton(
-                    tooltip: 'Löschen',
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    onPressed: () async {
-                      await ref
-                          .read(textbausteineRepositoryProvider)
-                          .delete(baustein.id);
-                    },
-                  ),
-                ],
-              ),
-              if ((baustein.inhalt ?? '').isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  baustein.inhalt!,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.slate500)),
     );
   }
 }
@@ -201,8 +253,11 @@ class _BausteinFormState extends ConsumerState<_BausteinForm> {
       TextEditingController(text: widget.baustein?.titel ?? '');
   late final _kategorie =
       TextEditingController(text: widget.baustein?.kategorie ?? '');
-  late final _inhalt =
-      TextEditingController(text: widget.baustein?.inhalt ?? '');
+  late final _sachgebiet =
+      TextEditingController(text: widget.baustein?.sachgebiet ?? '');
+  late final _tags =
+      TextEditingController(text: widget.baustein?.tags ?? '');
+  String? _inhaltJson;
   bool _favorit = false;
   bool _saving = false;
 
@@ -210,13 +265,15 @@ class _BausteinFormState extends ConsumerState<_BausteinForm> {
   void initState() {
     super.initState();
     _favorit = widget.baustein?.favorit ?? false;
+    _inhaltJson = widget.baustein?.inhalt;
   }
 
   @override
   void dispose() {
     _titel.dispose();
     _kategorie.dispose();
-    _inhalt.dispose();
+    _sachgebiet.dispose();
+    _tags.dispose();
     super.dispose();
   }
 
@@ -225,16 +282,19 @@ class _BausteinFormState extends ConsumerState<_BausteinForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    final inhaltTrimmed = (_inhaltJson ?? '').trim();
     final companion = TextbausteineCompanion(
       id: _isEdit ? Value(widget.baustein!.id) : const Value.absent(),
       titel: Value(_titel.text.trim()),
       kategorie: _nt(_kategorie),
-      inhalt: _nt(_inhalt),
+      sachgebiet: _nt(_sachgebiet),
+      tags: _nt(_tags),
+      inhalt: Value(inhaltTrimmed.isEmpty ? null : inhaltTrimmed),
       favorit: Value(_favorit),
     );
     try {
       await ref.read(textbausteineRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -254,9 +314,14 @@ class _BausteinFormState extends ConsumerState<_BausteinForm> {
     return StandardFormDialog(
       title: _isEdit ? 'Textbaustein bearbeiten' : 'Neuer Textbaustein',
       saving: _saving,
-      maxHeight: 620,
-      onCancel: () => Navigator.pop(context, false),
+      maxHeight: 680,
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(textbausteineRepositoryProvider)
+              .delete(widget.baustein!.id)
+          : null,
       body: Form(
         key: _formKey,
         child: Padding(
@@ -266,36 +331,50 @@ class _BausteinFormState extends ConsumerState<_BausteinForm> {
             children: [
               Row2(
                 left: LabeledField(
-                  'Titel',
+                  'Titel / Kürzel',
                   TextFormField(
                     controller: _titel,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Erforderlich' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Erforderlich'
+                        : null,
                   ),
                 ),
                 right: LabeledField(
                     'Kategorie', TextFormField(controller: _kategorie)),
               ),
               const SizedBox(height: 12),
+              Row2(
+                left: LabeledField(
+                    'Sachgebiet', TextFormField(controller: _sachgebiet)),
+                right: LabeledField(
+                    'Tags (komma-getrennt)',
+                    TextFormField(controller: _tags)),
+              ),
+              const SizedBox(height: 12),
               Row(children: [
-                Checkbox(
+                Switch(
                     value: _favorit,
-                    onChanged: (v) => setState(() => _favorit = v ?? false)),
+                    onChanged: (v) => setState(() => _favorit = v)),
+                const SizedBox(width: 6),
                 const Text('Favorit'),
               ]),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              Text('Inhalt',
+                  style:
+                      Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          )),
+              const SizedBox(height: 6),
               Expanded(
-                child: LabeledField(
-                  'Inhalt',
-                  TextFormField(
-                    controller: _inhalt,
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
+                child: SingleChildScrollView(
+                  child: RichTextEditor(
+                    initialDeltaJson: _inhaltJson,
+                    onChanged: (json) => _inhaltJson = json,
+                    minHeight: 260,
+                    placeholder:
+                        'Text des Bausteins — wird in Gutachten / Anschreiben übernommen.',
                   ),
                 ),
               ),

@@ -1,64 +1,68 @@
-import 'package:flutter/material.dart';
-
 /// Ein Modul innerhalb einer Sektion.
+/// [icon] ist der Schlüssel im `Heroicons`-Katalog.
 class NavItem {
   final String label;
-  final IconData icon;
+  final String icon;
   final String path;
-  const NavItem(this.label, this.icon, this.path);
+  /// Wenn gesetzt: wird nur Super-Admins angezeigt.
+  final bool superAdminOnly;
+  const NavItem(this.label, this.icon, this.path,
+      {this.superAdminOnly = false});
 }
 
-/// Eine Sektion der Seitenleiste (Gruppe von Modulen).
+/// Eine Sektion der Seitenleiste.
+/// Leerer Titel = keine Sektion-Überschrift (z.B. Dashboard).
 class NavSection {
   final String title;
-  final IconData icon;
   final List<NavItem> items;
-  const NavSection(this.title, this.icon, this.items);
+  const NavSection(this.title, this.items);
 }
 
-/// Navigationsstruktur – entspricht der linken Seitenleiste des Originals.
+/// Navigationsstruktur – entspricht 1:1 der linken Seitenleiste der
+/// Original-SV-Software, ergänzt um Auslagen/Kalkulation/Anschreiben.
 const navSections = <NavSection>[
-  NavSection('Übersicht', Icons.dashboard_outlined, [
-    NavItem('Dashboard', Icons.space_dashboard_outlined, '/'),
+  NavSection('', [
+    NavItem('Dashboard', 'dashboard', '/'),
+    NavItem('Akten', 'akten', '/akten'),
   ]),
-  NavSection('Akten', Icons.folder_outlined, [
-    NavItem('Auftraggeber', Icons.people_outline, '/kunden'),
-    NavItem('Aufträge', Icons.assignment_outlined, '/auftraege'),
-    NavItem('Gutachten', Icons.description_outlined, '/gutachten'),
-    NavItem('Erläuterungen', Icons.gavel_outlined, '/erlaeuterungen'),
-    NavItem('Rechnungen', Icons.request_page_outlined, '/rechnungen'),
-    NavItem('Eingangsrechnungen', Icons.receipt_long_outlined, '/eingangsrechnungen'),
-    NavItem('Lieferanten', Icons.local_shipping_outlined, '/lieferanten'),
+  NavSection('Akten', [
+    NavItem('Auftraggeber', 'kunden', '/kunden'),
+    NavItem('Angebote', 'angebote', '/angebote'),
+    NavItem('Aufträge', 'auftraege', '/auftraege'),
+    NavItem('Gutachten', 'gutachten', '/gutachten'),
+    NavItem('Erläuterungstermine', 'erlaeuterungen', '/erlaeuterungen'),
+    NavItem('Rechnungen', 'rechnungen', '/rechnungen'),
+    NavItem('Eingangsrechnungen', 'eingangsrechnungen', '/eingangsrechnungen'),
+    NavItem('Dokumente', 'dokumente', '/dokumente'),
+    NavItem('Lieferanten', 'lieferanten', '/lieferanten'),
+    NavItem('Partner / Subunternehmer', 'partner', '/partner'),
   ]),
-  NavSection('Angebote & Anschreiben', Icons.mail_outline, [
-    NavItem('Angebote', Icons.price_change_outlined, '/angebote'),
-    NavItem('Anschreiben', Icons.drafts_outlined, '/anschreiben'),
+  NavSection('Werkzeuge', [
+    NavItem('Artikel / Leistungen', 'artikel', '/artikel'),
+    NavItem('Messgeräte', 'geraete', '/geraete'),
+    NavItem('Normen', 'normen', '/normen'),
+    NavItem('Textbausteine', 'textbausteine', '/textbausteine'),
+    NavItem('Stunden', 'stunden', '/stunden'),
+    NavItem('Auslagen', 'auslagen', '/auslagen'),
+    NavItem('Kalkulation', 'kalkulation', '/kalkulation'),
+    NavItem('Anschreiben', 'anschreiben', '/anschreiben'),
+    NavItem('Serienbriefe', 'serienbrief', '/serienbrief'),
+    NavItem('Fotos', 'fotos', '/fotos'),
+    NavItem('Termine', 'termine', '/termine'),
+    NavItem('Wiedervorlagen', 'wiedervorlagen', '/wiedervorlagen'),
+    NavItem('Ortstermin-Modus', 'ortstermin', '/ortstermin'),
+    NavItem('JVEG-Rechner', 'jveg', '/jveg'),
   ]),
-  NavSection('Kalkulationen', Icons.calculate_outlined, [
-    NavItem('Artikel / Leistungen', Icons.inventory_2_outlined, '/artikel'),
-    NavItem('Stunden', Icons.schedule_outlined, '/stunden'),
-    NavItem('Auslagen', Icons.payments_outlined, '/auslagen'),
-    NavItem('Kalkulation', Icons.functions_outlined, '/kalkulation'),
+  NavSection('Auswertung', [
+    NavItem('OPOS / Mahnwesen', 'opos', '/opos'),
+    NavItem('Steuer & Statistik', 'steuer', '/steuer'),
+    NavItem('Jahresbericht', 'jahresbericht', '/jahresbericht'),
+    NavItem('Fortbildungen', 'fortbildungen', '/fortbildungen'),
   ]),
-  NavSection('Werkzeuge', Icons.build_outlined, [
-    NavItem('Messgeräte', Icons.speed_outlined, '/geraete'),
-    NavItem('Normen', Icons.menu_book_outlined, '/normen'),
-    NavItem('Textbausteine', Icons.text_snippet_outlined, '/textbausteine'),
-    NavItem('Fotos', Icons.photo_library_outlined, '/fotos'),
-    NavItem('Termine', Icons.event_outlined, '/termine'),
-    NavItem('Wiedervorlagen', Icons.notifications_active_outlined, '/wiedervorlagen'),
-    NavItem('JVEG-Rechner', Icons.balance_outlined, '/jveg'),
-    NavItem('Ortstermin-Modus', Icons.place_outlined, '/ortstermin'),
-  ]),
-  NavSection('Auswertung', Icons.analytics_outlined, [
-    NavItem('OPOS / Mahnwesen', Icons.warning_amber_outlined, '/opos'),
-    NavItem('Steuer & Statistik', Icons.query_stats_outlined, '/steuer'),
-    NavItem('Jahresbericht', Icons.picture_as_pdf_outlined, '/jahresbericht'),
-    NavItem('Fortbildungen', Icons.school_outlined, '/fortbildungen'),
-  ]),
-  NavSection('System', Icons.settings_outlined, [
-    NavItem('Einstellungen', Icons.tune_outlined, '/einstellungen'),
-    NavItem('Benutzer', Icons.account_circle_outlined, '/benutzer'),
+  NavSection('System', [
+    NavItem('Einstellungen', 'einstellungen', '/einstellungen'),
+    NavItem('Benutzer', 'benutzer', '/benutzer'),
+    NavItem('Administration', 'admin', '/admin', superAdminOnly: true),
   ]),
 ];
 

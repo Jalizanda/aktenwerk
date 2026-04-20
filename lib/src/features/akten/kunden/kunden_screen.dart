@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../shared/widgets/badges.dart';
 import 'kunden_form.dart';
 import 'kunden_repository.dart';
 
@@ -123,12 +124,51 @@ class _ToolbarState extends ConsumerState<_Toolbar> {
   }
 }
 
-class _KundenTable extends ConsumerWidget {
+class _KundenTable extends ConsumerStatefulWidget {
   const _KundenTable({required this.items});
   final List<KundenData> items;
+  @override
+  ConsumerState<_KundenTable> createState() => _KundenTableState();
+}
+
+class _KundenTableState extends ConsumerState<_KundenTable> {
+  int _sortCol = 1;
+  bool _sortAsc = true;
+
+  List<KundenData> get _sorted {
+    final list = [...widget.items];
+    int cmp<T extends Comparable>(T? a, T? b) {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      return a.compareTo(b);
+    }
+
+    list.sort((a, b) {
+      final c = switch (_sortCol) {
+        0 => cmp(a.typ, b.typ),
+        1 => cmp(kundeAnzeigename(a).toLowerCase(),
+            kundeAnzeigename(b).toLowerCase()),
+        2 => cmp([a.plz, a.ort].whereType<String>().join(' ').toLowerCase(),
+            [b.plz, b.ort].whereType<String>().join(' ').toLowerCase()),
+        3 => cmp(a.telefon, b.telefon),
+        4 => cmp(a.email?.toLowerCase(), b.email?.toLowerCase()),
+        _ => 0,
+      };
+      return _sortAsc ? c : -c;
+    });
+    return list;
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    DataColumn sortCol(String label, int i) => DataColumn(
+          label: Text(label),
+          onSort: (col, asc) => setState(() {
+            _sortCol = col;
+            _sortAsc = asc;
+          }),
+        );
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -139,19 +179,22 @@ class _KundenTable extends ConsumerWidget {
                 BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
           ),
           child: DataTable(
+            sortColumnIndex: _sortCol,
+            sortAscending: _sortAsc,
+            showCheckboxColumn: false,
             headingRowColor: WidgetStateProperty.all(
               Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
-            columns: const [
-              DataColumn(label: Text('Typ')),
-              DataColumn(label: Text('Name / Firma')),
-              DataColumn(label: Text('Ort')),
-              DataColumn(label: Text('Telefon')),
-              DataColumn(label: Text('E-Mail')),
-              DataColumn(label: Text('')),
+            columns: [
+              sortCol('Typ', 0),
+              sortCol('Name / Firma', 1),
+              sortCol('Ort', 2),
+              sortCol('Telefon', 3),
+              sortCol('E-Mail', 4),
+              const DataColumn(label: Text('')),
             ],
             rows: [
-              for (final k in items) _row(context, ref, k),
+              for (final k in _sorted) _row(context, ref, k),
             ],
           ),
         ),
@@ -202,14 +245,14 @@ class _KundenTable extends ConsumerWidget {
             'Verknüpfte Aufträge verlieren die Referenz.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
             child: const Text('Abbrechen'),
           ),
           FilledButton.tonal(
             style: FilledButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
             child: const Text('Löschen'),
           ),
         ],
@@ -232,26 +275,16 @@ class _TypBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    // Farbpalette 1:1 aus der Original-SV-Software (.badge-priv etc.).
     final (bg, fg) = switch (typ) {
-      KundenTyp.privat => (scheme.surfaceContainerHighest, scheme.onSurface),
-      KundenTyp.firma => (scheme.secondaryContainer, scheme.onSecondaryContainer),
-      KundenTyp.anwalt => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-      KundenTyp.gericht => (scheme.primaryContainer, scheme.onPrimaryContainer),
-      KundenTyp.versicherung => (scheme.errorContainer, scheme.onErrorContainer),
-      KundenTyp.behoerde => (scheme.surfaceContainerHigh, scheme.onSurface),
+      KundenTyp.privat => (BadgeColors.indigoBg, BadgeColors.indigoFg),
+      KundenTyp.firma => (BadgeColors.amberBg, BadgeColors.amberFg),
+      KundenTyp.anwalt => (BadgeColors.blueBg, BadgeColors.blueFg),
+      KundenTyp.gericht => (BadgeColors.redBg, BadgeColors.redFg),
+      KundenTyp.versicherung => (BadgeColors.greenBg, BadgeColors.greenFg),
+      KundenTyp.behoerde => (BadgeColors.slateBg, BadgeColors.slateFg),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        typ.label,
-        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-    );
+    return PillBadge(text: typ.label, background: bg, foreground: fg);
   }
 }
 

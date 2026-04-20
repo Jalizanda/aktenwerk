@@ -5,7 +5,9 @@ class Textbausteine extends Table {
   IntColumn get id => integer().autoIncrement()();
 
   TextColumn get kategorie => text().nullable()();
+  TextColumn get sachgebiet => text().nullable()();
   TextColumn get titel => text()();
+  TextColumn get tags => text().nullable()();
 
   /// Plain-Text oder Quill Delta JSON.
   TextColumn get inhalt => text().nullable()();

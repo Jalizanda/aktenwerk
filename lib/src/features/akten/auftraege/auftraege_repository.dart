@@ -4,13 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 
-enum AuftragArt { privat, gericht }
+enum AuftragArt { privat, gericht, schiedsgutachten, beweissicherung }
 
 extension AuftragArtX on AuftragArt {
   String get dbValue => name;
   String get label => switch (this) {
         AuftragArt.privat => 'Privatgutachten',
         AuftragArt.gericht => 'Gerichtsgutachten',
+        AuftragArt.schiedsgutachten => 'Schiedsgutachten',
+        AuftragArt.beweissicherung => 'Beweissicherung',
       };
   static AuftragArt fromDb(String? s) => AuftragArt.values.firstWhere(
         (v) => v.name == s,
@@ -126,6 +128,28 @@ class AuftraegeRepository {
         .getSingle();
     final current = max.read(_db.auftraege.id.max()) ?? 0;
     return current + 1;
+  }
+
+  /// Erstellt einen neuen Auftrag aus den Daten eines angenommenen Angebots.
+  /// Gibt die neue Auftrags-ID zurück.
+  Future<int> createFromAngebot(AngeboteData a, KundenData? kunde) async {
+    final seq = await nextAktenzeichenSeq();
+    final now = DateTime.now();
+    final aktenzeichen = '${now.year}-${seq.toString().padLeft(4, '0')}';
+    return _db.into(_db.auftraege).insert(AuftraegeCompanion.insert(
+          aktenzeichen: Value(aktenzeichen),
+          art: const Value('privat'),
+          status: const Value('offen'),
+          kundeId: Value(a.kundeId),
+          betreff: Value(a.betreff),
+          bezeichnung: Value(a.anfrage),
+          objektStrasse: Value(a.objektStrasse),
+          objektPlz: Value(a.objektPlz),
+          objektOrt: Value(a.objektOrt),
+          eingangAm: Value(now),
+          auftragAm: Value(now),
+          notiz: Value('Aus Angebot ${a.angebotsnummer ?? ''} entstanden.'),
+        ));
   }
 }
 

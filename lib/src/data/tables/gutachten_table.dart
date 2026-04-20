@@ -8,7 +8,20 @@ class Gutachten extends Table {
   IntColumn get auftragId =>
       integer().nullable().references(Auftraege, #id, onDelete: KeyAction.cascade)();
 
+  /// Fortlaufende Gutachten-Nummer (z.B. "G2026-014"). Wird in Kopf/Fuß und
+  /// in der Aktenzeichen-Zeile des PDF-Exports geführt.
+  TextColumn get nummer => text().nullable()();
+
+  /// Datum der Gutachten-Ausstellung (wird im PDF oben angedruckt).
+  DateTimeColumn get datum => dateTime().nullable()();
+
   TextColumn get titel => text().nullable()();
+  TextColumn get bezeichnung => text().nullable()();
+
+  /// Gewählte Vorlage (bauschaden/beweissicherung/maengel/frei) — steuert den
+  /// Default-Textbaustein pro Abschnitt beim Anlegen eines neuen Gutachtens.
+  TextColumn get vorlage => text().withDefault(const Constant('frei'))();
+
   TextColumn get status => text().withDefault(const Constant('entwurf'))();
 
   DateTimeColumn get ortsterminAm => dateTime().nullable()();

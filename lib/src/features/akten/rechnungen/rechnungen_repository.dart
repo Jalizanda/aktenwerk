@@ -66,6 +66,23 @@ class RechnungenRepository {
   Future<int> delete(int id) =>
       (_db.delete(_db.rechnungen)..where((t) => t.id.equals(id))).go();
 
+  Future<void> setPdfArchive(
+    int id, {
+    required String storageUrl,
+    required String dateiname,
+    required int groesse,
+  }) async {
+    await (_db.update(_db.rechnungen)..where((t) => t.id.equals(id))).write(
+      RechnungenCompanion(
+        pdfStorageUrl: Value(storageUrl),
+        pdfDateiname: Value(dateiname),
+        pdfGroesse: Value(groesse),
+        pdfErstelltAm: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<int> nextSequenz() async {
     final row = await (_db.selectOnly(_db.rechnungen)
           ..addColumns([_db.rechnungen.id.max()]))

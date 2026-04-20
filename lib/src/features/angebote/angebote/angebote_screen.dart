@@ -4,26 +4,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../features/akten/auftraege/auto_akte.dart';
 import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
-import '../../../features/system/benutzer/benutzer_repository.dart';
+import '../../../features/akten/workflow/dokument_workflow.dart';
+import '../../../features/system/einstellungen/absender_service.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
+import '../../../features/system/einstellungen/nummernkreis_service.dart';
+import '../../../shared/pdf/pdf_archiver.dart';
 import '../../../shared/pdf/document_pdf.dart';
 import '../../../shared/positionen/position_model.dart';
 import '../../../shared/positionen/positions_editor.dart';
+import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'angebote_repository.dart';
 
-class AngeboteScreen extends ConsumerWidget {
+class AngeboteScreen extends ConsumerStatefulWidget {
   const AngeboteScreen({super.key});
-  static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
 
-  static const statusValues = ['entwurf', 'versendet', 'angenommen', 'abgelehnt', 'abgelaufen'];
+  static const statusValues = AngebotStatusBadge.statusValues;
+  static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
+  static final _moneyFmt =
+      NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AngeboteScreen> createState() => _AngeboteScreenState();
+}
+
+class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
+  int _sortCol = 1; // Datum default
+  bool _sortAsc = false;
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(angeboteListProvider);
     final filter = ref.watch(angeboteFilterProvider);
 
@@ -38,23 +54,14 @@ class AngeboteScreen extends ConsumerWidget {
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neues Angebot'),
-              onPressed: () => _show(context, ref),
+              onPressed: () => _show(context),
             ),
           ],
+          searchHint: 'Suche Angebotsnummer, Kunde, Betreff …',
+          onSearchChanged: (v) => ref
+              .read(angeboteFilterProvider.notifier)
+              .update((f) => f.copyWith(query: v)),
           filters: [
-            SizedBox(
-              width: 320,
-              child: TextField(
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Angebotsnummer, Kunde, Betreff',
-                ),
-                onChanged: (v) => ref
-                    .read(angeboteFilterProvider.notifier)
-                    .update((f) => f.copyWith(query: v)),
-              ),
-            ),
             DropdownButtonHideUnderline(
               child: DropdownButton<String?>(
                 value: filter.status,
@@ -62,8 +69,10 @@ class AngeboteScreen extends ConsumerWidget {
                 items: [
                   const DropdownMenuItem(
                       value: null, child: Text('Alle Status')),
-                  for (final s in statusValues)
-                    DropdownMenuItem(value: s, child: Text(s)),
+                  for (final s in AngeboteScreen.statusValues)
+                    DropdownMenuItem(
+                        value: s,
+                        child: Text(AngebotStatusBadge.label(s))),
                 ],
                 onChanged: (v) => ref
                     .read(angeboteFilterProvider.notifier)
@@ -74,6 +83,10 @@ class AngeboteScreen extends ConsumerWidget {
             ),
           ],
         ),
+        async.maybeWhen(
+          data: (items) => _KpiRow(items: items),
+          orElse: () => const SizedBox.shrink(),
+        ),
         const Divider(height: 1),
         Expanded(
           child: async.when(
@@ -83,92 +96,165 @@ class AngeboteScreen extends ConsumerWidget {
                 ? const EmptyListState(
                     icon: Icons.price_change_outlined,
                     title: 'Keine Angebote')
-                : DataTableCard(
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                      ),
-                      columns: const [
-                        DataColumn(label: Text('Nr.')),
-                        DataColumn(label: Text('Datum')),
-                        DataColumn(label: Text('Kunde')),
-                        DataColumn(label: Text('Betreff')),
-                        DataColumn(label: Text('Gültig bis')),
-                        DataColumn(label: Text('Netto €'), numeric: true),
-                        DataColumn(label: Text('Brutto €'), numeric: true),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('')),
-                      ],
-                      rows: [
-                        for (final a in items)
-                          DataRow(
-                            onSelectChanged: (_) => _show(context, ref, a),
-                            cells: [
-                              DataCell(Text(a.angebot.angebotsnummer ?? '')),
-                              DataCell(Text(_dateFmt.format(a.angebot.datum))),
-                              DataCell(Text(a.kunde == null
-                                  ? '—'
-                                  : kundeAnzeigename(a.kunde!))),
-                              DataCell(Text(a.angebot.betreff ?? '')),
-                              DataCell(Text(a.angebot.gueltigBis == null
-                                  ? ''
-                                  : _dateFmt.format(a.angebot.gueltigBis!))),
-                              DataCell(Text(
-                                  a.angebot.netto.toStringAsFixed(2))),
-                              DataCell(Text(
-                                  a.angebot.brutto.toStringAsFixed(2))),
-                              DataCell(Text(a.angebot.status)),
-                              DataCell(Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    tooltip: 'PDF',
-                                    icon: const Icon(
-                                        Icons.picture_as_pdf_outlined,
-                                        size: 20),
-                                    onPressed: () =>
-                                        _previewPdf(context, ref, a),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Löschen',
-                                    icon: const Icon(
-                                        Icons.delete_outline,
-                                        size: 20),
-                                    onPressed: () async => ref
-                                        .read(angeboteRepositoryProvider)
-                                        .delete(a.angebot.id),
-                                  ),
-                                ],
-                              )),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
+                : _buildTable(context, _sorted(items)),
           ),
         ),
       ],
     );
   }
 
-  Future<void> _show(BuildContext context, WidgetRef ref,
-      [AngebotWithKunde? a]) async {
+  List<AngebotWithKunde> _sorted(List<AngebotWithKunde> items) {
+    final list = [...items];
+    int cmp<T extends Comparable>(T? a, T? b) {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      return a.compareTo(b);
+    }
+
+    list.sort((a, b) {
+      final c = switch (_sortCol) {
+        0 => cmp(a.angebot.angebotsnummer, b.angebot.angebotsnummer),
+        1 => cmp(a.angebot.datum, b.angebot.datum),
+        2 => cmp(
+            a.kunde == null ? null : kundeAnzeigename(a.kunde!).toLowerCase(),
+            b.kunde == null ? null : kundeAnzeigename(b.kunde!).toLowerCase()),
+        3 => cmp(a.angebot.betreff?.toLowerCase(),
+            b.angebot.betreff?.toLowerCase()),
+        4 => cmp(a.angebot.gueltigBis, b.angebot.gueltigBis),
+        5 => cmp(a.angebot.netto, b.angebot.netto),
+        6 => cmp(a.angebot.brutto, b.angebot.brutto),
+        7 => cmp(a.angebot.status, b.angebot.status),
+        _ => 0,
+      };
+      return _sortAsc ? c : -c;
+    });
+    return list;
+  }
+
+  Widget _buildTable(BuildContext context, List<AngebotWithKunde> items) {
+    DataColumn sortCol(String label, int i, {bool numeric = false}) =>
+        DataColumn(
+          label: Text(label),
+          numeric: numeric,
+          onSort: (col, asc) => setState(() {
+            _sortCol = col;
+            _sortAsc = asc;
+          }),
+        );
+    return DataTableCard(
+      child: DataTable(
+        sortColumnIndex: _sortCol,
+        sortAscending: _sortAsc,
+        showCheckboxColumn: false,
+        headingRowColor: WidgetStateProperty.all(
+          Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        columns: [
+          sortCol('Nr.', 0),
+          sortCol('Datum', 1),
+          sortCol('Kunde', 2),
+          sortCol('Betreff', 3),
+          sortCol('Gültig bis', 4),
+          sortCol('Netto €', 5, numeric: true),
+          sortCol('Brutto €', 6, numeric: true),
+          sortCol('Status', 7),
+          const DataColumn(label: Text('')),
+        ],
+        rows: [
+          for (final a in items)
+            DataRow(
+              onSelectChanged: (_) => _show(context, a),
+              cells: [
+                DataCell(Text(
+                  a.angebot.angebotsnummer ?? '',
+                  style: const TextStyle(
+                      fontFamily: 'monospace', fontSize: 12),
+                )),
+                DataCell(
+                    Text(AngeboteScreen._dateFmt.format(a.angebot.datum))),
+                DataCell(Text(a.kunde == null
+                    ? '—'
+                    : kundeAnzeigename(a.kunde!))),
+                DataCell(SizedBox(
+                  width: 220,
+                  child: Text(
+                    a.angebot.betreff ?? '',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )),
+                DataCell(Text(a.angebot.gueltigBis == null
+                    ? ''
+                    : AngeboteScreen._dateFmt.format(a.angebot.gueltigBis!))),
+                DataCell(Text(
+                  AngeboteScreen._moneyFmt.format(a.angebot.netto),
+                )),
+                DataCell(Text(
+                  AngeboteScreen._moneyFmt.format(a.angebot.brutto),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                )),
+                DataCell(AngebotStatusBadge(a.angebot.status)),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Angebot als PDF',
+                      icon: const Icon(Icons.picture_as_pdf_outlined,
+                          size: 20),
+                      onPressed: () => _previewPdf(context, a, false),
+                    ),
+                    IconButton(
+                      tooltip: 'Auftragsbestätigung als PDF',
+                      icon: const Icon(Icons.assignment_turned_in_outlined,
+                          size: 20),
+                      onPressed: () => _previewPdf(context, a, true),
+                    ),
+                    IconButton(
+                      tooltip: a.angebot.pdfStorageUrl != null
+                          ? 'Archivierte PDF aktualisieren'
+                          : 'PDF archivieren',
+                      icon: Icon(
+                        a.angebot.pdfStorageUrl != null
+                            ? Icons.cloud_done_outlined
+                            : Icons.cloud_upload_outlined,
+                        size: 20,
+                        color: a.angebot.pdfStorageUrl != null
+                            ? const Color(0xFF16A34A)
+                            : null,
+                      ),
+                      onPressed: () => _archivePdf(context, a),
+                    ),
+                    IconButton(
+                      tooltip: 'Löschen',
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      onPressed: () async => ref
+                          .read(angeboteRepositoryProvider)
+                          .delete(a.angebot.id),
+                    ),
+                  ],
+                )),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _show(BuildContext context, [AngebotWithKunde? a]) async {
     await showDialog(
       context: context,
       builder: (_) => _AngebotForm(eintrag: a),
     );
   }
 
-  Future<void> _previewPdf(
-      BuildContext context, WidgetRef ref, AngebotWithKunde a) async {
-    final absender = await ref.read(benutzerRepositoryProvider).getActive();
+  Future<PdfDocumentData> _buildPdfData(
+      AngebotWithKunde a, bool alsAb) async {
+    final absender = await absenderFromSettings(ref);
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.angebotFusstext);
-    await previewDocumentPdf(PdfDocumentData(
-      dokumentTyp: 'Angebot',
+    return PdfDocumentData(
+      dokumentTyp: alsAb ? 'Auftragsbestätigung' : 'Angebot',
       dokumentNr: a.angebot.angebotsnummer,
       datum: a.angebot.datum,
       faelligBis: a.angebot.gueltigBis,
@@ -178,8 +264,107 @@ class AngeboteScreen extends ConsumerWidget {
       fusstext: a.angebot.fusstext ?? fuss,
       absender: absender,
       empfaenger: a.kunde,
-    ));
+      brutto: a.angebot.brutto,
+    );
   }
+
+  Future<void> _previewPdf(
+      BuildContext context, AngebotWithKunde a, bool alsAb) async {
+    await previewDocumentPdf(await _buildPdfData(a, alsAb));
+  }
+
+  Future<void> _archivePdf(
+      BuildContext context, AngebotWithKunde a) async {
+    final data = await _buildPdfData(a, false);
+    final uploaded = await freezeAngebotAsBeleg(ref, a.angebot, data);
+    if (uploaded == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Upload nicht möglich — bitte anmelden / Cloud prüfen.')));
+      }
+      return;
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Beleg archiviert: ${uploaded.dateiname}')));
+    }
+  }
+}
+
+/// KPI-Kacheln über der Tabelle: Pipeline (offen), Gewonnen, Conversion-Rate.
+class _KpiRow extends StatelessWidget {
+  const _KpiRow({required this.items});
+  final List<AngebotWithKunde> items;
+
+  @override
+  Widget build(BuildContext context) {
+    const offen = ['anfrage', 'angebot', 'nachverhandlung'];
+    final pipeline = items
+        .where((a) => offen.contains(a.angebot.status))
+        .fold<double>(0, (s, a) => s + a.angebot.brutto);
+    final gewonnen = items
+        .where((a) =>
+            a.angebot.status == 'angenommen' ||
+            a.angebot.status == 'auftragsbestaetigung')
+        .fold<double>(0, (s, a) => s + a.angebot.brutto);
+    final entschieden = items
+        .where((a) =>
+            a.angebot.status == 'angenommen' ||
+            a.angebot.status == 'auftragsbestaetigung' ||
+            a.angebot.status == 'abgelehnt' ||
+            a.angebot.status == 'abgelaufen')
+        .length;
+    final angenommen = items
+        .where((a) =>
+            a.angebot.status == 'angenommen' ||
+            a.angebot.status == 'auftragsbestaetigung')
+        .length;
+    final conv = entschieden == 0 ? 0.0 : angenommen / entschieden * 100;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: KpiCard(
+              icon: Icons.pending_actions_outlined,
+              label: 'Pipeline (offen)',
+              value: AngeboteScreen._moneyFmt.format(pipeline),
+              accent: BadgeColors.amberFg,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: KpiCard(
+              icon: Icons.check_circle_outline,
+              label: 'Gewonnen',
+              value: AngeboteScreen._moneyFmt.format(gewonnen),
+              accent: BadgeColors.greenFg,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: KpiCard(
+              icon: Icons.show_chart,
+              label: 'Conversion-Rate',
+              value: '${conv.toStringAsFixed(0)} %',
+              accent: BadgeColors.blueFg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> showAngebotEditor(BuildContext context,
+    {AngebotWithKunde? eintrag}) async {
+  await showDialog(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => _AngebotForm(eintrag: eintrag),
+  );
 }
 
 class _AngebotForm extends ConsumerStatefulWidget {
@@ -192,14 +377,29 @@ class _AngebotForm extends ConsumerStatefulWidget {
 class _AngebotFormState extends ConsumerState<_AngebotForm> {
   final _formKey = GlobalKey<FormState>();
   int? _kundeId;
+  int? _auftragId;
   DateTime _datum = DateTime.now();
   DateTime? _gueltigBis;
-  String _status = 'entwurf';
+  String _status = 'anfrage';
   late List<Position> _positionen;
   late final _nr = TextEditingController(
       text: widget.eintrag?.angebot.angebotsnummer ?? '');
   late final _betreff = TextEditingController(
       text: widget.eintrag?.angebot.betreff ?? '');
+  late final _anfrage = TextEditingController(
+      text: widget.eintrag?.angebot.anfrage ?? '');
+  late final _objStrasse = TextEditingController(
+      text: widget.eintrag?.angebot.objektStrasse ?? '');
+  late final _objPlz = TextEditingController(
+      text: widget.eintrag?.angebot.objektPlz ?? '');
+  late final _objOrt = TextEditingController(
+      text: widget.eintrag?.angebot.objektOrt ?? '');
+  late final _bedingungen = TextEditingController(
+      text: widget.eintrag?.angebot.bedingungen ?? '');
+  late final _ust = TextEditingController(
+      text: (widget.eintrag?.angebot.ustSatz ?? 19).toStringAsFixed(0));
+  late final _notiz = TextEditingController(
+      text: widget.eintrag?.angebot.notiz ?? '');
   late final _kopf = TextEditingController(
       text: widget.eintrag?.angebot.kopftext ?? '');
   late final _fuss = TextEditingController(
@@ -211,20 +411,20 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     super.initState();
     final a = widget.eintrag?.angebot;
     _kundeId = a?.kundeId;
+    _auftragId = a?.auftragId;
     _datum = a?.datum ?? DateTime.now();
     _gueltigBis =
         a?.gueltigBis ?? DateTime.now().add(const Duration(days: 30));
-    _status = a?.status ?? 'entwurf';
+    _status = a?.status ?? 'anfrage';
     _positionen = positionsFromJson(a?.positionenJson);
     if (widget.eintrag == null) _prefill();
   }
 
   Future<void> _prefill() async {
-    final seq =
-        await ref.read(angeboteRepositoryProvider).nextSequenz();
+    final seq = await ref.read(angeboteRepositoryProvider).nextSequenz();
     final pattern = await ref
         .read(einstellungenRepositoryProvider)
-        .getOr(SettingsKeys.nummernkreisAngebot, 'A-YYYY-####');
+        .getOr(SettingsKeys.nummernkreisAngebot, 'A{YYYY}-###');
     final nr = _applyPattern(pattern, seq);
     if (mounted && _nr.text.isEmpty) _nr.text = nr;
     final fuss = await ref
@@ -238,7 +438,9 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   String _applyPattern(String pattern, int seq) {
     final now = DateTime.now();
     var out = pattern
+        .replaceAll('{YYYY}', '${now.year}')
         .replaceAll('YYYY', '${now.year}')
+        .replaceAll('{MM}', now.month.toString().padLeft(2, '0'))
         .replaceAll('MM', now.month.toString().padLeft(2, '0'));
     final m = RegExp(r'#+').firstMatch(out);
     if (m != null) {
@@ -252,7 +454,10 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 
   @override
   void dispose() {
-    for (final c in [_nr, _betreff, _kopf, _fuss]) {
+    for (final c in [
+      _nr, _betreff, _anfrage, _objStrasse, _objPlz, _objOrt,
+      _bedingungen, _ust, _notiz, _kopf, _fuss,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -260,15 +465,45 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 
   bool get _isEdit => widget.eintrag != null;
 
-  Future<void> _save() async {
+  Future<void> _save({bool close = true}) async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+
+    if (!_isEdit && _nr.text.trim().isEmpty) {
+      final neu = await ref
+          .read(nummernkreisServiceProvider)
+          .nextNumber(NummernkreisTyp.angebot);
+      _nr.text = neu;
+    }
+
+    // Auto-Akte anlegen, falls das Angebot noch nicht mit einer Akte
+    // verknüpft ist.
+    if (!_isEdit && _auftragId == null) {
+      _auftragId = await ensureAkte(
+        ref,
+        auftragId: null,
+        kundeId: _kundeId,
+        betreff: _betreff.text.trim().isEmpty
+            ? 'Angebot ${_nr.text.trim()}'
+            : _betreff.text.trim(),
+      );
+    }
+
     final totals = PositionsTotals.fromList(_positionen);
+    final ust = double.tryParse(_ust.text.replaceAll(',', '.')) ?? 19;
     final companion = AngeboteCompanion(
       id: _isEdit ? Value(widget.eintrag!.angebot.id) : const Value.absent(),
       angebotsnummer: Value(_nr.text.trim()),
       kundeId: Value(_kundeId),
+      auftragId: Value(_auftragId),
       betreff: _nt(_betreff),
+      anfrage: _nt(_anfrage),
+      objektStrasse: _nt(_objStrasse),
+      objektPlz: _nt(_objPlz),
+      objektOrt: _nt(_objOrt),
+      bedingungen: _nt(_bedingungen),
+      notiz: _nt(_notiz),
+      ustSatz: Value(ust),
       datum: Value(_datum),
       gueltigBis: Value(_gueltigBis),
       status: Value(_status),
@@ -281,12 +516,16 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     );
     try {
       await ref.read(angeboteRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.pop(context, true);
+      if (close && mounted) {
+        Navigator.of(context, rootNavigator: true).pop(true);
+      } else if (mounted) {
+        setState(() => _saving = false);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fehler: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
     }
   }
@@ -296,17 +535,141 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     return Value(v.isEmpty ? null : v);
   }
 
+  double get _ustSatz =>
+      double.tryParse(_ust.text.replaceAll(',', '.')) ?? 19;
+
+  Future<PdfDocumentData> _buildPdfData({required bool alsAb}) async {
+    final absender = await absenderFromSettings(ref);
+    final kundeId = _kundeId;
+    final kunde = kundeId == null
+        ? null
+        : await ref.read(kundenRepositoryProvider).byId(kundeId);
+    final fuss = await ref
+        .read(einstellungenRepositoryProvider)
+        .get(SettingsKeys.angebotFusstext);
+    final objekt = [
+      _objStrasse.text.trim(),
+      '${_objPlz.text.trim()} ${_objOrt.text.trim()}'.trim(),
+    ].where((s) => s.isNotEmpty).join(', ');
+    return PdfDocumentData(
+      dokumentTyp: alsAb ? 'Auftragsbestätigung' : 'Angebot',
+      dokumentNr: _nr.text.trim(),
+      datum: _datum,
+      faelligBis: _gueltigBis,
+      sachverhalt:
+          _anfrage.text.trim().isEmpty ? _betreff.text : _anfrage.text,
+      objektAdresse: objekt.isEmpty ? null : objekt,
+      positionen: _positionen,
+      kopftext: _kopf.text.trim().isEmpty ? null : _kopf.text,
+      fusstext: _fuss.text.trim().isEmpty ? fuss : _fuss.text,
+      absender: absender,
+      empfaenger: kunde,
+    );
+  }
+
+  Future<void> _previewPdf({required bool alsAb}) async {
+    await previewDocumentPdf(await _buildPdfData(alsAb: alsAb));
+  }
+
+  Future<void> _convertToRechnung() async {
+    if (!_isEdit) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Aus Angebot → Rechnung erstellen?'),
+        content: const Text(
+            'Eine neue Rechnung wird mit den Positionen dieses Angebots '
+            'erzeugt. Du kannst sie anschließend bearbeiten.'),
+        actions: [
+          TextButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(true),
+              child: const Text('Rechnung erstellen')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final workflow = ref.read(dokumentWorkflowProvider);
+    final rId = await workflow.angebotToRechnung(widget.eintrag!.angebot);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Rechnung #$rId angelegt')));
+      Navigator.of(context, rootNavigator: true).pop(true);
+    }
+  }
+
+  Future<void> _archivePdfFromDialog() async {
+    if (!_isEdit) return;
+    final data = await _buildPdfData(alsAb: false);
+    final uploaded = await freezeAngebotAsBeleg(
+        ref, widget.eintrag!.angebot, data);
+    if (uploaded == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Upload nicht möglich — bitte anmelden / Cloud prüfen.')));
+      }
+      return;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Beleg archiviert: ${uploaded.dateiname}')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StandardFormDialog(
-      title: _isEdit
-          ? 'Angebot bearbeiten · ${widget.eintrag!.angebot.angebotsnummer ?? ''}'
-          : 'Neues Angebot',
+      title: _isEdit ? 'Angebot bearbeiten' : 'Neues Angebot',
       saving: _saving,
       maxWidth: 1100,
-      maxHeight: 840,
-      onCancel: () => Navigator.pop(context, false),
+      maxHeight: 900,
+      onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      onDelete: _isEdit
+          ? () async => ref
+              .read(angeboteRepositoryProvider)
+              .delete(widget.eintrag!.angebot.id)
+          : null,
+      footerLeading: Wrap(
+        spacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+            label: const Text('Angebot drucken'),
+            onPressed: () => _previewPdf(alsAb: false),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.assignment_turned_in_outlined, size: 16),
+            label: const Text('Auftragsbestätigung'),
+            onPressed: () => _previewPdf(alsAb: true),
+          ),
+          if (_isEdit)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cloud_upload_outlined, size: 16),
+              label: const Text('PDF archivieren'),
+              onPressed: _archivePdfFromDialog,
+            ),
+          if (_isEdit)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.receipt_long_outlined, size: 16),
+              label: const Text('→ Rechnung erstellen'),
+              onPressed: _convertToRechnung,
+            ),
+          if (_isEdit)
+            _InAuftragUmwandelnButton(
+              angebot: widget.eintrag!,
+              onDone: () =>
+                  Navigator.of(context, rootNavigator: true).pop(true),
+            ),
+        ],
+      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -314,61 +677,167 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row2(
-                left: LabeledField(
-                  'Angebotsnummer',
-                  TextFormField(
-                    controller: _nr,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Erforderlich' : null,
+              // Reihe 1: Nr. · Datum · Gültig bis · Status
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: LabeledField(
+                      'Angebots-Nr. *',
+                      TextFormField(
+                        controller: _nr,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Erforderlich'
+                            : null,
+                      ),
+                    ),
                   ),
-                ),
-                right: LabeledField(
-                  'Status',
-                  DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isDense: true,
-                    items: [
-                      for (final s in AngeboteScreen.statusValues)
-                        DropdownMenuItem(value: s, child: Text(s)),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => _status = v ?? 'entwurf'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: DateField(
+                      label: 'Datum *',
+                      value: _datum,
+                      onChanged: (v) =>
+                          setState(() => _datum = v ?? DateTime.now()),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: DateField(
+                      label: 'Gültig bis',
+                      value: _gueltigBis,
+                      onChanged: (v) => setState(() => _gueltigBis = v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: LabeledField(
+                      'Status',
+                      Builder(builder: (_) {
+                        final values = {
+                          ...AngeboteScreen.statusValues,
+                          _status,
+                        }.toList();
+                        return DropdownButtonFormField<String>(
+                          initialValue: _status,
+                          isDense: true,
+                          items: [
+                            for (final s in values)
+                              DropdownMenuItem(
+                                  value: s,
+                                  child:
+                                      Text(AngebotStatusBadge.label(s))),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _status = v ?? 'anfrage'),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              // Auftraggeber
               KundenPickerField(
                 kundeId: _kundeId,
                 onChanged: (id) => setState(() => _kundeId = id),
+                label: 'Auftraggeber (vorhandener oder neuer)',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              // Akte (optional — wird sonst beim Speichern angelegt)
+              AuftragPickerField(
+                auftragId: _auftragId,
+                onChanged: (id) => setState(() => _auftragId = id),
+                label:
+                    'Akte (optional — wird sonst automatisch angelegt)',
+              ),
+              const SizedBox(height: 14),
+              // Anfrage / Sachverhalt
               LabeledField(
-                  'Betreff', TextFormField(controller: _betreff)),
-              const SizedBox(height: 12),
-              Row2(
-                left: DateField(
-                    label: 'Datum',
-                    value: _datum,
-                    onChanged: (v) =>
-                        setState(() => _datum = v ?? DateTime.now())),
-                right: DateField(
-                    label: 'Gültig bis',
-                    value: _gueltigBis,
-                    onChanged: (v) => setState(() => _gueltigBis = v)),
+                'Anfrage-Beschreibung / Sachverhalt *',
+                TextFormField(
+                  controller: _anfrage,
+                  minLines: 3,
+                  maxLines: 6,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Erforderlich'
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Objektadresse
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: LabeledField('Objektadresse',
+                        TextFormField(controller: _objStrasse)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: LabeledField(
+                        'PLZ', TextFormField(controller: _objPlz)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: LabeledField(
+                        'Ort', TextFormField(controller: _objOrt)),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
+              // Positionen
               PositionsEditor(
+                title: 'Leistungspositionen',
                 positions: _positionen,
                 onChanged: (list) => setState(() => _positionen = list),
               ),
               const SizedBox(height: 20),
-              LabeledField(
-                'Kopftext',
-                TextFormField(
-                    controller: _kopf, minLines: 2, maxLines: 4),
+              // Bedingungen links · Summen rechts (wie im Original)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: LabeledField(
+                      'Hinweise / AGB / Bedingungen',
+                      TextFormField(
+                        controller: _bedingungen,
+                        minLines: 5,
+                        maxLines: 8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 22),
+                      child: PositionsSummaryCard(
+                        positions: _positionen,
+                        ustSatz: _ustSatz,
+                        onUstSatzChanged: (v) =>
+                            setState(() => _ust.text = v.toStringAsFixed(0)),
+                        summenLabel: 'Angebotssumme',
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              LabeledField(
+                'Interne Notiz',
+                TextFormField(
+                    controller: _notiz, minLines: 1, maxLines: 3),
+              ),
+              const SizedBox(height: 14),
               LabeledField(
                 'Fußtext',
                 TextFormField(
@@ -378,6 +847,84 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Erstellt aus einem angenommenen Angebot einen neuen Auftrag.
+/// Setzt den Angebotsstatus auf „angenommen".
+class _InAuftragUmwandelnButton extends ConsumerWidget {
+  const _InAuftragUmwandelnButton(
+      {required this.angebot, required this.onDone});
+  final AngebotWithKunde angebot;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workflow = ref.read(dokumentWorkflowProvider);
+    return FutureBuilder<bool>(
+      future: workflow.hatKundeAuftrag(angebot.angebot.kundeId),
+      builder: (ctx, snap) {
+        final hatAuftrag = snap.data == true;
+        final label = hatAuftrag
+            ? '→ Weiteren Auftrag anlegen'
+            : '→ In Auftrag umwandeln';
+        return OutlinedButton.icon(
+          icon: const Icon(Icons.assignment_outlined),
+          label: Text(label),
+          onPressed: () async {
+            if (angebot.angebot.kundeId == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Angebot hat keinen Auftraggeber.')));
+              return;
+            }
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(hatAuftrag
+                    ? 'Weiteren Auftrag anlegen?'
+                    : 'In Auftrag umwandeln?'),
+                content: Text(hatAuftrag
+                    ? 'Für diesen Kunden existiert bereits ein Auftrag. '
+                        'Ein zusätzlicher Auftrag wird aus diesem Angebot erzeugt.'
+                    : 'Es wird ein neuer Auftrag aus diesem Angebot erzeugt. '
+                        'Das Angebot wird auf „Angenommen" gesetzt.'),
+                actions: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).pop(false),
+                    child: const Text('Abbrechen'),
+                  ),
+                  FilledButton(
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).pop(true),
+                    child: Text(hatAuftrag ? 'Anlegen' : 'Umwandeln'),
+                  ),
+                ],
+              ),
+            );
+            if (ok != true) return;
+
+            final db = ref.read(angeboteRepositoryProvider);
+            final a = angebot.angebot;
+            // Status aktualisieren.
+            await db.upsert(AngeboteCompanion(
+              id: Value(a.id),
+              status: const Value('angenommen'),
+            ));
+            // Neuen Auftrag über Workflow-Service anlegen.
+            final auftragId = await workflow.angebotToAuftrag(a);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'Auftrag #$auftragId angelegt — im Aufträge-Modul bearbeiten.')),
+              );
+              onDone();
+            }
+          },
+        );
+      },
     );
   }
 }

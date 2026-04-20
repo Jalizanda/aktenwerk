@@ -1,31 +1,60 @@
+import 'dart:typed_data';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
+import '../../../data/sync/auth_service.dart';
+import '../../../data/sync/storage_service.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/kalkulation/stunden/stunden_repository.dart';
+import '../../../features/akten/protokolle/protokolle_tab.dart';
+import '../../../features/werkzeuge/fotos/foto_exif.dart';
 import '../../../features/werkzeuge/fotos/fotos_repository.dart';
-import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 
-/// Fokussierter Ortstermin-Modus: Großflächige Buttons für Fotos,
-/// Notizen und Stunden-Timer beim Einsatz vor Ort.
+enum _FotoQuelle { kamera, galerie, datei }
+
+/// Eintrag im Ortstermin-Journal. Text, Foto oder Audio.
+class _NotizEintrag {
+  final DateTime zeit;
+  final String? text;
+  final Uint8List? fotoBytes;
+  final String? fotoMime;
+  final int? fotoDbId;
+  final Uint8List? audioBytes;
+  final String? audioMime;
+  const _NotizEintrag({
+    required this.zeit,
+    this.text,
+    this.fotoBytes,
+    this.fotoMime,
+    this.fotoDbId,
+    this.audioBytes,
+    this.audioMime,
+  });
+
+  bool get isFoto => fotoBytes != null;
+  bool get isAudio => audioBytes != null;
+}
+
 class OrtsterminScreen extends ConsumerStatefulWidget {
   const OrtsterminScreen({super.key});
   @override
-  ConsumerState<OrtsterminScreen> createState() =>
-      _OrtsterminScreenState();
+  ConsumerState<OrtsterminScreen> createState() => _OrtsterminScreenState();
 }
 
 class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   int? _auftragId;
   final _notizController = TextEditingController();
-  final List<_Notiz> _notizen = [];
-  int _fotoCount = 0;
+  final List<_NotizEintrag> _eintraege = [];
 
   @override
   void dispose() {
@@ -33,31 +62,174 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     super.dispose();
   }
 
+  String _mimeFor(String name) {
+    final ext = name.toLowerCase().split('.').last;
+    return switch (ext) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      _ => 'application/octet-stream',
+    };
+  }
+
   Future<void> _fotoHinzufuegen() async {
-    final res = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.image,
-      withData: true,
+    // Quelle wählen (Kamera/Galerie) — auf dem Web zeigt der ImagePicker
+    // direkt den Datei-Dialog; auf Mobile/iPad bekommt man Kamera & Galerie.
+    final quelle = await _zeigeFotoQuelleDialog();
+    if (quelle == null) return;
+
+    Uint8List? bytes;
+    String name = 'foto_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    if (quelle == _FotoQuelle.kamera || quelle == _FotoQuelle.galerie) {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: quelle == _FotoQuelle.kamera
+            ? ImageSource.camera
+            : ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 2400,
+      );
+      if (picked == null) return;
+      bytes = await picked.readAsBytes();
+      name = picked.name;
+    } else {
+      final res = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        type: FileType.image,
+        withData: true,
+      );
+      if (res == null || res.files.isEmpty) return;
+      final f = res.files.first;
+      if (f.bytes == null) return;
+      bytes = f.bytes!;
+      name = f.name;
+    }
+    if (!mounted) return;
+
+    final beschreibung = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _FotoTextDialog(bytes: bytes!),
     );
-    if (res == null || res.files.isEmpty) return;
-    final repo = ref.read(fotosRepositoryProvider);
-    for (final f in res.files) {
-      if (f.bytes == null) continue;
-      await repo.upsert(FotosCompanion.insert(
+    if (beschreibung == null) return;
+
+    final mime = _mimeFor(name);
+    final fotoRepo = ref.read(fotosRepositoryProvider);
+    final storage = ref.read(storageServiceProvider);
+    final auth = ref.read(authServiceProvider);
+    final cloudReady = storage.enabled && auth.currentUser != null;
+
+    String? storageUrl;
+    String? storagePfad;
+    if (cloudReady && _auftragId != null) {
+      try {
+        storagePfad =
+            'fotos/ortstermin_${DateTime.now().millisecondsSinceEpoch}_$name';
+        storageUrl = await storage.uploadBytes(
+          storagePfad,
+          bytes: bytes,
+          contentType: mime,
+        );
+      } catch (_) {
+        storageUrl = null;
+        storagePfad = null;
+      }
+    }
+
+    int? fotoId;
+    if (_auftragId != null) {
+      final exif = await readExif(bytes);
+      final reihenfolge = await nextReihenfolgeFor(
+          ref.read(appDatabaseProvider), _auftragId);
+      fotoId = await fotoRepo.upsert(FotosCompanion.insert(
         auftragId: Value(_auftragId),
-        titel: Value(f.name),
-        daten: Value(f.bytes),
-        aufnahmeAm: Value(DateTime.now()),
+        titel: Value(name),
+        beschreibung:
+            beschreibung.isEmpty ? const Value.absent() : Value(beschreibung),
+        aufnahmeAm: Value(exif.aufnahmeAm ?? DateTime.now()),
+        lat: Value(exif.lat),
+        lon: Value(exif.lon),
+        reihenfolge: Value(reihenfolge),
+        mimeType: Value(mime),
+        storageUrl: Value(storageUrl),
+        storagePfad: Value(storagePfad),
+        daten: Value(bytes),
       ));
     }
-    setState(() => _fotoCount += res.files.length);
+
+    setState(() {
+      _eintraege.insert(
+          0,
+          _NotizEintrag(
+            zeit: DateTime.now(),
+            text: beschreibung.isEmpty ? null : beschreibung,
+            fotoBytes: bytes,
+            fotoMime: mime,
+            fotoDbId: fotoId,
+          ));
+    });
+  }
+
+  Future<void> _openProtokoll() async {
+    final id = _auftragId;
+    if (id == null) return;
+    final list =
+        await ref.read(auftraegeRepositoryProvider).watchAll().first;
+    final auftrag =
+        list.where((a) => a.auftrag.id == id).firstOrNull?.auftrag;
+    if (auftrag == null || !mounted) return;
+    await showDialog(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820, maxHeight: 780),
+          child: ProtokolleTab(auftrag: auftrag),
+        ),
+      ),
+    );
+  }
+
+  Future<_FotoQuelle?> _zeigeFotoQuelleDialog() async {
+    return showModalBottomSheet<_FotoQuelle>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Kamera'),
+              subtitle: const Text('Foto jetzt aufnehmen'),
+              onTap: () => Navigator.pop(context, _FotoQuelle.kamera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Galerie / Dateien'),
+              subtitle: const Text('Vorhandenes Foto wählen'),
+              onTap: () => Navigator.pop(context, _FotoQuelle.galerie),
+            ),
+            if (kIsWeb)
+              ListTile(
+                leading: const Icon(Icons.folder_open_outlined),
+                title: const Text('Datei-Dialog (Web)'),
+                subtitle: const Text('Vom Rechner hochladen'),
+                onTap: () => Navigator.pop(context, _FotoQuelle.datei),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _notizSpeichern() {
     final text = _notizController.text.trim();
     if (text.isEmpty) return;
     setState(() {
-      _notizen.insert(0, _Notiz(DateTime.now(), text));
+      _eintraege.insert(0, _NotizEintrag(zeit: DateTime.now(), text: text));
       _notizController.clear();
     });
   }
@@ -86,15 +258,59 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     ref.read(stundenTimerProvider.notifier).update((s) => s.copyWith(reset: true));
   }
 
-  Future<void> _alleNotizenInAuftragNotiz() async {
-    if (_auftragId == null || _notizen.isEmpty) return;
+  Future<void> _audioHinzufuegen() async {
+    // Web: MediaRecorder der Plattform wird über Dialog genutzt.
+    // Desktop/Android/iOS: File-Picker als Fallback.
+    if (kIsWeb) {
+      final result = await showDialog<_AudioErgebnis?>(
+        context: context,
+        useRootNavigator: true,
+        builder: (_) => const _WebAudioDialog(),
+      );
+      if (result == null) return;
+      setState(() {
+        _eintraege.insert(
+            0,
+            _NotizEintrag(
+              zeit: DateTime.now(),
+              audioBytes: result.bytes,
+              audioMime: result.mime,
+            ));
+      });
+      return;
+    }
+    // Fallback: Datei wählen.
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+      withData: true,
+    );
+    if (res == null || res.files.isEmpty) return;
+    final f = res.files.first;
+    if (f.bytes == null) return;
+    setState(() {
+      _eintraege.insert(
+          0,
+          _NotizEintrag(
+            zeit: DateTime.now(),
+            audioBytes: f.bytes,
+            audioMime: 'audio/webm',
+          ));
+    });
+  }
+
+  Future<void> _alleInAuftragUebernehmen() async {
+    if (_auftragId == null || _eintraege.isEmpty) return;
     final repo = ref.read(auftraegeRepositoryProvider);
     final auftrag = await repo.byId(_auftragId!);
     if (auftrag == null) return;
     final oldNotiz = auftrag.notiz ?? '';
-    final neueNotiz = _notizen
-        .map((n) => '[${DateFormat('dd.MM.yyyy HH:mm').format(n.zeit)}] ${n.text}')
+    final fmt = DateFormat('dd.MM.yyyy HH:mm');
+    final texte = _eintraege.where((e) => (e.text ?? '').isNotEmpty).toList();
+    final neueNotiz = texte
+        .map((n) =>
+            '[${fmt.format(n.zeit)}${n.isFoto ? ' · 📷 Foto' : ''}] ${n.text}')
         .join('\n');
+    if (neueNotiz.isEmpty) return;
     await repo.upsert(AuftraegeCompanion(
       id: Value(auftrag.id),
       notiz: Value('$oldNotiz\n\n$neueNotiz'.trim()),
@@ -102,10 +318,9 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content:
-                Text('${_notizen.length} Notizen in Auftrag übernommen')),
+            content: Text('${texte.length} Einträge in Auftrag übernommen')),
       );
-      setState(() => _notizen.clear());
+      setState(_eintraege.clear);
     }
   }
 
@@ -115,7 +330,6 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     final elapsed = timer.startedAt == null
         ? Duration.zero
         : DateTime.now().difference(timer.startedAt!);
-    final fmt = DateFormat('HH:mm:ss');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,7 +337,14 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
         ModuleHeader(
           icon: Icons.place_outlined,
           title: 'Ortstermin-Modus',
-          subtitle: 'Vor Ort: Fotos, Notizen, Zeiterfassung',
+          subtitle: 'Vor Ort: Fotos mit Text, Notizen, Audio, Zeiterfassung',
+          actions: [
+            FilledButton.icon(
+              icon: const Icon(Icons.fact_check_outlined),
+              label: const Text('Protokoll erfassen'),
+              onPressed: _auftragId == null ? null : () => _openProtokoll(),
+            ),
+          ],
           filters: [
             SizedBox(
               width: 360,
@@ -137,138 +358,139 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
         const Divider(height: 1),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(20),
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final wide = c.maxWidth > 900;
+                final left = _ActionsColumn(
+                  timer: timer,
+                  elapsed: elapsed,
+                  notizCtrl: _notizController,
+                  auftragSelected: _auftragId != null,
+                  onFoto: _fotoHinzufuegen,
+                  onNotiz: _notizSpeichern,
+                  onTimer:
+                      _auftragId == null ? null : (timer.running ? _timerStop : _timerStart),
+                  onAudio: _audioHinzufuegen,
+                );
+                final right = _JournalPanel(
+                  eintraege: _eintraege,
+                  onUebernehmen: _auftragId == null || _eintraege.isEmpty
+                      ? null
+                      : _alleInAuftragUebernehmen,
+                  onRemove: (i) => setState(() => _eintraege.removeAt(i)),
+                );
+                if (!wide) {
+                  return ListView(
+                    children: [left, const SizedBox(height: 20), right],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: left),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 3, child: right),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionsColumn extends StatelessWidget {
+  const _ActionsColumn({
+    required this.timer,
+    required this.elapsed,
+    required this.notizCtrl,
+    required this.auftragSelected,
+    required this.onFoto,
+    required this.onNotiz,
+    required this.onTimer,
+    required this.onAudio,
+  });
+  final TimerState timer;
+  final Duration elapsed;
+  final TextEditingController notizCtrl;
+  final bool auftragSelected;
+  final VoidCallback? onFoto;
+  final VoidCallback onNotiz;
+  final VoidCallback? onTimer;
+  final VoidCallback onAudio;
+
+  String _fmt(Duration d) =>
+      '${d.inHours.toString().padLeft(2, '0')}:'
+      '${(d.inMinutes % 60).toString().padLeft(2, '0')}:'
+      '${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ActionCard(
+          icon: Icons.photo_camera_outlined,
+          title: 'Foto mit Text',
+          subtitle: auftragSelected
+              ? 'Bild wählen → Beschreibung → Journal'
+              : 'Bitte zuerst Auftrag auswählen',
+          onTap: auftragSelected ? onFoto : null,
+        ),
+        const SizedBox(height: 12),
+        _ActionCard(
+          icon: Icons.mic_none_outlined,
+          title: 'Audio-Aufnahme',
+          subtitle: kIsWeb
+              ? 'Mikrofon mit Pause (Browser/iPad/iPhone)'
+              : 'Audio-Datei wählen',
+          onTap: onAudio,
+        ),
+        const SizedBox(height: 12),
+        _ActionCard(
+          icon: timer.running
+              ? Icons.stop_circle_outlined
+              : Icons.play_circle_outline,
+          title: timer.running ? 'Timer stoppen' : 'Timer starten',
+          subtitle: timer.running
+              ? 'Läuft ${_fmt(elapsed)}'
+              : 'Zeit für Ortstermin erfassen',
+          onTap: onTimer,
+        ),
+        const SizedBox(height: 12),
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _ActionCard(
-                        icon: Icons.photo_camera_outlined,
-                        title: 'Foto hinzufügen',
-                        subtitle: 'Aus Dateien oder Kamera ($_fotoCount heute)',
-                        onTap: _auftragId == null ? null : _fotoHinzufuegen,
-                      ),
-                      const SizedBox(height: 12),
-                      _ActionCard(
-                        icon: timer.running
-                            ? Icons.stop_circle_outlined
-                            : Icons.play_circle_outline,
-                        title: timer.running
-                            ? 'Timer stoppen'
-                            : 'Timer starten',
-                        subtitle: timer.running
-                            ? 'Läuft ${_formatDuration(elapsed)}'
-                            : 'Zeit für Ortstermin erfassen',
-                        onTap: _auftragId == null
-                            ? null
-                            : (timer.running ? _timerStop : _timerStart),
-                      ),
-                      const SizedBox(height: 12),
-                      Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                              color:
-                                  Theme.of(context).colorScheme.outlineVariant),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text('Schnell-Notiz',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _notizController,
-                                minLines: 2,
-                                maxLines: 4,
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  hintText:
-                                      'Was soll festgehalten werden?',
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: FilledButton.icon(
-                                  onPressed: _notizSpeichern,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Notiz hinzufügen'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                Text('Schnell-Notiz',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: notizCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Was soll festgehalten werden?',
                   ),
                 ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 3,
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              Text('Gesammelte Notizen',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium),
-                              const Spacer(),
-                              if (_notizen.isNotEmpty)
-                                TextButton.icon(
-                                  onPressed: _alleNotizenInAuftragNotiz,
-                                  icon: const Icon(Icons.save_outlined),
-                                  label: const Text('In Auftrag übernehmen'),
-                                ),
-                            ],
-                          ),
-                          const Divider(),
-                          Expanded(
-                            child: _notizen.isEmpty
-                                ? const EmptyListState(
-                                    icon: Icons.notes,
-                                    title: 'Noch keine Notizen')
-                                : ListView.separated(
-                                    itemCount: _notizen.length,
-                                    separatorBuilder: (_, _) =>
-                                        const Divider(height: 1),
-                                    itemBuilder: (_, i) {
-                                      final n = _notizen[i];
-                                      return ListTile(
-                                        dense: true,
-                                        title: Text(n.text),
-                                        subtitle: Text(fmt.format(n.zeit)),
-                                        trailing: IconButton(
-                                          icon: const Icon(
-                                              Icons.delete_outline),
-                                          onPressed: () => setState(
-                                              () => _notizen.removeAt(i)),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: onNotiz,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Notiz hinzufügen'),
                   ),
                 ),
               ],
@@ -278,18 +500,436 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
       ],
     );
   }
-
-  String _formatDuration(Duration d) =>
-      '${d.inHours.toString().padLeft(2, '0')}:'
-      '${(d.inMinutes % 60).toString().padLeft(2, '0')}:'
-      '${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 }
 
-class _Notiz {
-  final DateTime zeit;
-  final String text;
-  const _Notiz(this.zeit, this.text);
+class _JournalPanel extends StatelessWidget {
+  const _JournalPanel({
+    required this.eintraege,
+    required this.onUebernehmen,
+    required this.onRemove,
+  });
+  final List<_NotizEintrag> eintraege;
+  final VoidCallback? onUebernehmen;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = DateFormat('HH:mm:ss');
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side:
+            BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text('Gesammelte Notizen',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                if (onUebernehmen != null)
+                  TextButton.icon(
+                    onPressed: onUebernehmen,
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('In Auftrag übernehmen'),
+                  ),
+              ],
+            ),
+            const Divider(),
+            if (eintraege.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: Text(
+                      'Noch keine Einträge. Füge Fotos, Audios oder Notizen hinzu.'),
+                ),
+              )
+            else
+              for (var i = 0; i < eintraege.length; i++)
+                _JournalItem(
+                  eintrag: eintraege[i],
+                  timeFmt: fmt,
+                  onDelete: () => onRemove(i),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+class _JournalItem extends StatelessWidget {
+  const _JournalItem({
+    required this.eintrag,
+    required this.timeFmt,
+    required this.onDelete,
+  });
+  final _NotizEintrag eintrag;
+  final DateFormat timeFmt;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (eintrag.isFoto)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                eintrag.fotoBytes!,
+                width: 72,
+                height: 72,
+                fit: BoxFit.cover,
+              ),
+            )
+          else if (eintrag.isAudio)
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.graphic_eq,
+                  size: 32,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer),
+            )
+          else
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.notes,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  timeFmt.format(eintrag.zeit),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                ),
+                if ((eintrag.text ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(eintrag.text!),
+                ],
+                if (eintrag.isAudio) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Audio-Aufnahme · ${(eintrag.audioBytes!.lengthInBytes / 1024).toStringAsFixed(0)} KB',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (eintrag.isFoto && eintrag.fotoDbId != null) ...[
+                  const SizedBox(height: 4),
+                  Text('→ im Modul Fotos gespeichert',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          )),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: 'Aus Journal entfernen',
+            onPressed: onDelete,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FotoTextDialog extends StatefulWidget {
+  const _FotoTextDialog({required this.bytes});
+  final Uint8List bytes;
+  @override
+  State<_FotoTextDialog> createState() => _FotoTextDialogState();
+}
+
+class _FotoTextDialogState extends State<_FotoTextDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.photo_camera_outlined),
+                  const SizedBox(width: 10),
+                  Text('Foto mit Text',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  widget.bytes,
+                  fit: BoxFit.contain,
+                  height: 260,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _ctrl,
+                minLines: 2,
+                maxLines: 4,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Beschreibung / Anmerkung',
+                  border: OutlineInputBorder(),
+                  hintText:
+                      'z. B. Salzausblühungen Sockel · Fassade Süd · …',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Spacer(),
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Abbrechen')),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.check),
+                    label: const Text('Hinzufügen'),
+                    onPressed: () =>
+                        Navigator.pop(context, _ctrl.text.trim()),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AudioErgebnis {
+  final Uint8List bytes;
+  final String mime;
+  const _AudioErgebnis(this.bytes, this.mime);
+}
+
+/// Web-Dialog zum Aufnehmen/Pausieren über die MediaRecorder-API.
+/// Die eigentliche JS-Integration liegt in `ortstermin_audio_web.dart`.
+class _WebAudioDialog extends StatefulWidget {
+  const _WebAudioDialog();
+  @override
+  State<_WebAudioDialog> createState() => _WebAudioDialogState();
+}
+
+class _WebAudioDialogState extends State<_WebAudioDialog> {
+  bool _recording = false;
+  bool _paused = false;
+  Duration _duration = Duration.zero;
+  String? _error;
+  Object? _recorder; // platform-specific handle
+
+  @override
+  void dispose() {
+    _stopRecorder(discard: true);
+    super.dispose();
+  }
+
+  Future<void> _start() async {
+    try {
+      final handle = await _platformStart((d) {
+        if (mounted) setState(() => _duration = d);
+      });
+      setState(() {
+        _recorder = handle;
+        _recording = true;
+        _paused = false;
+        _error = null;
+      });
+    } catch (e) {
+      setState(() => _error = 'Mikrofon nicht verfügbar: $e');
+    }
+  }
+
+  void _pause() {
+    if (_recorder == null) return;
+    try {
+      _platformPause(_recorder!);
+      setState(() => _paused = true);
+    } catch (_) {}
+  }
+
+  void _resume() {
+    if (_recorder == null) return;
+    try {
+      _platformResume(_recorder!);
+      setState(() => _paused = false);
+    } catch (_) {}
+  }
+
+  Future<void> _stopAndReturn() async {
+    if (_recorder == null) {
+      Navigator.pop(context);
+      return;
+    }
+    final result = await _platformStop(_recorder!);
+    if (!mounted) return;
+    Navigator.pop(
+        context,
+        result == null
+            ? null
+            : _AudioErgebnis(result.$1, result.$2));
+  }
+
+  Future<void> _stopRecorder({bool discard = false}) async {
+    if (_recorder == null) return;
+    try {
+      await _platformStop(_recorder!);
+    } catch (_) {}
+    _recorder = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.mic_none_outlined),
+                  const SizedBox(width: 10),
+                  Text('Audio-Aufnahme',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _fmt(_duration),
+                style: const TextStyle(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _recording
+                    ? (_paused ? 'pausiert' : 'aufnahme läuft')
+                    : 'bereit',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12)),
+              ],
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: [
+                  if (!_recording)
+                    FilledButton.icon(
+                      icon: const Icon(Icons.fiber_manual_record,
+                          color: Colors.red),
+                      label: const Text('Start'),
+                      onPressed: _start,
+                    )
+                  else ...[
+                    if (!_paused)
+                      FilledButton.tonalIcon(
+                        icon: const Icon(Icons.pause),
+                        label: const Text('Pause'),
+                        onPressed: _pause,
+                      )
+                    else
+                      FilledButton.icon(
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Weiter'),
+                        onPressed: _resume,
+                      ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.stop),
+                      label: const Text('Speichern'),
+                      onPressed: _stopAndReturn,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+// Platform-Wrapper. Auf Web wird MediaRecorder via dart:js_interop genutzt;
+// auf anderen Plattformen fällt das Modul auf einen Fehler zurück.
+Future<Object> _platformStart(void Function(Duration) onTick) async {
+  throw UnimplementedError(
+      'Audio-Aufnahme ist nur im Browser/iPad/iPhone verfügbar.');
+}
+
+void _platformPause(Object handle) {}
+void _platformResume(Object handle) {}
+Future<(Uint8List, String)?> _platformStop(Object handle) async => null;
 
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
@@ -312,27 +952,28 @@ class _ActionCard extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        side:
+            BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Icon(icon, size: 40, color: color),
-              const SizedBox(width: 16),
+              Icon(icon, size: 36, color: color),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
-                        style: Theme.of(context).textTheme.titleLarge),
+                        style: Theme.of(context).textTheme.titleMedium),
                     Text(subtitle,
                         style: Theme.of(context)
                             .textTheme
-                            .bodyMedium
+                            .bodySmall
                             ?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme

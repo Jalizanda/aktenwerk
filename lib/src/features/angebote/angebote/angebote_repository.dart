@@ -53,6 +53,23 @@ class AngeboteRepository {
   Future<int> delete(int id) =>
       (_db.delete(_db.angebote)..where((t) => t.id.equals(id))).go();
 
+  Future<void> setPdfArchive(
+    int id, {
+    required String storageUrl,
+    required String dateiname,
+    required int groesse,
+  }) async {
+    await (_db.update(_db.angebote)..where((t) => t.id.equals(id))).write(
+      AngeboteCompanion(
+        pdfStorageUrl: Value(storageUrl),
+        pdfDateiname: Value(dateiname),
+        pdfGroesse: Value(groesse),
+        pdfErstelltAm: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<int> nextSequenz() async {
     final row = await (_db.selectOnly(_db.angebote)
           ..addColumns([_db.angebote.id.max()]))

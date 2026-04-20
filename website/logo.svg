@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" role="img" aria-label="Aktenwerk">
+  <!-- Mark -->
+  <g transform="translate(4,6)">
+    <!-- Aktenrücken (Folder) -->
+    <rect x="0" y="6" width="40" height="36" rx="4" fill="#0f172a"/>
+    <rect x="0" y="6" width="40" height="6" rx="4" fill="#ea580c"/>
+    <!-- Faltbogen / Papier -->
+    <rect x="6" y="16" width="28" height="22" rx="2" fill="#ffffff"/>
+    <line x1="10" y1="22" x2="30" y2="22" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="10" y1="27" x2="30" y2="27" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="10" y1="32" x2="22" y2="32" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Werk-Marker: kleines Hammer-/Zirkel-Zeichen unten rechts -->
+    <circle cx="36" cy="42" r="7" fill="#ea580c"/>
+    <path d="M32.5 42 L36 38.5 L39.5 42 L36 45.5 Z" fill="#ffffff"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="56" y="35" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="800" fill="#0f172a" letter-spacing="-0.5">Akten<tspan fill="#ea580c">werk</tspan></text>
+  <text x="56" y="48" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="8" font-weight="500" fill="#64748b" letter-spacing="1">SACHVERSTÄNDIGEN-SUITE</text>
+</svg>
