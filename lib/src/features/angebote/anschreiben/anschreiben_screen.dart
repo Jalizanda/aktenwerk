@@ -1,18 +1,26 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/ai/anschreiben_chat_service.dart';
+import '../../../core/ai/rechtschreibung_service.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../features/akten/gutachten/gutachten_repository.dart';
 import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../features/werkzeuge/textbausteine/textbausteine_repository.dart';
 import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
+import '../../../features/system/einstellungen/absender_service.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import 'anschreiben_chat_dialog.dart';
 import 'anschreiben_repository.dart';
 
 class AnschreibenScreen extends ConsumerWidget {
@@ -133,6 +141,7 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
   String _status = 'entwurf';
   String? _inhaltJson;
   bool _saving = false;
+  bool _pruefeLaeuft = false;
 
   static const _statusValues = ['entwurf', 'versendet', 'abgelegt'];
 
@@ -194,6 +203,51 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
     }
   }
 
+  /// Öffnet den KI-Chat zum Entwerfen eines Anschreibens. Nimmt dem
+  /// Editor-Kontext (Empfänger, Akte, Betreff, Absender) mit, damit
+  /// Anrede, Aktenzeichen und Objektreferenz direkt korrekt gesetzt
+  /// werden. Beim Übernehmen wird der Entwurf als Quill-Delta in den
+  /// Editor geladen.
+  Future<void> _kiEntwerfen() async {
+    final db = ref.read(appDatabaseProvider);
+    AuftraegeData? auftrag;
+    if (_auftragId != null) {
+      auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(_auftragId!)))
+          .getSingleOrNull();
+    }
+    KundenData? kunde;
+    final kid = _kundeId ?? auftrag?.kundeId;
+    if (kid != null) {
+      kunde = await (db.select(db.kunden)..where((t) => t.id.equals(kid)))
+          .getSingleOrNull();
+    }
+    final absender = await absenderFromSettings(ref);
+    if (!mounted) return;
+    final entwurf = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AnschreibenChatDialog(
+        kontext: AnschreibenKontext(
+          kunde: kunde,
+          auftrag: auftrag,
+          absender: absender,
+          betreff: _betreff.text.trim().isEmpty ? null : _betreff.text.trim(),
+        ),
+      ),
+    );
+    if (entwurf == null || entwurf.trim().isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      _inhaltJsonKey++;
+      _inhaltJson = _plaintextZuDelta(entwurf.trim());
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('KI-Entwurf übernommen — bei Bedarf noch anpassen.')),
+    );
+  }
+
   Future<void> _vorlageEinfuegen() async {
     final picked = await showDialog<TextbausteineData>(
       context: context,
@@ -201,17 +255,125 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
       builder: (_) => const _AnschreibenVorlagePicker(),
     );
     if (picked == null) return;
+
+    // Akte/Kunde laden, um Platzhalter wie {{aktenzeichen}}, {{gericht}},
+    // {{heute}} etc. automatisch zu füllen. Läuft leer, wenn nichts gewählt
+    // ist — die Platzhalter bleiben dann einfach als Text stehen.
+    final db = ref.read(appDatabaseProvider);
+    AuftraegeData? auftrag;
+    if (_auftragId != null) {
+      auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(_auftragId!)))
+          .getSingleOrNull();
+    }
+    KundenData? kunde;
+    final kid = _kundeId ?? auftrag?.kundeId;
+    if (kid != null) {
+      kunde = await (db.select(db.kunden)..where((t) => t.id.equals(kid)))
+          .getSingleOrNull();
+    }
+
+    final raw = picked.inhalt ?? '';
+    final isDelta = raw.trim().startsWith('[');
+    final substituiert = isDelta
+        ? applyVorlagenPlatzhalterImDelta(raw, auftrag: auftrag, kunde: kunde)
+        : applyVorlagenPlatzhalter(raw, auftrag: auftrag, kunde: kunde);
+    final betreffSubst = applyVorlagenPlatzhalter(picked.titel,
+        auftrag: auftrag, kunde: kunde);
+
+    if (!mounted) return;
     setState(() {
-      if ((picked.titel).isNotEmpty && _betreff.text.trim().isEmpty) {
-        _betreff.text = picked.titel;
+      if (_betreff.text.trim().isEmpty && betreffSubst.isNotEmpty) {
+        _betreff.text = betreffSubst;
       }
-      // Inhalt übernehmen (JSON-Delta oder Plain-Text-Fallback).
-      _inhaltJsonKey++; // erzwingt Reset des RichTextEditor
-      _inhaltJson = picked.inhalt;
+      _inhaltJsonKey++;
+      _inhaltJson = substituiert;
     });
   }
 
   int _inhaltJsonKey = 0;
+
+  /// Ruft den gewählten KI-Modus auf, zeigt einen Review-Dialog und
+  /// übernimmt das Ergebnis in den Editor, wenn der Nutzer zustimmt.
+  Future<void> _kiAnwenden(KiModus modus) async {
+    final original = plainTextFromDeltaJson(_inhaltJson);
+    if (original.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Bitte zuerst einen Text eingeben.')),
+      );
+      return;
+    }
+
+    setState(() => _pruefeLaeuft = true);
+    String ergebnis;
+    try {
+      ergebnis = await kiAnwenden(ref, original, modus);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _pruefeLaeuft = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KI-Aufruf fehlgeschlagen: $e')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _pruefeLaeuft = false);
+
+    if (ergebnis.trim() == original.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(modus == KiModus.korrektur
+              ? 'Keine Fehler gefunden — Text bleibt unverändert.'
+              : 'KI hat keine Änderung vorgeschlagen.'),
+        ),
+      );
+      return;
+    }
+
+    final uebernehmen = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _KorrekturReviewDialog(
+        modus: modus,
+        original: original,
+        korrigiert: ergebnis,
+      ),
+    );
+    if (uebernehmen != true) return;
+
+    // Ergebnis als neues Quill-Delta ablegen. Jeder Absatz wird
+    // als eigener Insert gespeichert. Formatierungen (fett, kursiv etc.)
+    // gehen dabei verloren — Anschreiben sind typischerweise Fließtext.
+    final neuesDelta = _plaintextZuDelta(ergebnis);
+    setState(() {
+      _inhaltJsonKey++;
+      _inhaltJson = neuesDelta;
+    });
+  }
+
+  IconData _kiIcon(KiModus m) => switch (m) {
+        KiModus.korrektur => Icons.spellcheck,
+        KiModus.umformulieren => Icons.edit_note,
+        KiModus.juristisch => Icons.gavel,
+        KiModus.kuerzen => Icons.compress,
+        KiModus.erweitern => Icons.expand,
+      };
+
+  /// Baut ein Quill-Delta-JSON aus reinem Text. Jede Zeile wird als
+  /// eigener Insert mit abschließendem `\n` gespeichert.
+  String _plaintextZuDelta(String text) {
+    final zeilen = text.split('\n');
+    final ops = <Map<String, dynamic>>[];
+    for (var i = 0; i < zeilen.length; i++) {
+      final z = zeilen[i];
+      if (z.isNotEmpty) ops.add({'insert': z});
+      ops.add({'insert': '\n'});
+    }
+    if (ops.isEmpty) ops.add({'insert': '\n'});
+    return jsonEncode(ops);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -292,8 +454,55 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Inhalt',
-                style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                Text('Inhalt',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('KI Schreiben entwerfen'),
+                  onPressed: _pruefeLaeuft ? null : _kiEntwerfen,
+                ),
+                const SizedBox(width: 8),
+                PopupMenuButton<KiModus>(
+                  enabled: !_pruefeLaeuft,
+                  tooltip: 'KI-Assistent',
+                  position: PopupMenuPosition.under,
+                  onSelected: _kiAnwenden,
+                  itemBuilder: (_) => [
+                    for (final m in KiModus.values)
+                      PopupMenuItem(
+                        value: m,
+                        child: Row(
+                          children: [
+                            Icon(_kiIcon(m), size: 18),
+                            const SizedBox(width: 10),
+                            Text(m.label),
+                          ],
+                        ),
+                      ),
+                  ],
+                  child: OutlinedButton.icon(
+                    onPressed: null, // Button dient nur als Anker fürs Popup
+                    icon: _pruefeLaeuft
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_fix_high, size: 16),
+                    label: Text(
+                        _pruefeLaeuft ? 'KI arbeitet …' : 'KI-Assistent'),
+                    style: OutlinedButton.styleFrom(
+                      disabledForegroundColor:
+                          Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             RichTextEditor(
               key: ValueKey('anschreiben-inhalt-$_inhaltJsonKey'),
@@ -454,6 +663,156 @@ class _AnschreibenVorlagePickerState
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Zeigt den Original- und den KI-Vorschlag nebeneinander. Der Nutzer
+/// bestätigt mit „Übernehmen" oder verwirft mit „Abbrechen".
+class _KorrekturReviewDialog extends StatelessWidget {
+  const _KorrekturReviewDialog({
+    required this.modus,
+    required this.original,
+    required this.korrigiert,
+  });
+  final KiModus modus;
+  final String original;
+  final String korrigiert;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Dialog(
+      insetPadding: const EdgeInsets.all(32),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 700),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_fix_high, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'KI-Vorschlag: ${modus.label}',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context,
+                            rootNavigator: true)
+                        .pop(false),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _TextSpalte(
+                        label: 'Original',
+                        text: original,
+                        farbe: scheme.surfaceContainerHighest,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _TextSpalte(
+                        label: modus.kurzLabel,
+                        text: korrigiert,
+                        farbe: scheme.primaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Text(
+                    'Hinweis: Inline-Formatierungen (fett, kursiv, Listen) '
+                    'gehen beim Übernehmen verloren.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(context,
+                            rootNavigator: true)
+                        .pop(false),
+                    child: const Text('Abbrechen'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Übernehmen'),
+                    onPressed: () => Navigator.of(context,
+                            rootNavigator: true)
+                        .pop(true),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TextSpalte extends StatelessWidget {
+  const _TextSpalte({
+    required this.label,
+    required this.text,
+    required this.farbe,
+  });
+  final String label;
+  final String text;
+  final Color farbe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: farbe,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                text,
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

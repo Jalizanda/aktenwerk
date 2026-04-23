@@ -2,11 +2,16 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../features/akten/eingangsrechnungen/eingangsrechnungen_repository.dart';
 import '../../../features/akten/rechnungen/rechnungen_repository.dart';
+import '../../../features/system/einstellungen/absender_service.dart';
+import '../../../features/system/einstellungen/einstellungen_repository.dart';
 import '../../../shared/charts/chart_theme.dart';
+import '../../../shared/pdf/document_pdf.dart';
+import '../../../shared/positionen/position_model.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 
 class SteuerScreen extends ConsumerStatefulWidget {
@@ -208,10 +213,127 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
           Text('BWA-Monatsübersicht', style: theme.textTheme.titleMedium),
           const SizedBox(height: 10),
           _bwaMonatstabelle(context, rechnungen, eingangs, money),
+          const SizedBox(height: 24),
+          Text('Belegjournal — Monats-Sammelausdrucke',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Pro Monat aller Ausgangsrechnungen als eine PDF bündeln und herunterladen.',
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          _belegjournalMonate(context, rechnungen, money),
         ],
       ),
     );
   }
+
+  /// Listet die 12 Monate des Jahres mit Anzahl Rechnungen + Brutto-
+  /// Summe und einem „PDF-Sammelausdruck"-Button. Für jeden Monat mit
+  /// mindestens einer Rechnung wird beim Klick ein kombiniertes PDF
+  /// mit allen Belegen dieses Monats erzeugt.
+  Widget _belegjournalMonate(
+    BuildContext context,
+    List<RechnungWithKunde> rechnungen,
+    NumberFormat money,
+  ) {
+    final monate = <int, List<RechnungWithKunde>>{};
+    for (final r in rechnungen) {
+      final d = r.rechnung.rechnungsdatum;
+      if (d == null || d.year != _jahr) continue;
+      monate.putIfAbsent(d.month, () => []).add(r);
+    }
+    final monatsnamen = [
+      'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: DataTable(
+        showCheckboxColumn: false,
+        columns: const [
+          DataColumn(label: Text('Monat')),
+          DataColumn(label: Text('Belege'), numeric: true),
+          DataColumn(label: Text('Brutto €'), numeric: true),
+          DataColumn(label: Text('')),
+        ],
+        rows: [
+          for (var m = 1; m <= 12; m++)
+            DataRow(cells: [
+              DataCell(Text('${monatsnamen[m - 1]} $_jahr')),
+              DataCell(Text('${monate[m]?.length ?? 0}')),
+              DataCell(Text(money.format((monate[m] ?? [])
+                  .fold<double>(0, (a, r) => a + r.rechnung.brutto)))),
+              DataCell(
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 14),
+                  label: const Text('Sammel-PDF'),
+                  onPressed: (monate[m] ?? []).isEmpty
+                      ? null
+                      : () => _monatsSammelPdf(
+                          context, _jahr, m, monate[m]!),
+                ),
+              ),
+            ]),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _monatsSammelPdf(
+    BuildContext context,
+    int jahr,
+    int monat,
+    List<RechnungWithKunde> rechnungen,
+  ) async {
+    final absender = await absenderFromSettings(ref);
+    final fuss = await ref
+        .read(einstellungenRepositoryProvider)
+        .get(SettingsKeys.rechnungFusstext);
+    final allData = <PdfDocumentData>[];
+    for (final r in rechnungen) {
+      allData.add(PdfDocumentData(
+        dokumentTyp: _titelFuer(r.rechnung.typ),
+        dokumentNr: r.rechnung.rechnungsnummer,
+        datum: r.rechnung.rechnungsdatum,
+        faelligBis: r.rechnung.faelligAm,
+        aktenzeichen: r.auftrag?.aktenzeichen,
+        betreff: r.auftrag?.betreff,
+        positionen: positionsFromJson(r.rechnung.positionenJson),
+        kopftext: r.rechnung.kopftext,
+        fusstext: r.rechnung.fusstext ?? fuss,
+        absender: absender,
+        empfaenger: r.kunde,
+        brutto: r.rechnung.brutto,
+        mitSepaQr: r.rechnung.typ != 'gutschrift',
+        gericht: r.auftrag?.gericht,
+        gerichtsAktenzeichen: r.auftrag?.gerichtsAktenzeichen,
+        klaeger: r.auftrag?.klaeger,
+        beklagter: r.auftrag?.beklagter,
+      ));
+    }
+    final merged = await buildMergedDocumentsPdf(allData);
+    if (!context.mounted) return;
+    final name =
+        'belegjournal_${jahr}_${monat.toString().padLeft(2, '0')}.pdf';
+    await Printing.sharePdf(bytes: merged, filename: name);
+  }
+
+  String _titelFuer(String typ) => switch (typ) {
+        'jveg' => 'Rechnung gemäß JVEG',
+        'akonto' => 'Akontoanforderung',
+        'teilrechnung' => 'Abschlagsrechnung',
+        'schlussrechnung' => 'Schlussrechnung',
+        'gutschrift' => 'Gutschrift',
+        'korrektur' => 'Rechnungskorrektur',
+        _ => 'Rechnung',
+      };
 
   /// USt-Voranmeldung pro Quartal: Anzahl Rechnungen, Erlöse netto,
   /// USt (Schuld), Vorsteuer, USt-Zahllast.

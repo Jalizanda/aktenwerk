@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../shared/widgets/form_widgets.dart';
+import '../../../shared/widgets/formel_text_field.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'artikel_repository.dart';
 
@@ -410,7 +411,7 @@ class _ArtikelFormDialogState extends ConsumerState<_ArtikelFormDialog> {
                 ),
                 b: LabeledField(
                   'Standard-Menge',
-                  TextFormField(
+                  FormelTextField(
                     controller: _standardMenge,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -429,7 +430,7 @@ class _ArtikelFormDialogState extends ConsumerState<_ArtikelFormDialog> {
               Row2(
                 left: LabeledField(
                   'Einzelpreis (€)',
-                  TextFormField(
+                  FormelTextField(
                     controller: _preis,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -756,7 +757,7 @@ class _UnterpositionZeileState extends State<_UnterpositionZeile> {
           const SizedBox(width: 6),
           SizedBox(
             width: 80,
-            child: TextField(
+            child: FormelTextField(
               controller: _menge,
               textAlign: TextAlign.right,
               keyboardType: const TextInputType.numberWithOptions(
@@ -764,8 +765,7 @@ class _UnterpositionZeileState extends State<_UnterpositionZeile> {
               decoration: const InputDecoration(
                   isDense: true, border: OutlineInputBorder()),
               onChanged: (v) {
-                widget.pos.menge =
-                    double.tryParse(v.replaceAll(',', '.')) ?? 0;
+                widget.pos.menge = parseMengeOrFormel(v);
                 widget.onChanged();
               },
             ),
@@ -786,7 +786,7 @@ class _UnterpositionZeileState extends State<_UnterpositionZeile> {
           const SizedBox(width: 6),
           SizedBox(
             width: 90,
-            child: TextField(
+            child: FormelTextField(
               controller: _ep,
               textAlign: TextAlign.right,
               keyboardType: const TextInputType.numberWithOptions(
@@ -794,8 +794,7 @@ class _UnterpositionZeileState extends State<_UnterpositionZeile> {
               decoration: const InputDecoration(
                   isDense: true, border: OutlineInputBorder()),
               onChanged: (v) {
-                widget.pos.einzelpreis =
-                    double.tryParse(v.replaceAll(',', '.')) ?? 0;
+                widget.pos.einzelpreis = parseMengeOrFormel(v);
                 widget.onChanged();
               },
             ),

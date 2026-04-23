@@ -3,7 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'einstellungen_repository.dart';
 
 /// Typ des Nummernkreises.
-enum NummernkreisTyp { akte, rechnung, angebot, gutachten, fortbildung }
+enum NummernkreisTyp {
+  akte,
+  rechnung,
+  akonto,
+  angebot,
+  auftragsbestaetigung,
+  gutachten,
+  fortbildung,
+}
 
 class _NkKeys {
   final String muster;
@@ -29,12 +37,26 @@ _NkKeys _keysFor(NummernkreisTyp t) {
         SettingsKeys.nummernkreisRechnungReset,
         'nummernkreis.rechnung.lastYear',
       );
+    case NummernkreisTyp.akonto:
+      return const _NkKeys(
+        SettingsKeys.nummernkreisAkonto,
+        SettingsKeys.nummernkreisAkontoNaechste,
+        SettingsKeys.nummernkreisAkontoReset,
+        'nummernkreis.akonto.lastYear',
+      );
     case NummernkreisTyp.angebot:
       return const _NkKeys(
         SettingsKeys.nummernkreisAngebot,
         SettingsKeys.nummernkreisAngebotNaechste,
         SettingsKeys.nummernkreisAngebotReset,
         'nummernkreis.angebot.lastYear',
+      );
+    case NummernkreisTyp.auftragsbestaetigung:
+      return const _NkKeys(
+        SettingsKeys.nummernkreisAuftragsbestaetigung,
+        SettingsKeys.nummernkreisAuftragsbestaetigungNaechste,
+        SettingsKeys.nummernkreisAuftragsbestaetigungReset,
+        'nummernkreis.auftragsbestaetigung.lastYear',
       );
     case NummernkreisTyp.gutachten:
       return const _NkKeys(
@@ -55,17 +77,19 @@ _NkKeys _keysFor(NummernkreisTyp t) {
 
 String _defaultPattern(NummernkreisTyp t) => switch (t) {
       NummernkreisTyp.akte => 'AW-{NNNN}',
-      NummernkreisTyp.angebot => 'A{YYYY}-{NNN}',
-      NummernkreisTyp.rechnung => 'R{YYYY}-{NNN}',
+      NummernkreisTyp.angebot => 'AN{YYYY}-{NNN}',
+      NummernkreisTyp.auftragsbestaetigung => 'AB{YYYY}-{NNN}',
+      NummernkreisTyp.rechnung => 'RE{YYYY}-{NNN}',
+      NummernkreisTyp.akonto => 'AZ{YYYY}-{NNN}',
       NummernkreisTyp.gutachten => '{aktenzeichen}-G{N}',
       NummernkreisTyp.fortbildung => 'FB{YYYY}-{NN}',
     };
 
 String _defaultReset(NummernkreisTyp t) => switch (t) {
-      // AW-Akten zählen fortlaufend über Jahre hinweg.
-      NummernkreisTyp.akte => 'nie',
-      NummernkreisTyp.gutachten => 'nie',
-      _ => 'jahr',
+      // Alle Kreise laufen per Default manuell — fortlaufend über Jahre
+      // hinweg. Damit bleiben GoBD-konforme, lückenlose Nummerierungen
+      // erhalten. Nutzer kann in den Einstellungen auf "jahr" umstellen.
+      _ => 'nie',
     };
 
 /// Wendet die Platzhalter an: `{YYYY}`, `{YY}`, `{MM}`, `{N}`/`{NN}`/`{NNN}`/

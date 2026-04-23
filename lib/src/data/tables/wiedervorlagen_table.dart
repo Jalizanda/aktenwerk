@@ -23,6 +23,23 @@ class Wiedervorlagen extends Table {
 
   TextColumn get extras => text().nullable()();
 
+  /// Wiederholungs-Regel nach iCal-RRULE-Kurzform — z.B.
+  /// "FREQ=WEEKLY;INTERVAL=1" oder "FREQ=MONTHLY;BYMONTHDAY=15".
+  /// Leer = einmalige Wiedervorlage.
+  TextColumn get wiederholung => text().nullable()();
+
+  /// Trigger-Typ, wenn die Wiedervorlage automatisch aus einem anderen
+  /// Event entstanden ist — z.B. "rechnung.created+3d" für "3 Tage nach
+  /// Rechnungsdatum prüfen".
+  TextColumn get triggerTyp => text().nullable()();
+
+  /// ID des auslösenden Datensatzes (z.B. Rechnungs-ID) für die Trigger.
+  IntColumn get triggerQuellId => integer().nullable()();
+
+  /// Checklisten-Punkte als JSON-Array `[{text, erledigt}]` — wenn gesetzt,
+  /// wird die Wiedervorlage als Checkliste dargestellt.
+  TextColumn get checklisteJson => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }

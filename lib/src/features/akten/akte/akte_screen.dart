@@ -29,7 +29,14 @@ import '../dokumente/dokumente_repository.dart';
 import '../dokumente/dokumente_screen.dart';
 import '../erlaeuterungen/erlaeuterungen_repository.dart';
 import '../erlaeuterungen/erlaeuterungen_screen.dart';
+import '../bauteiloeffnungen/bauteiloeffnung_tab.dart';
+import '../journal/journal_tab.dart';
+import '../maengel/maengel_tab.dart';
+import '../messwerte/messwerte_tab.dart';
 import '../protokolle/protokolle_tab.dart';
+import '../uebergabe/uebergabe_tab.dart';
+import '../wertermittlung/wertermittlung_tab.dart';
+import 'akte_benchmark_card.dart';
 import 'akte_tabbar.dart';
 import 'beteiligte_tab.dart';
 import 'wirtschaftlichkeit_tab.dart';
@@ -51,7 +58,7 @@ class AkteScreen extends ConsumerStatefulWidget {
 
 class _AkteScreenState extends ConsumerState<AkteScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 14, vsync: this);
+  late final TabController _tabs = TabController(length: 20, vsync: this);
 
   @override
   void dispose() {
@@ -113,6 +120,12 @@ class _AkteScreenState extends ConsumerState<AkteScreen>
               _GeraeteTab(auftragId: a.id),
               _ErlaeuterungenTab(auftragId: a.id),
               ProtokolleTab(auftrag: a),
+              JournalTab(auftragId: a.id),
+              MaengelTab(auftragId: a.id),
+              UebergabeTab(auftragId: a.id),
+              BauteiloeffnungTab(auftragId: a.id),
+              MesswerteTab(auftragId: a.id),
+              WertermittlungTab(auftragId: a.id),
               WirtschaftlichkeitTab(auftragId: a.id),
             ],
           ),
@@ -325,6 +338,8 @@ class _UebersichtTab extends ConsumerWidget {
               right,
             ]);
           }),
+          const SizedBox(height: 16),
+          AkteBenchmarkCard(auftrag: auftrag),
           // Aufgaben/Notizen falls im Auftrag gesetzt
           if ((auftrag.notiz ?? '').isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -356,16 +371,59 @@ class _AkteInfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _kv('Aktenzeichen', auftrag.aktenzeichen ?? '—'),
+          if ((auftrag.azExtern ?? '').isNotEmpty)
+            _kv('Az. extern', auftrag.azExtern!),
           _kv('Art', AuftragArtX.fromDb(auftrag.art).label),
           _kv('Status', auftrag.status),
+          if ((auftrag.betreff ?? '').isNotEmpty)
+            _kv('Betreff', auftrag.betreff!),
+          if ((auftrag.bezeichnung ?? '').isNotEmpty)
+            _kv('Bezeichnung', auftrag.bezeichnung!),
+          if ((auftrag.kategorie ?? '').isNotEmpty)
+            _kv('Kategorie', auftrag.kategorie!),
           _kv('Sachgebiet', auftrag.sachgebiet ?? '—'),
           _kv('Honorargruppe', auftrag.honorargruppe ?? '—'),
           if (auftrag.stundensatz != null)
             _kv('Stundensatz',
                 '${auftrag.stundensatz!.toStringAsFixed(2)} €/h'),
+          if (auftrag.kostenvorschuss != null)
+            _kv('Kostenvorschuss',
+                '${auftrag.kostenvorschuss!.toStringAsFixed(2)} €'),
           if (auftrag.kostenLimit != null)
             _kv('Kosten-Limit',
                 '${auftrag.kostenLimit!.toStringAsFixed(2)} €'),
+          if (auftrag.aufwandSchaetzung != null)
+            _kv('Geschätzter Aufwand',
+                '${auftrag.aufwandSchaetzung!.toStringAsFixed(1)} h'),
+          // --- Termine kompakt ---
+          if (_hatTermine(auftrag)) ...[
+            const Divider(height: 24),
+            const Text('Termine',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            if (auftrag.eingangAm != null)
+              _kv('Eingang',
+                  DateFormat('dd.MM.yyyy', 'de').format(auftrag.eingangAm!)),
+            if (auftrag.auftragAm != null)
+              _kv('Beauftragt',
+                  DateFormat('dd.MM.yyyy', 'de').format(auftrag.auftragAm!)),
+            if (auftrag.akteneingangAm != null)
+              _kv('Akteneingang',
+                  DateFormat('dd.MM.yyyy', 'de')
+                      .format(auftrag.akteneingangAm!)),
+            if (auftrag.ortsterminAm != null)
+              _kv('Ortstermin',
+                  DateFormat('dd.MM.yyyy · HH:mm', 'de')
+                      .format(auftrag.ortsterminAm!)),
+            if (auftrag.fristAm != null)
+              _kv('Frist',
+                  DateFormat('dd.MM.yyyy', 'de').format(auftrag.fristAm!)),
+            if (auftrag.abschlussAm != null)
+              _kv('Abgabe',
+                  DateFormat('dd.MM.yyyy', 'de')
+                      .format(auftrag.abschlussAm!)),
+          ],
           const Divider(height: 24),
           const Text('Auftraggeber',
               style:
@@ -411,9 +469,162 @@ class _AkteInfoCard extends StatelessWidget {
               ].whereType<String>().where((s) => s.isNotEmpty).join(' · '),
               style: TextStyle(fontSize: 12, color: AppTheme.slate500),
             ),
+          if (_hatGerichtInfo(auftrag)) ...[
+            const Divider(height: 24),
+            const Text('Gericht & Verfahren',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            if ((auftrag.gericht ?? '').isNotEmpty ||
+                (auftrag.gerichtsort ?? '').isNotEmpty)
+              Text(
+                [auftrag.gericht, auftrag.gerichtsort]
+                    .whereType<String>()
+                    .where((s) => s.trim().isNotEmpty)
+                    .join(' · '),
+                style: const TextStyle(fontSize: 13),
+              ),
+            if ((auftrag.gerichtsAktenzeichen ?? '').isNotEmpty)
+              Text('Az.: ${auftrag.gerichtsAktenzeichen}',
+                  style: TextStyle(
+                      fontSize: 12, color: AppTheme.slate600)),
+            if ((auftrag.verfahrensart ?? '').isNotEmpty)
+              Text('Verfahrensart: ${auftrag.verfahrensart}',
+                  style: TextStyle(
+                      fontSize: 12, color: AppTheme.slate600)),
+            if ((auftrag.klaeger ?? '').isNotEmpty ||
+                (auftrag.beklagter ?? '').isNotEmpty)
+              Text(
+                'In Sachen ${auftrag.klaeger ?? '—'} ./. ${auftrag.beklagter ?? '—'}',
+                style: TextStyle(
+                    fontSize: 12, color: AppTheme.slate600),
+              ),
+            if ((auftrag.richter ?? '').isNotEmpty)
+              Text('Richter/in: ${auftrag.richter}',
+                  style: TextStyle(
+                      fontSize: 12, color: AppTheme.slate600)),
+            if (auftrag.beweisbeschluss1 != null)
+              Text(
+                'Beweisbeschluss: ${DateFormat('dd.MM.yyyy', 'de').format(auftrag.beweisbeschluss1!)}'
+                '${auftrag.beweisbeschluss2 != null ? " · Erg.: ${DateFormat('dd.MM.yyyy', 'de').format(auftrag.beweisbeschluss2!)}" : ""}'
+                '${auftrag.beweisbeschluss3 != null ? " · Erg.: ${DateFormat('dd.MM.yyyy', 'de').format(auftrag.beweisbeschluss3!)}" : ""}',
+                style: TextStyle(
+                    fontSize: 12, color: AppTheme.slate600),
+              ),
+            if (auftrag.anzahlAusfertigungen != null)
+              Text('Ausfertigungen: ${auftrag.anzahlAusfertigungen}'
+                  '${auftrag.aktenSeitenBis != null ? " · Aktenseiten ${auftrag.aktenSeitenVon ?? 1}–${auftrag.aktenSeitenBis}" : ""}',
+                  style: TextStyle(
+                      fontSize: 12, color: AppTheme.slate600)),
+          ],
+          if ((auftrag.beweisbeschlussStorageUrl ?? '').isNotEmpty ||
+              (auftrag.objektFotoStorageUrl ?? '').isNotEmpty) ...[
+            const Divider(height: 24),
+            const Text('Anlagen',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            if ((auftrag.beweisbeschlussStorageUrl ?? '').isNotEmpty)
+              InkWell(
+                onTap: () async {
+                  final uri = Uri.tryParse(
+                      auftrag.beweisbeschlussStorageUrl!);
+                  if (uri != null) {
+                    await launchUrl(uri,
+                        mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.picture_as_pdf,
+                          size: 18, color: Color(0xFFDC2626)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          auftrag.beweisbeschlussDateiname ??
+                              'Beweisbeschluss',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF1D4ED8),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.open_in_new, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            if ((auftrag.objektFotoStorageUrl ?? '').isNotEmpty) ...[
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(
+                  auftrag.objektFotoStorageUrl!,
+                  height: 120,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    height: 120,
+                    color: AppTheme.slate200,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image,
+                        color: AppTheme.slate500),
+                  ),
+                ),
+              ),
+              if ((auftrag.objektFotoDateiname ?? '').isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(auftrag.objektFotoDateiname!,
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.slate500)),
+                ),
+            ],
+          ],
+          if ((auftrag.schneelastzone ?? '').isNotEmpty ||
+              (auftrag.windlastzone ?? '').isNotEmpty) ...[
+            const Divider(height: 24),
+            const Text('Lastzonen',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            if ((auftrag.schneelastzone ?? '').isNotEmpty)
+              Text(
+                'Schneelast: Zone ${auftrag.schneelastzone}'
+                '${auftrag.schneelastKnm2 != null ? " · ${auftrag.schneelastKnm2!.toStringAsFixed(2)} kN/m²" : ""}',
+                style: TextStyle(
+                    fontSize: 12, color: AppTheme.slate600),
+              ),
+            if ((auftrag.windlastzone ?? '').isNotEmpty)
+              Text('Windlast: Zone ${auftrag.windlastzone}',
+                  style: TextStyle(
+                      fontSize: 12, color: AppTheme.slate600)),
+          ],
         ],
       ),
     );
+  }
+
+  bool _hatGerichtInfo(AuftraegeData a) {
+    return (a.gericht ?? '').isNotEmpty ||
+        (a.gerichtsort ?? '').isNotEmpty ||
+        (a.gerichtsAktenzeichen ?? '').isNotEmpty ||
+        (a.klaeger ?? '').isNotEmpty ||
+        (a.beklagter ?? '').isNotEmpty ||
+        (a.richter ?? '').isNotEmpty ||
+        (a.verfahrensart ?? '').isNotEmpty ||
+        a.beweisbeschluss1 != null;
+  }
+
+  bool _hatTermine(AuftraegeData a) {
+    return a.eingangAm != null ||
+        a.auftragAm != null ||
+        a.akteneingangAm != null ||
+        a.ortsterminAm != null ||
+        a.fristAm != null ||
+        a.abschlussAm != null;
   }
 
   Widget _kv(String label, String value) {

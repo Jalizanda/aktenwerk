@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../data/database/app_database.dart';
 import '../../features/kalkulation/artikel/artikel_repository.dart';
 import '../../features/werkzeuge/textbausteine/textbausteine_repository.dart';
+import '../widgets/formel_text_field.dart';
 import 'position_model.dart';
 
 /// Positions-Editor im Stil der Original-SV-Software:
@@ -33,6 +34,12 @@ class PositionsEditor extends ConsumerStatefulWidget {
 
 class _PositionsEditorState extends ConsumerState<PositionsEditor> {
   late List<Position> _items;
+  // Stabile, zeilenübergreifende IDs für jede Position — nötig, damit
+  // `ValueKey` in der Liste die TextController einer Position auch nach
+  // Move-Up/Move-Down dem korrekten Objekt zuordnet. Ohne dies zeigen die
+  // Eingabefelder nach einem Move noch die alten Nachbar-Werte an.
+  late List<int> _ids;
+  int _nextId = 0;
   static final _money =
       NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
 
@@ -40,6 +47,7 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
   void initState() {
     super.initState();
     _items = List.of(widget.positions);
+    _ids = List.generate(_items.length, (_) => _nextId++);
   }
 
   @override
@@ -47,13 +55,19 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
     super.didUpdateWidget(old);
     if (old.positions != widget.positions) {
       _items = List.of(widget.positions);
+      _ids = List.generate(_items.length, (_) => _nextId++);
     }
   }
 
   void _emit() => widget.onChanged(List.unmodifiable(_items));
 
+  int _issueId() => _nextId++;
+
   void _addNeu() {
-    setState(() => _items.add(const Position()));
+    setState(() {
+      _items.add(const Position());
+      _ids.add(_issueId());
+    });
     _emit();
   }
 
@@ -63,7 +77,10 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
       builder: (_) => const _ArtikelPickerDialog(),
     );
     if (picked != null) {
-      setState(() => _items.add(picked));
+      setState(() {
+        _items.add(picked);
+        _ids.add(_issueId());
+      });
       _emit();
     }
   }
@@ -80,13 +97,19 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
         langtext: picked.inhalt ?? '',
         menge: 1,
       );
-      setState(() => _items.add(p));
+      setState(() {
+        _items.add(p);
+        _ids.add(_issueId());
+      });
       _emit();
     }
   }
 
   void _remove(int i) {
-    setState(() => _items.removeAt(i));
+    setState(() {
+      _items.removeAt(i);
+      _ids.removeAt(i);
+    });
     _emit();
   }
 
@@ -99,7 +122,9 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
     if (i <= 0) return;
     setState(() {
       final p = _items.removeAt(i);
+      final id = _ids.removeAt(i);
       _items.insert(i - 1, p);
+      _ids.insert(i - 1, id);
     });
     _emit();
   }
@@ -108,7 +133,9 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
     if (i >= _items.length - 1) return;
     setState(() {
       final p = _items.removeAt(i);
+      final id = _ids.removeAt(i);
       _items.insert(i + 1, p);
+      _ids.insert(i + 1, id);
     });
     _emit();
   }
@@ -225,9 +252,9 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
                 for (var i = 0; i < _items.length; i++) ...[
                   if (i > 0) Divider(height: 1, color: scheme.outlineVariant),
                   _PositionRow(
-                    // Neuer Key pro Position, damit Controller den Inhalt
-                    // nicht aus der Nachbarzeile übernehmen.
-                    key: ValueKey('pos_$i'),
+                    // Stabile ID pro Position, damit Controller nach Move
+                    // nicht den Inhalt der Nachbarzeile zeigen.
+                    key: ValueKey('pos_${_ids[i]}'),
                     position: _items[i],
                     onChanged: (p) => _edit(i, p),
                     onRemove: () => _remove(i),
@@ -299,9 +326,9 @@ class _PositionRowState extends State<_PositionRow> {
       posNr: _posNr.text,
       bezeichnung: _bez.text,
       langtext: _lang.text,
-      menge: double.tryParse(_menge.text.replaceAll(',', '.')) ?? 0,
+      menge: parseMengeOrFormel(_menge.text),
       einheit: _einheit.text,
-      einzelpreis: double.tryParse(_preis.text.replaceAll(',', '.')) ?? 0,
+      einzelpreis: parseMengeOrFormel(_preis.text),
     ));
   }
 
@@ -381,12 +408,10 @@ class _PositionRowState extends State<_PositionRow> {
           const SizedBox(width: 8),
           SizedBox(
             width: 80,
-            child: TextField(
+            child: FormelTextField(
               controller: _menge,
-              decoration: _dec(),
+              decoration: _dec(hint: '= z.B. 3*2'),
               textAlign: TextAlign.right,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => _emit(),
             ),
           ),
@@ -402,12 +427,10 @@ class _PositionRowState extends State<_PositionRow> {
           const SizedBox(width: 8),
           SizedBox(
             width: 100,
-            child: TextField(
+            child: FormelTextField(
               controller: _preis,
-              decoration: _dec(),
+              decoration: _dec(hint: '= z.B. 120/8'),
               textAlign: TextAlign.right,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => _emit(),
             ),
           ),
@@ -865,3 +888,4 @@ class _TextbausteinPickerDialogState
     );
   }
 }
+

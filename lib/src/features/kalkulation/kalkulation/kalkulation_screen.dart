@@ -13,6 +13,7 @@ import '../../../features/akten/rechnungen/rechnungen_repository.dart';
 import '../../../features/kalkulation/auslagen/auslagen_repository.dart';
 import '../../../features/kalkulation/stunden/stunden_repository.dart';
 import '../../../shared/widgets/form_widgets.dart';
+import '../../../shared/widgets/formel_text_field.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 
 /// Kalkulation pro Auftrag: Tab 1 = Kostenschätzung (Positionen nach Gewerk),
@@ -719,9 +720,9 @@ class _KostRowState extends State<_KostRow> {
     widget.onChanged(_KostPos(
       gewerk: _gewerk.text,
       bezeichnung: _bez.text,
-      menge: double.tryParse(_menge.text.replaceAll(',', '.')) ?? 0,
+      menge: parseMengeOrFormel(_menge.text),
       einheit: _einheit.text,
-      einzelpreis: double.tryParse(_preis.text.replaceAll(',', '.')) ?? 0,
+      einzelpreis: parseMengeOrFormel(_preis.text),
       bemerkung: widget.pos.bemerkung,
     ));
   }
@@ -731,8 +732,7 @@ class _KostRowState extends State<_KostRow> {
     final money =
         NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
     final betrag =
-        (double.tryParse(_menge.text.replaceAll(',', '.')) ?? 0) *
-            (double.tryParse(_preis.text.replaceAll(',', '.')) ?? 0);
+        parseMengeOrFormel(_menge.text) * parseMengeOrFormel(_preis.text);
     InputDecoration dec() => const InputDecoration(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6));
@@ -762,7 +762,7 @@ class _KostRowState extends State<_KostRow> {
           const SizedBox(width: 8),
           SizedBox(
             width: 70,
-            child: TextField(
+            child: FormelTextField(
               controller: _menge,
               textAlign: TextAlign.right,
               keyboardType:
@@ -786,7 +786,7 @@ class _KostRowState extends State<_KostRow> {
           const SizedBox(width: 8),
           SizedBox(
             width: 100,
-            child: TextField(
+            child: FormelTextField(
               controller: _preis,
               textAlign: TextAlign.right,
               keyboardType:

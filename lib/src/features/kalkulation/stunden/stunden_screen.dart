@@ -567,9 +567,26 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AuftragPickerField(
-                auftragId: _auftragId,
-                onChanged: (id) => setState(() => _auftragId = id),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: AuftragPickerField(
+                      auftragId: _auftragId,
+                      onChanged: (id) =>
+                          setState(() => _auftragId = id),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: LabeledField(
+                      'Tätigkeit',
+                      TextFormField(controller: _taetigkeit),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               Row3(
@@ -597,9 +614,6 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              LabeledField(
-                  'Tätigkeit', TextFormField(controller: _taetigkeit)),
               const SizedBox(height: 12),
               _PartnerDropdown(
                 partnerId: _partnerId,

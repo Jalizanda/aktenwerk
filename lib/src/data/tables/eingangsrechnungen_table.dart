@@ -51,6 +51,11 @@ class Eingangsrechnungen extends Table {
   RealColumn get brutto => real().withDefault(const Constant(0))();
   RealColumn get bezahlt => real().withDefault(const Constant(0))();
 
+  /// Vom Nutzer geprüft? Wird `false` bei KI-Massenerfassung gesetzt,
+  /// sodass der SV die extrahierten Werte noch einmal durchgehen kann.
+  /// Manuell angelegte Rechnungen gelten direkt als geprüft.
+  BoolColumn get geprueft => boolean().withDefault(const Constant(true))();
+
   /// JSON-Array mit mehreren Belegen: `[{filename, storageUrl, mimeType}]`.
   TextColumn get belegeJson => text().nullable()();
   TextColumn get belegPfad => text().nullable()();

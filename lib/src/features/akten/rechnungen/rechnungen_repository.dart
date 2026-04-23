@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
+import '../../../features/werkzeuge/wiedervorlagen/wiedervorlagen_repository.dart';
 
 class RechnungWithKunde {
   final RechnungenData rechnung;
@@ -12,8 +13,9 @@ class RechnungWithKunde {
 }
 
 class RechnungenRepository {
-  RechnungenRepository(this._db);
+  RechnungenRepository(this._db, this._wv);
   final AppDatabase _db;
+  final WiedervorlagenRepository _wv;
 
   Stream<List<RechnungWithKunde>> watchAll(
       {String query = '', String? status}) {
@@ -54,13 +56,42 @@ class RechnungenRepository {
           .getSingleOrNull();
 
   Future<int> upsert(RechnungenCompanion entry) async {
+    final int id;
     if (entry.id.present) {
       await (_db.update(_db.rechnungen)
             ..where((t) => t.id.equals(entry.id.value)))
           .write(entry.copyWith(updatedAt: Value(DateTime.now())));
-      return entry.id.value;
+      id = entry.id.value;
+    } else {
+      id = await _db.into(_db.rechnungen).insert(entry);
     }
-    return _db.into(_db.rechnungen).insert(entry);
+    await _trigger(id);
+    return id;
+  }
+
+  /// Legt eine Wiedervorlage "Mahnung prüfen" an, wenn eine Rechnung
+  /// offen ist und ein Fälligkeitsdatum hat. Idempotent — mehrfach
+  /// aufrufbar, erzeugt aber nur eine Wiedervorlage pro Rechnung.
+  Future<void> _trigger(int id) async {
+    try {
+      final r = await byId(id);
+      if (r == null) return;
+      if (r.status == 'bezahlt' || r.status == 'storniert') return;
+      final faellig = r.faelligAm;
+      if (faellig == null) return;
+      await _wv.ausloeseTrigger(
+        triggerTyp: 'rechnung.mahnung',
+        triggerQuellId: id,
+        titel:
+            'Mahnung prüfen — Rg. ${r.rechnungsnummer ?? id}',
+        faelligAm: faellig.add(const Duration(days: 14)),
+        auftragId: r.auftragId,
+        anlass: 'Rechnungs-Fälligkeit überschritten?',
+        prioritaet: 'hoch',
+      );
+    } catch (_) {
+      // Trigger ist best-effort, niemals blockierend.
+    }
   }
 
   Future<int> delete(int id) =>
@@ -92,7 +123,10 @@ class RechnungenRepository {
 }
 
 final rechnungenRepositoryProvider = Provider<RechnungenRepository>((ref) {
-  return RechnungenRepository(ref.watch(appDatabaseProvider));
+  return RechnungenRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(wiedervorlagenRepositoryProvider),
+  );
 });
 
 class RechnungenFilter {

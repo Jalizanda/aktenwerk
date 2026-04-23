@@ -62,6 +62,7 @@ dependencies:
 
   # --- Misc ---
   url_launcher: ^6.3.1
+  web: ^1.1.0
 
   # --- Design ---
   flutter_svg: ^2.0.10+1
@@ -72,6 +73,8 @@ dependencies:
   firebase_auth: ^5.3.4
   cloud_firestore: ^5.5.1
   firebase_storage: ^12.3.7
+  firebase_ai: ^2.0.0
+  firebase_app_check: ^0.3.2
   google_sign_in: ^6.2.2
 
 dev_dependencies:

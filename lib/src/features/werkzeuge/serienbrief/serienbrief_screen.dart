@@ -65,6 +65,11 @@ class _SerienbriefScreenState extends ConsumerState<SerienbriefScreen> {
               'Rundschreiben an mehrere Auftraggeber — pro Empfänger ein Anschreiben-Objekt',
           actions: [
             OutlinedButton.icon(
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Historie'),
+              onPressed: () => _zeigeHistorie(async.valueOrNull ?? const []),
+            ),
+            OutlinedButton.icon(
               icon: const Icon(Icons.file_download_outlined),
               label: const Text('CSV-Export'),
               onPressed: () => _exportCsv(async.valueOrNull ?? const []),
@@ -249,6 +254,27 @@ class _SerienbriefScreenState extends ConsumerState<SerienbriefScreen> {
     final db = ref.read(appDatabaseProvider);
     final plainBrief = plainTextFromDeltaJson(_brieftextJson);
 
+    // Ein Serienbrief-Historie-Eintrag (Batch) für Wiedervorlage.
+    await db.into(db.serienbriefe).insert(
+          SerienbriefeCompanion.insert(
+            datum: Value(_datum),
+            betreff: Value(_betreff.text.trim().isEmpty
+                ? null
+                : _betreff.text.trim()),
+            anrede: Value(_anrede.text.trim().isEmpty
+                ? null
+                : _anrede.text.trim()),
+            gruss: Value(_gruss.text.trim().isEmpty
+                ? null
+                : _gruss.text.trim()),
+            inhaltJson: Value(_brieftextJson),
+            versandart: Value(_versandart),
+            empfaengerIdsJson: Value(
+                jsonEncode(selected.map((k) => k.id).toList())),
+            anzahl: Value(selected.length),
+          ),
+        );
+
     // Pro Empfänger Anschreiben-Objekt anlegen.
     final eintraege = <SerienEintrag>[];
     for (final k in selected) {
@@ -348,6 +374,53 @@ class _SerienbriefScreenState extends ConsumerState<SerienbriefScreen> {
         .replaceAll('{{firma}}', k.firma ?? '');
   }
 
+  /// Öffnet den Historie-Dialog. Ein Klick auf einen Eintrag lädt die
+  /// Einstellungen (Betreff/Anrede/Gruß/Brieftext/Versandart) und die
+  /// Empfänger-Auswahl zurück ins Formular, so dass der Serienbrief
+  /// kopiert und erneut versendet werden kann.
+  Future<void> _zeigeHistorie(List<KundenData> alle) async {
+    final db = ref.read(appDatabaseProvider);
+    final list = await (db.select(db.serienbriefe)
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.datum, mode: OrderingMode.desc),
+          ]))
+        .get();
+    if (!mounted) return;
+    final picked = await showDialog<SerienbriefeData>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _HistorieDialog(eintraege: list),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _betreff.text = picked.betreff ?? '';
+      _anrede.text = picked.anrede ?? '';
+      _gruss.text = picked.gruss ?? '';
+      _brieftextJson = picked.inhaltJson;
+      _versandart = picked.versandart;
+      _datum = DateTime.now();
+      _selected.clear();
+      try {
+        final ids = (jsonDecode(picked.empfaengerIdsJson ?? '[]') as List)
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toSet();
+        // Nur Empfänger markieren, die es noch gibt.
+        for (final id in ids) {
+          if (alle.any((k) => k.id == id)) _selected.add(id);
+        }
+      } catch (_) {}
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Serienbrief „${picked.betreff ?? ''}" geladen — ${_selected.length} Empfänger wieder ausgewählt.')),
+      );
+    }
+  }
+
   Future<void> _exportCsv(List<KundenData> all) async {
     final selected = all.where((k) => _selected.contains(k.id)).toList();
     final target = selected.isEmpty ? all : selected;
@@ -380,6 +453,85 @@ class _SerienbriefScreenState extends ConsumerState<SerienbriefScreen> {
         ),
       ],
       subject: 'Serienbrief-Empfängerliste',
+    );
+  }
+}
+
+class _HistorieDialog extends StatelessWidget {
+  const _HistorieDialog({required this.eintraege});
+  final List<SerienbriefeData> eintraege;
+
+  static final _fmt = DateFormat('dd.MM.yyyy', 'de');
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 600),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.history),
+                  const SizedBox(width: 10),
+                  Text('Serienbrief-Historie',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: eintraege.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                            'Noch keine Serienbriefe versendet. Sobald du einen Batch verschickst, erscheint er hier.'),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: eintraege.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final e = eintraege[i];
+                        return ListTile(
+                          title: Text(
+                              e.betreff?.trim().isNotEmpty == true
+                                  ? e.betreff!
+                                  : '(ohne Betreff)',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            '${_fmt.format(e.datum)} · ${e.versandart == 'mail' ? 'E-Mail' : 'Brief'} · ${e.anzahl} Empfänger',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: FilledButton.tonalIcon(
+                            icon: const Icon(
+                                Icons.content_copy, size: 14),
+                            label: const Text('Kopieren'),
+                            onPressed: () => Navigator.of(context,
+                                    rootNavigator: true)
+                                .pop(e),
+                          ),
+                          onTap: () => Navigator.of(context,
+                                  rootNavigator: true)
+                              .pop(e),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

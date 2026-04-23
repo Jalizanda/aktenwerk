@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -89,6 +90,10 @@ class _FotoPaintDialogState extends State<_FotoPaintDialog> {
   ui.Image? _image;
   Uint8List? _rasterBytes;
   bool _saving = false;
+  bool _monochrom = false;
+  bool _cropMode = false;
+  Rect? _cropRect;
+  Offset? _cropStart;
 
   @override
   void initState() {
@@ -148,6 +153,111 @@ class _FotoPaintDialogState extends State<_FotoPaintDialog> {
 
   void _clear() => setState(_strokes.clear);
 
+  /// Dreht das aktuelle Bild um 90° (quarters=1) oder −90° (quarters=-1).
+  /// Angewendete Striche werden dabei verworfen — das Bild wird als neues
+  /// PNG ersetzt.
+  Future<void> _rotate(int quarters) async {
+    final src = _image;
+    if (src == null) return;
+    setState(() => _saving = true);
+    try {
+      final isQuarter = quarters.abs() % 2 == 1;
+      final newW = isQuarter ? src.height : src.width;
+      final newH = isQuarter ? src.width : src.height;
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.translate(newW / 2, newH / 2);
+      canvas.rotate(quarters * math.pi / 2);
+      canvas.translate(-src.width / 2, -src.height / 2);
+      canvas.drawImage(src, Offset.zero, Paint());
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(newW, newH);
+      final bd = await img.toByteData(format: ui.ImageByteFormat.png);
+      picture.dispose();
+      img.dispose();
+      final bytes = bd?.buffer.asUint8List();
+      if (bytes == null) return;
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      if (!mounted) return;
+      setState(() {
+        _image = frame.image;
+        _rasterBytes = bytes;
+        _strokes.clear();
+        _cropRect = null;
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Schneidet das Bild auf das aktuell in [_cropRect] markierte
+  /// Rechteck zu. Koordinaten werden in Bild-Pixel umgerechnet, damit
+  /// das Ergebnis verlustfrei (bis auf PNG-Reencode) ist.
+  Future<void> _applyCrop() async {
+    final src = _image;
+    final rect = _cropRect;
+    if (src == null || rect == null) return;
+
+    // Render-Area des Bildes im Dialog = AspectRatio mit BoxFit.contain.
+    // _cropRect ist in Widget-Koordinaten der Stack-Fläche. Wir skalieren
+    // auf Bild-Pixel mit dem Verhältnis Bild-Breite / Widget-Breite.
+    final boundary = _boundaryKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
+    if (boundary == null) return;
+    final size = boundary.size;
+    if (size.width == 0 || size.height == 0) return;
+    final sx = src.width / size.width;
+    final sy = src.height / size.height;
+    final pxRect = Rect.fromLTRB(
+      (rect.left * sx).clamp(0, src.width.toDouble()),
+      (rect.top * sy).clamp(0, src.height.toDouble()),
+      (rect.right * sx).clamp(0, src.width.toDouble()),
+      (rect.bottom * sy).clamp(0, src.height.toDouble()),
+    );
+    if (pxRect.width < 2 || pxRect.height < 2) return;
+
+    setState(() => _saving = true);
+    try {
+      final newW = pxRect.width.round();
+      final newH = pxRect.height.round();
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.drawImageRect(
+        src,
+        pxRect,
+        Rect.fromLTWH(0, 0, newW.toDouble(), newH.toDouble()),
+        Paint(),
+      );
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(newW, newH);
+      final bd = await img.toByteData(format: ui.ImageByteFormat.png);
+      picture.dispose();
+      img.dispose();
+      final bytes = bd?.buffer.asUint8List();
+      if (bytes == null) return;
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      if (!mounted) return;
+      setState(() {
+        _image = frame.image;
+        _rasterBytes = bytes;
+        _strokes.clear();
+        _cropRect = null;
+        _cropMode = false;
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  static final _monochromeMatrix = const <double>[
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
   Future<void> _save() async {
     if (_image == null) return;
     setState(() => _saving = true);
@@ -181,9 +291,41 @@ class _FotoPaintDialogState extends State<_FotoPaintDialog> {
                 children: [
                   const Icon(Icons.brush_outlined),
                   const SizedBox(width: 10),
-                  Text('Foto bemalen',
+                  Text('Foto bearbeiten',
                       style: Theme.of(context).textTheme.titleMedium),
                   const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.rotate_90_degrees_ccw),
+                    tooltip: 'Drehen 90° links',
+                    onPressed: _saving ? null : () => _rotate(-1),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.rotate_90_degrees_cw),
+                    tooltip: 'Drehen 90° rechts',
+                    onPressed: _saving ? null : () => _rotate(1),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.crop,
+                        color: _cropMode ? Colors.orange : null),
+                    tooltip: _cropMode
+                        ? 'Zuschneiden (aktiv)'
+                        : 'Zuschneiden-Modus',
+                    onPressed: _saving
+                        ? null
+                        : () => setState(() {
+                              _cropMode = !_cropMode;
+                              _cropRect = null;
+                            }),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.filter_b_and_w,
+                        color: _monochrom ? Colors.orange : null),
+                    tooltip: 'Monochrom',
+                    onPressed: _saving
+                        ? null
+                        : () => setState(() => _monochrom = !_monochrom),
+                  ),
+                  const SizedBox(width: 6),
                   IconButton(
                     icon: const Icon(Icons.undo),
                     tooltip: 'Rückgängig',
@@ -191,7 +333,7 @@ class _FotoPaintDialogState extends State<_FotoPaintDialog> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.clear_all),
-                    tooltip: 'Alles löschen',
+                    tooltip: 'Striche löschen',
                     onPressed: _strokes.isEmpty ? null : _clear,
                   ),
                   IconButton(
@@ -225,15 +367,50 @@ class _FotoPaintDialogState extends State<_FotoPaintDialog> {
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.memory(_rasterBytes ?? widget.photoBytes,
-                                    fit: BoxFit.contain),
+                                if (_monochrom)
+                                  ColorFiltered(
+                                    colorFilter: ColorFilter.matrix(
+                                        _monochromeMatrix),
+                                    child: Image.memory(
+                                        _rasterBytes ?? widget.photoBytes,
+                                        fit: BoxFit.contain),
+                                  )
+                                else
+                                  Image.memory(
+                                      _rasterBytes ?? widget.photoBytes,
+                                      fit: BoxFit.contain),
                                 GestureDetector(
-                                  onPanStart: (d) =>
-                                      _startStroke(d.localPosition),
-                                  onPanUpdate: (d) =>
-                                      _extendStroke(d.localPosition),
+                                  onPanStart: (d) {
+                                    if (_cropMode) {
+                                      setState(() {
+                                        _cropStart = d.localPosition;
+                                        _cropRect = Rect.fromLTWH(
+                                            d.localPosition.dx,
+                                            d.localPosition.dy,
+                                            0,
+                                            0);
+                                      });
+                                    } else {
+                                      _startStroke(d.localPosition);
+                                    }
+                                  },
+                                  onPanUpdate: (d) {
+                                    if (_cropMode) {
+                                      final start =
+                                          _cropStart ?? d.localPosition;
+                                      setState(() {
+                                        _cropRect = Rect.fromPoints(
+                                            start, d.localPosition);
+                                      });
+                                    } else {
+                                      _extendStroke(d.localPosition);
+                                    }
+                                  },
                                   child: CustomPaint(
                                     painter: _StrokesPainter(_strokes),
+                                    foregroundPainter: _cropMode
+                                        ? _CropOverlayPainter(_cropRect)
+                                        : null,
                                     size: Size.infinite,
                                   ),
                                 ),
@@ -243,6 +420,25 @@ class _FotoPaintDialogState extends State<_FotoPaintDialog> {
                         ),
                 ),
               ),
+              if (_cropMode && _cropRect != null &&
+                  _cropRect!.width > 4 && _cropRect!.height > 4) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.crop, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          'Auswahl: ${_cropRect!.width.round()} × ${_cropRect!.height.round()} px — klicke „Zuschneiden" zum Anwenden.'),
+                    ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.crop, size: 16),
+                      label: const Text('Zuschneiden'),
+                      onPressed: _saving ? null : _applyCrop,
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -463,4 +659,36 @@ class _ToolRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Zeichnet einen orangen Rahmen über dem aktiven Zuschneide-Bereich.
+class _CropOverlayPainter extends CustomPainter {
+  _CropOverlayPainter(this.rect);
+  final Rect? rect;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = rect;
+    if (r == null || r.width < 2 || r.height < 2) return;
+    final border = Paint()
+      ..color = Colors.orange
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    final shade = Paint()
+      ..color = Colors.black.withValues(alpha: 0.35);
+    // Schatten außerhalb des Crop-Rechtecks.
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, r.top), shade);
+    canvas.drawRect(
+        Rect.fromLTWH(0, r.bottom, size.width, size.height - r.bottom),
+        shade);
+    canvas.drawRect(Rect.fromLTWH(0, r.top, r.left, r.height), shade);
+    canvas.drawRect(
+        Rect.fromLTWH(r.right, r.top, size.width - r.right, r.height),
+        shade);
+    canvas.drawRect(r, border);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CropOverlayPainter oldDelegate) =>
+      oldDelegate.rect != rect;
 }

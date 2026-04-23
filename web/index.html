@@ -42,27 +42,33 @@
   </style>
   <script>
     // Service-Worker sind in Aktenwerk deaktiviert (Flutter-Build mit
-    // --pwa-strategy=none). Dieser Block räumt alte Registrierungen und
-    // App-Shell-Caches auf jedem Seitenaufruf auf — damit fängt kein
-    // veralteter SW eines früheren Deploys mehr die `index.html` ab.
+    // --pwa-strategy=none). Falls ein alter SW noch die Seite bedient,
+    // melden wir ihn ab, löschen alle App-Caches und laden die Seite
+    // genau EINMAL pro Session frisch neu — so entgeht das Frontend
+    // garantiert der alten Cache-Version.
     (function selfHeal() {
+      if (!('serviceWorker' in navigator)) return;
+      const RELOAD_FLAG = 'aktenwerk_sw_purged_reload_v1';
       try {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then((regs) => {
-            regs.forEach((r) => { try { r.unregister(); } catch (e) {} });
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+          if (regs.length === 0) return;
+          const alreadyReloaded = sessionStorage.getItem(RELOAD_FLAG);
+          const unregisters = regs.map((r) => {
+            try { return r.unregister(); } catch (e) { return null; }
+          }).filter(Boolean);
+          const cacheCleanup = 'caches' in window
+            ? caches.keys().then((keys) =>
+                Promise.all(keys.map((k) => caches.delete(k))))
+            : Promise.resolve();
+          Promise.all([...unregisters, cacheCleanup]).then(() => {
+            if (!alreadyReloaded) {
+              sessionStorage.setItem(RELOAD_FLAG, '1');
+              // Cache-Buster, damit Browser garantiert frische HTML-Version zieht.
+              const sep = location.href.includes('?') ? '&' : '?';
+              location.replace(location.href.split('#')[0] + sep + '__fresh=' + Date.now());
+            }
           });
-        }
-        if ('caches' in window) {
-          caches.keys().then((keys) => {
-            keys.forEach((k) => {
-              const low = k.toLowerCase();
-              if (low.includes('flutter') || low.includes('aktenwerk') ||
-                  low.includes('app-shell')) {
-                caches.delete(k);
-              }
-            });
-          });
-        }
+        });
       } catch (e) { /* silent */ }
     })();
   </script>

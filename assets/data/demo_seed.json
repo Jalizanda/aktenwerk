@@ -831,7 +831,7 @@
   ],
   "rechnungen": [
     {
-      "rechnungsnummer": "AW-0001",
+      "rechnungsnummer": "RE2026-001",
       "rechnungsdatum": "2026-04-17",
       "leistungsdatum": "04/2026",
       "typ": "jveg",
@@ -884,7 +884,7 @@
       "id": 1
     },
     {
-      "rechnungsnummer": "AW-0002",
+      "rechnungsnummer": "RE2026-002",
       "rechnungsdatum": "2026-03-10",
       "leistungsdatum": "03–04/2026",
       "typ": "jveg",
@@ -932,7 +932,7 @@
       "bezahlt": 0
     },
     {
-      "rechnungsnummer": "2025-088",
+      "rechnungsnummer": "RE2025-088",
       "rechnungsdatum": "2026-01-23",
       "leistungsdatum": "2026-01-18",
       "typ": "privat",
@@ -973,7 +973,7 @@
       "faelligAm": "2026-02-06T00:00:00"
     },
     {
-      "rechnungsnummer": "AW-0009",
+      "rechnungsnummer": "RE2026-003",
       "rechnungsdatum": "2025-12-09",
       "leistungsdatum": "2025-11-29",
       "typ": "privat",
@@ -1007,7 +1007,7 @@
       "faelligAm": "2025-12-23T00:00:00"
     },
     {
-      "rechnungsnummer": "AW-0003",
+      "rechnungsnummer": "RE2026-004",
       "rechnungsdatum": "2026-03-10",
       "leistungsdatum": "2026-04-03",
       "typ": "privat",
@@ -1048,7 +1048,7 @@
       "bezahlt": 0
     },
     {
-      "rechnungsnummer": "AW-0004",
+      "rechnungsnummer": "RE2026-005",
       "rechnungsdatum": "2026-04-17",
       "leistungsdatum": "04/2026",
       "typ": "jveg",
@@ -1074,7 +1074,7 @@
     },
     {
       "id": 900,
-      "rechnungsnummer": "2025-120",
+      "rechnungsnummer": "RE2025-120",
       "typ": "privat",
       "status": "versendet",
       "auftragId": 1,
@@ -1106,7 +1106,7 @@
     },
     {
       "id": 901,
-      "rechnungsnummer": "AW-0006",
+      "rechnungsnummer": "RE2026-006",
       "typ": "privat",
       "status": "teilbezahlt",
       "auftragId": 2,
@@ -1125,6 +1125,104 @@
           "einheit": "h",
           "bezeichnung": "Beweissicherungsgutachten",
           "einzelpreis": 120.0,
+          "ustSatz": 19
+        }
+      ]
+    },
+    {
+      "id": 910,
+      "rechnungsnummer": "AZ2026-001",
+      "typ": "akonto",
+      "status": "bezahlt",
+      "auftragId": 3,
+      "rechnungsdatum": "2026-02-10",
+      "faelligAm": "2026-02-24",
+      "bezahltAm": "2026-02-20",
+      "zahlungszielTage": 14,
+      "mwstSatz": 19,
+      "netto": 2000.0,
+      "mwstBetrag": 380.0,
+      "brutto": 2380.0,
+      "bezahlt": 2380.0,
+      "schlusstext": "Akontoanforderung für das Sachverständigengutachten. USt-Pflicht entsteht mit Zahlungseingang (§ 13 Abs. 1 Nr. 1 b UStG).",
+      "positionen": [
+        {
+          "menge": 1,
+          "einheit": "Pauschal",
+          "bezeichnung": "Akonto auf Sachverständigenhonorar",
+          "einzelpreis": 2000.0,
+          "ustSatz": 19
+        }
+      ]
+    },
+    {
+      "id": 911,
+      "rechnungsnummer": "RE2026-007",
+      "typ": "teilrechnung",
+      "status": "bezahlt",
+      "auftragId": 3,
+      "rechnungsdatum": "2026-03-05",
+      "faelligAm": "2026-03-19",
+      "bezahltAm": "2026-03-15",
+      "zahlungszielTage": 14,
+      "mwstSatz": 19,
+      "netto": 1500.0,
+      "mwstBetrag": 285.0,
+      "brutto": 1785.0,
+      "bezahlt": 1785.0,
+      "schlusstext": "Teilrechnung nach erfolgter Befundaufnahme. Die Schlussrechnung zieht diesen Betrag wieder ab.",
+      "positionen": [
+        {
+          "menge": 12,
+          "einheit": "h",
+          "bezeichnung": "Befundaufnahme und Dokumentation (Abschlag)",
+          "einzelpreis": 125.0,
+          "ustSatz": 19
+        }
+      ]
+    },
+    {
+      "id": 912,
+      "rechnungsnummer": "RE2026-008",
+      "typ": "schlussrechnung",
+      "status": "offen",
+      "auftragId": 3,
+      "rechnungsdatum": "2026-04-18",
+      "faelligAm": "2026-05-02",
+      "zahlungszielTage": 14,
+      "mwstSatz": 19,
+      "netto": 4500.0,
+      "mwstBetrag": 855.0,
+      "brutto": 5355.0,
+      "bezahlt": 0,
+      "schlusstext": "Schlussrechnung — die vorangegangene Teilrechnung RE2026-007 und die bezahlte Akontoanforderung AZ2026-001 werden abgezogen (§ 14 Abs. 5 UStG).",
+      "positionen": [
+        {
+          "menge": 35,
+          "einheit": "h",
+          "bezeichnung": "Sachverständigenhonorar gesamt",
+          "einzelpreis": 140.0,
+          "ustSatz": 19
+        },
+        {
+          "menge": 50,
+          "einheit": "km",
+          "bezeichnung": "Fahrtkosten",
+          "einzelpreis": 0.42,
+          "ustSatz": 19
+        },
+        {
+          "menge": 1,
+          "einheit": "Pauschal",
+          "bezeichnung": "Bezahlte Akontoanforderung AZ2026-001",
+          "einzelpreis": -2000.0,
+          "ustSatz": 19
+        },
+        {
+          "menge": 1,
+          "einheit": "Pauschal",
+          "bezeichnung": "Teilrechnung RE2026-007",
+          "einzelpreis": -1500.0,
           "ustSatz": 19
         }
       ]
@@ -2189,6 +2287,12 @@
       "titel": "Weihnachtsgruß",
       "kategorie": "anschreiben",
       "text": "das Jahr neigt sich dem Ende zu. Ich bedanke mich für Ihr Vertrauen und die gute Zusammenarbeit im vergangenen Jahr.\n\nIch wünsche Ihnen und Ihren Lieben ein frohes Weihnachtsfest, erholsame Feiertage und einen guten Start in ein gesundes und erfolgreiches neues Jahr."
+    },
+    {
+      "id": 95,
+      "titel": "Mitteilung – Fristüberschreitung Gutachten",
+      "kategorie": "anschreiben",
+      "text": "Anzeige an das Gericht nach § 411 Abs. 1 ZPO bei absehbarer Fristüberschreitung\n\nAn:             {{gericht}}\nAktenzeichen:   {{azExtern}}\nIn Sachen:      {{betreff}}\nDatum:          {{heute}}\n\n\nin der oben genannten Sache zeige ich hiermit eine absehbare Überschreitung der mir gesetzten Frist zur Erstattung des Gutachtens an.\n\nGründe der Verzögerung:\n\n•  [unvollständige Akten / nachzureichende Unterlagen durch Parteien]\n•  [unerwarteter Umfang der Befundaufnahme / mehrere Ortstermine erforderlich]\n•  [erforderliche Zusatzuntersuchungen / Laborbefunde / Bauteilöffnungen]\n•  [krankheitsbedingte Verhinderung / unaufschiebbare Parallelverfahren]\n•  [sonstige Gründe – kurze Darstellung]\n\nAktueller Arbeitsstand:\n\n•  [Aktenstudium] – abgeschlossen / in Bearbeitung\n•  [Ortstermin] – durchgeführt am {{ortstermin}} / noch ausstehend\n•  [Nachgeforderte Unterlagen] – eingetroffen am TT.MM.JJJJ / ausstehend\n•  [Gutachtenentwurf] – Fertigstellungsgrad ca. xx %\n\nIch bitte um eine Fristverlängerung bis zum TT.MM.JJJJ und werde unaufgefordert nach Fertigstellung Bericht erstatten."
     }
   ],
   "auslagen": [
@@ -2657,7 +2761,7 @@
   ],
   "angebote": [
     {
-      "nummer": "AAW-0001",
+      "nummer": "AN2026-001",
       "datum": "2026-04-14",
       "gueltigBis": "2026-05-14",
       "status": "angebot",
@@ -2692,7 +2796,7 @@
       "id": 1
     },
     {
-      "nummer": "AAW-0002",
+      "nummer": "AN2026-002",
       "datum": "2026-04-17",
       "gueltigBis": "2026-05-17",
       "status": "anfrage",
@@ -3620,7 +3724,7 @@
       "id": 14
     },
     {
-      "belegNr": "ER-2026-015",
+      "belegNr": "ER-RE2026-007",
       "lieferantName": "Telekom Deutschland GmbH",
       "lieferantStrasse": "Landgrabenweg 151",
       "lieferantPlz": "53227",

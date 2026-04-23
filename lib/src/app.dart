@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'data/seed/demo_auto_reseed.dart';
+import 'data/sync/google_calendar_auto_sync.dart';
+import 'data/sync/wiedervorlagen_push.dart';
 import 'features/auth/auth_gate.dart';
 import 'features/system/einstellungen/einstellungen_repository.dart';
 
@@ -32,6 +34,12 @@ class _AktenwerkAppState extends ConsumerState<AktenwerkApp> {
 
     // Auto-Re-Seed-Wächter aktivieren (siehe demo_auto_reseed.dart).
     ref.watch(demoAutoReseedProvider);
+
+    // Google-Kalender Auto-Sync (Start + entprellt nach Änderungen).
+    ref.watch(googleCalendarAutoSyncProvider);
+
+    // Browser-Notifications für heute/überfällige Wiedervorlagen.
+    ref.watch(wiedervorlagenPushAutoProvider);
 
     return MaterialApp.router(
       title: 'Aktenwerk',

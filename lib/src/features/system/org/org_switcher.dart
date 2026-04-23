@@ -12,6 +12,39 @@ import 'org_onboarding_dialog.dart';
 class OrgSwitcher extends ConsumerWidget {
   const OrgSwitcher({super.key});
 
+  /// Warnt den Nutzer, dass die lokale Datenbank (IndexedDB) zwischen
+  /// Mandanten geteilt ist und ein Wechsel ohne vorheriges Backup
+  /// bestehende lokale Einträge überschreiben kann. Backups werden
+  /// unter Einstellungen → „Backup & Wiederherstellung" erstellt.
+  Future<bool> _warnenVorWechsel(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Mandant wechseln?'),
+        content: const Text(
+          'Hinweis: Die lokale Datenbank im Browser ist zwischen deinen '
+          'Mandanten geteilt. Ein Wechsel spiegelt Firestore-Einstellungen '
+          'des Ziel-Mandanten zurück, aber deine lokalen Aufträge/Kunden '
+          '/Stunden bleiben erhalten.\n\n'
+          'Empfehlung: Vor jedem Wechsel einmal unter Einstellungen → '
+          '„Backup & Wiederherstellung" ein JSON-Backup erstellen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Weiter'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authUser = ref.watch(authStateProvider).valueOrNull;
@@ -31,7 +64,14 @@ class OrgSwitcher extends ConsumerWidget {
         } else if (value == '__members__') {
           if (context.mounted) GoRouter.of(context).go('/organisation');
         } else if (value != currentId) {
+          final ok = await _warnenVorWechsel(context);
+          if (!ok) return;
           await ref.read(currentOrgIdProvider.notifier).set(value);
+          // Daten-Provider vorsichtshalber neu aufbauen — viele sind
+          // stream-basiert und reagieren selbst auf DB-Änderungen,
+          // aber ein gezieltes Invalidieren macht den Wechsel spürbar
+          // schneller.
+          ref.invalidate(myOrgsProvider);
         }
       },
       itemBuilder: (ctx) => [
@@ -93,6 +133,9 @@ class OrgSwitcher extends ConsumerWidget {
       child: Container(
         height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 10),
+        // Tooltip wird durch PopupMenuButton überschrieben, aber bei
+        // langsam Hovernden kommt der folgende Hinweis noch an.
+
         decoration: BoxDecoration(
           color: AppTheme.slate50,
           borderRadius: BorderRadius.circular(8),

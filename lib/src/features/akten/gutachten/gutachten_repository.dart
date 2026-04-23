@@ -318,10 +318,13 @@ List<SprachCheckTreffer> runSprachCheck(Map<String, String> abschnitte) {
 
 /// ----------- Platzhalter-Ersetzung -----------
 
-String applyVorlagenPlatzhalter(
-  String text, {
+/// Baut die vollständige Platzhalter-Map für Vorlagen und Anschreiben.
+/// Wird sowohl in Gutachten als auch bei Anschreiben-Vorlagen verwendet,
+/// damit die Ersetzungsregeln an genau einer Stelle leben.
+Map<String, String> buildAktenwerkPlatzhalter({
   AuftraegeData? auftrag,
   KundenData? kunde,
+  DateTime? heute,
 }) {
   String kundeName() {
     if (kunde == null) return '';
@@ -332,6 +335,19 @@ String applyVorlagenPlatzhalter(
         .join(' ');
   }
 
+  String kundeAnschrift() {
+    if (kunde == null) return '';
+    final zeilen = <String>[
+      kundeName(),
+      kunde.strasse ?? '',
+      [kunde.plz, kunde.ort]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(' '),
+    ].where((s) => s.trim().isNotEmpty).toList();
+    return zeilen.join(', ');
+  }
+
   String objekt() {
     if (auftrag == null) return '';
     return [auftrag.objektStrasse, auftrag.objektPlz, auftrag.objektOrt]
@@ -340,33 +356,62 @@ String applyVorlagenPlatzhalter(
         .join(', ');
   }
 
-  String bb1() {
-    final d = auftrag?.beweisbeschluss1;
+  String fmt(DateTime? d) {
     if (d == null) return '';
     return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   }
 
-  String ortstermin() {
-    final d = auftrag?.ortsterminAm;
-    if (d == null) return '';
-    return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
-  }
+  final now = heute ?? DateTime.now();
 
-  final map = <String, String>{
+  return <String, String>{
     '{{auftraggeber}}': kundeName(),
+    '{{auftraggeberAnschrift}}': kundeAnschrift(),
     '{{objekt}}': objekt(),
     '{{objektart}}': auftrag?.objektart ?? '',
     '{{baujahr}}': auftrag?.baujahr ?? '',
-    '{{ortstermin}}': ortstermin(),
+    '{{ortstermin}}': fmt(auftrag?.ortsterminAm),
+    '{{frist}}': fmt(auftrag?.fristAm),
     '{{betreff}}': auftrag?.betreff ?? '',
     '{{aktenzeichen}}': auftrag?.aktenzeichen ?? '',
     '{{azExtern}}': auftrag?.azExtern ?? '',
     '{{gericht}}': auftrag?.gericht ?? '',
-    '{{beweisbeschluss1}}': bb1(),
+    '{{richter}}': auftrag?.richter ?? '',
+    '{{beweisbeschluss1}}': fmt(auftrag?.beweisbeschluss1),
+    '{{heute}}': fmt(now),
   };
+}
+
+String applyVorlagenPlatzhalter(
+  String text, {
+  AuftraegeData? auftrag,
+  KundenData? kunde,
+}) {
+  final map = buildAktenwerkPlatzhalter(auftrag: auftrag, kunde: kunde);
   var out = text;
   map.forEach((k, v) {
     out = out.replaceAll(k, v);
+  });
+  return out;
+}
+
+/// Ersetzt `{{...}}`-Platzhalter direkt im Delta-JSON einer Quill-Vorlage.
+/// Werte werden JSON-escape-sicher eingesetzt, damit die resultierende
+/// Zeichenkette weiterhin gültiges JSON ist.
+String applyVorlagenPlatzhalterImDelta(
+  String deltaJson, {
+  AuftraegeData? auftrag,
+  KundenData? kunde,
+}) {
+  final map = buildAktenwerkPlatzhalter(auftrag: auftrag, kunde: kunde);
+  String escape(String v) => v
+      .replaceAll('\\', r'\\')
+      .replaceAll('"', r'\"')
+      .replaceAll('\n', r'\n')
+      .replaceAll('\r', r'\r')
+      .replaceAll('\t', r'\t');
+  var out = deltaJson;
+  map.forEach((k, v) {
+    out = out.replaceAll(k, escape(v));
   });
   return out;
 }

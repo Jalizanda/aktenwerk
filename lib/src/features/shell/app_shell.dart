@@ -7,12 +7,15 @@ import '../../core/icons/heroicons.dart';
 import '../../core/router/nav_destinations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/sync/auth_service.dart';
+import '../../data/sync/auto_sync_service.dart';
 import '../../data/sync/org_service.dart';
 import '../auth/user_approval_service.dart';
 import '../search/search_dialog.dart';
+import 'kalender_badge.dart';
 import '../system/help/help_dialog.dart';
 import '../system/help/release_notes_dialog.dart';
 import '../system/org/org_onboarding_dialog.dart';
+import 'auto_sync_badge.dart';
 import '../system/org/org_switcher.dart';
 import 'timer_widget.dart';
 
@@ -32,6 +35,22 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   bool _onboardingShown = false;
+  bool _autoSyncGestartet = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-Sync einmalig beim ersten Build anwerfen. Nötige Checks
+    // (Auth + Org) laufen intern.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_autoSyncGestartet) return;
+      _autoSyncGestartet = true;
+      final aktiv = await AutoSyncService.istAktiviert();
+      if (aktiv && mounted) {
+        ref.read(autoSyncServiceProvider).start();
+      }
+    });
+  }
 
   void _maybeShowOnboarding() {
     final user = ref.read(authStateProvider).valueOrNull;
@@ -104,11 +123,11 @@ class _AppShellState extends ConsumerState<AppShell> {
 /// Kompakte Top-Bar mit Globaler Suche, Org-Switcher und Einstellungen.
 /// Der Modul-Titel wird bewusst NICHT mehr hier dupliziert — jedes Modul
 /// trägt seinen Titel inkl. Kurzbeschreibung im eigenen [ModuleHeader].
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   const _TopBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 56,
@@ -126,8 +145,17 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const TimerWidget(),
+          const KalenderBadge(),
           const SizedBox(width: 12),
+          const TimerWidget(),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'Ortstermin-Modus öffnen',
+            onPressed: () => GoRouter.of(context).go('/ortstermin'),
+            icon: Icon(Icons.location_on_outlined,
+                color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(width: 8),
           const OrgSwitcher(),
           const SizedBox(width: 4),
           IconButton(
@@ -142,13 +170,119 @@ class _TopBar extends StatelessWidget {
             icon: Icon(Icons.campaign_outlined,
                 color: scheme.onSurfaceVariant),
           ),
+          const AutoSyncBadge(),
           IconButton(
             tooltip: 'Einstellungen',
             onPressed: () => GoRouter.of(context).go('/einstellungen'),
             icon: Icon(Icons.settings_outlined,
                 color: scheme.onSurfaceVariant),
           ),
+          const SizedBox(width: 4),
+          _UserMenu(),
         ],
+      ),
+    );
+  }
+}
+
+/// Popup-Menü mit Avatar: Nutzername/E-Mail + Abmelden.
+class _UserMenu extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).valueOrNull;
+    if (user == null) return const SizedBox.shrink();
+
+    final initials = (user.displayName ?? user.email ?? '?')
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p[0])
+        .join()
+        .toUpperCase();
+
+    return PopupMenuButton<String>(
+      tooltip: 'Konto',
+      position: PopupMenuPosition.under,
+      onSelected: (value) async {
+        if (value == 'einstellungen') {
+          if (context.mounted) GoRouter.of(context).go('/einstellungen');
+        } else if (value == 'abmelden') {
+          final ok = await showDialog<bool>(
+            context: context,
+            useRootNavigator: true,
+            builder: (_) => AlertDialog(
+              title: const Text('Abmelden?'),
+              content: const Text(
+                  'Du wirst ausgeloggt und siehst die Login-Maske. '
+                  'Deine lokalen Daten bleiben im Browser erhalten.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Abbrechen'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Abmelden'),
+                ),
+              ],
+            ),
+          );
+          if (ok == true) {
+            await ref.read(authServiceProvider).signOut();
+          }
+        }
+      },
+      itemBuilder: (ctx) => [
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(user.displayName ?? 'Angemeldet',
+                  style:
+                      const TextStyle(fontWeight: FontWeight.w600)),
+              if ((user.email ?? '').isNotEmpty)
+                Text(user.email!,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppTheme.slate500)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'einstellungen',
+          child: Row(children: [
+            Icon(Icons.settings_outlined, size: 16),
+            SizedBox(width: 8),
+            Text('Einstellungen'),
+          ]),
+        ),
+        const PopupMenuItem<String>(
+          value: 'abmelden',
+          child: Row(children: [
+            Icon(Icons.logout, size: 16),
+            SizedBox(width: 8),
+            Text('Abmelden'),
+          ]),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        child: CircleAvatar(
+          radius: 16,
+          backgroundColor: AppTheme.accent600,
+          foregroundImage: (user.photoURL ?? '').isEmpty
+              ? null
+              : NetworkImage(user.photoURL!),
+          child: Text(
+            initials.isEmpty ? '?' : initials,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.white),
+          ),
+        ),
       ),
     );
   }

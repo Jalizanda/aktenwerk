@@ -8,10 +8,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_theme.dart';
 import '../konten/datev_export.dart';
 import '../sync/sync_section.dart';
+import 'backup_section.dart';
 import 'demo_seed_section.dart';
 import 'einstellungen_repository.dart';
 import 'google_calendar_section.dart';
+import 'ki_modelle_section.dart';
+import 'ki_usage_section.dart';
 import 'stammdaten_seed.dart';
+import 'zahlungsziele_section.dart';
 
 class EinstellungenScreen extends ConsumerWidget {
   const EinstellungenScreen({super.key});
@@ -38,7 +42,32 @@ class _EinstellungenForm extends ConsumerStatefulWidget {
 }
 
 class _EinstellungenFormState
-    extends ConsumerState<_EinstellungenForm> {
+    extends ConsumerState<_EinstellungenForm>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController =
+      TabController(length: 7, vsync: this);
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    for (final c in [
+      _firmaName, _firmaTitel, _firmaAnschrift, _firmaTelefon, _firmaEmail,
+      _firmaWebsite, _bestellung1, _bestellung2,
+      _ustId, _steuerNr,
+      _bankInhaber, _bankName, _iban, _bic,
+      _satz, _satzJveg, _ust, _zahlungsziel,
+      _jvegKm, _jvegSchreib, _jvegKopieSw, _jvegKopieFarbe,
+      _jvegFotoErst, _jvegFotoWeit,
+      _nkAkte, _nkAkteNext, _nkRn, _nkRnNext, _nkAkonto, _nkAkontoNext,
+      _nkAng, _nkAngNext, _nkAb, _nkAbNext,
+      _nkGut, _nkGutNext, _nkFB, _nkFBNext,
+      _rnFoot, _rnSchluss, _angFoot,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
   // ---------- Stammdaten ----------
   late final _firmaName = _tec(SettingsKeys.firmaName, '');
   late final _firmaTitel = _tec(SettingsKeys.firmaTitel, '');
@@ -86,10 +115,22 @@ class _EinstellungenFormState
   late final _nkRnNext = _tec(SettingsKeys.nummernkreisRechnungNaechste, '1');
   late String _nkRnReset;
 
+  late final _nkAkonto =
+      _tec(SettingsKeys.nummernkreisAkonto, 'AZ{YYYY}-{NNN}');
+  late final _nkAkontoNext =
+      _tec(SettingsKeys.nummernkreisAkontoNaechste, '1');
+  late String _nkAkontoReset;
+
   late final _nkAng =
-      _tec(SettingsKeys.nummernkreisAngebot, 'A{YYYY}-{NNN}');
+      _tec(SettingsKeys.nummernkreisAngebot, 'AN{YYYY}-{NNN}');
   late final _nkAngNext = _tec(SettingsKeys.nummernkreisAngebotNaechste, '1');
   late String _nkAngReset;
+
+  late final _nkAb = _tec(
+      SettingsKeys.nummernkreisAuftragsbestaetigung, 'AB{YYYY}-{NNN}');
+  late final _nkAbNext =
+      _tec(SettingsKeys.nummernkreisAuftragsbestaetigungNaechste, '1');
+  late String _nkAbReset;
 
   late final _nkGut =
       _tec(SettingsKeys.nummernkreisGutachten, '{aktenzeichen}-G{N}');
@@ -156,9 +197,14 @@ class _EinstellungenFormState
     _nkAkteReset =
         widget.values[SettingsKeys.nummernkreisAktenzeichenReset] ?? 'nie';
     _nkRnReset =
-        widget.values[SettingsKeys.nummernkreisRechnungReset] ?? 'jahr';
+        widget.values[SettingsKeys.nummernkreisRechnungReset] ?? 'nie';
+    _nkAkontoReset =
+        widget.values[SettingsKeys.nummernkreisAkontoReset] ?? 'nie';
     _nkAngReset =
-        widget.values[SettingsKeys.nummernkreisAngebotReset] ?? 'jahr';
+        widget.values[SettingsKeys.nummernkreisAngebotReset] ?? 'nie';
+    _nkAbReset =
+        widget.values[SettingsKeys.nummernkreisAuftragsbestaetigungReset] ??
+            'nie';
     _nkGutReset =
         widget.values[SettingsKeys.nummernkreisGutachtenReset] ?? 'nie';
     _nkFBReset =
@@ -181,25 +227,6 @@ class _EinstellungenFormState
     final v = widget.values[key];
     return TextEditingController(
         text: v != null && v.isNotEmpty ? v : fallback);
-  }
-
-  @override
-  void dispose() {
-    for (final c in [
-      _firmaName, _firmaTitel, _firmaAnschrift, _firmaTelefon, _firmaEmail,
-      _firmaWebsite, _bestellung1, _bestellung2,
-      _ustId, _steuerNr,
-      _bankInhaber, _bankName, _iban, _bic,
-      _satz, _satzJveg, _ust, _zahlungsziel,
-      _jvegKm, _jvegSchreib, _jvegKopieSw, _jvegKopieFarbe,
-      _jvegFotoErst, _jvegFotoWeit,
-      _nkAkte, _nkAkteNext, _nkRn, _nkRnNext,
-      _nkAng, _nkAngNext, _nkGut, _nkGutNext, _nkFB, _nkFBNext,
-      _rnFoot, _rnSchluss, _angFoot,
-    ]) {
-      c.dispose();
-    }
-    super.dispose();
   }
 
   Future<void> _pickLogo() async {
@@ -456,10 +483,22 @@ class _EinstellungenFormState
         _nkRnNext.text.trim());
     await repo.set(SettingsKeys.nummernkreisRechnungReset, _nkRnReset);
 
+    await repo.set(SettingsKeys.nummernkreisAkonto, _nkAkonto.text.trim());
+    await repo.set(SettingsKeys.nummernkreisAkontoNaechste,
+        _nkAkontoNext.text.trim());
+    await repo.set(SettingsKeys.nummernkreisAkontoReset, _nkAkontoReset);
+
     await repo.set(SettingsKeys.nummernkreisAngebot, _nkAng.text.trim());
     await repo.set(SettingsKeys.nummernkreisAngebotNaechste,
         _nkAngNext.text.trim());
     await repo.set(SettingsKeys.nummernkreisAngebotReset, _nkAngReset);
+
+    await repo.set(
+        SettingsKeys.nummernkreisAuftragsbestaetigung, _nkAb.text.trim());
+    await repo.set(SettingsKeys.nummernkreisAuftragsbestaetigungNaechste,
+        _nkAbNext.text.trim());
+    await repo.set(
+        SettingsKeys.nummernkreisAuftragsbestaetigungReset, _nkAbReset);
 
     await repo.set(SettingsKeys.nummernkreisGutachten, _nkGut.text.trim());
     await repo.set(SettingsKeys.nummernkreisGutachtenNaechste,
@@ -551,14 +590,20 @@ class _EinstellungenFormState
           ),
         ),
         const Divider(height: 1),
+        _EinstellungenTabBar(controller: _tabController),
+        const Divider(height: 1),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1000),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // ---------------- TAB 1: PROFIL ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   _Section(
                     'Sachverständigen-Stammdaten',
                     subtitle:
@@ -620,6 +665,18 @@ class _EinstellungenFormState
                       ),
                     ],
                   ),
+                    ],
+                  ),
+                ),
+              ),
+              // ---------------- TAB 2: FINANZEN & NUMMERN ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   _Section(
                     'Steuerdaten',
                     subtitle:
@@ -805,12 +862,30 @@ class _EinstellungenFormState
                       ),
                       const SizedBox(height: 12),
                       _NkRow(
+                        label: 'Auftragsbestätigungs-Nr.',
+                        muster: _nkAb,
+                        naechste: _nkAbNext,
+                        reset: _nkAbReset,
+                        onResetChanged: (v) =>
+                            setState(() => _nkAbReset = v),
+                      ),
+                      const SizedBox(height: 12),
+                      _NkRow(
                         label: 'Rechnungs-Nr.',
                         muster: _nkRn,
                         naechste: _nkRnNext,
                         reset: _nkRnReset,
                         onResetChanged: (v) =>
                             setState(() => _nkRnReset = v),
+                      ),
+                      const SizedBox(height: 12),
+                      _NkRow(
+                        label: 'Akonto-Anforderung-Nr.',
+                        muster: _nkAkonto,
+                        naechste: _nkAkontoNext,
+                        reset: _nkAkontoReset,
+                        onResetChanged: (v) =>
+                            setState(() => _nkAkontoReset = v),
                       ),
                       const SizedBox(height: 12),
                       _NkRow(
@@ -895,6 +970,18 @@ class _EinstellungenFormState
                       ),
                     ],
                   ),
+                    ],
+                  ),
+                ),
+              ),
+              // ---------------- TAB 3: SIEGEL & UNTERSCHRIFT ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   _Section(
                     'Sachverständigen-Siegel & Unterschrift',
                     subtitle:
@@ -960,6 +1047,18 @@ class _EinstellungenFormState
                       ),
                     ],
                   ),
+                    ],
+                  ),
+                ),
+              ),
+              // ---------------- TAB 4: DOKUMENTE & E-RECHNUNG ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   _Section(
                     'Tätigkeitsbericht IHK / HWK',
                     subtitle:
@@ -1018,6 +1117,25 @@ class _EinstellungenFormState
                       ),
                     ],
                   ),
+                  _Section(
+                    'Zahlungsziel-Vorlagen',
+                    subtitle:
+                        'Vorlagen für die Zahlungsbedingung einer Rechnung — '
+                        '14 Tage netto, Barzahlung, Skonto 2% bei 7 Tagen …',
+                    children: const [ZahlungszieleSection()],
+                  ),
+                    ],
+                  ),
+                ),
+              ),
+              // ---------------- TAB 5: DARSTELLUNG & VORLAGEN ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   _Section('Erscheinungsbild', children: [
                     _L(
                       'Theme',
@@ -1061,6 +1179,24 @@ class _EinstellungenFormState
                       ),
                     ],
                   ),
+                    ],
+                  ),
+                ),
+              ),
+              // ---------------- TAB 6: DATEN & CLOUD ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  _Section(
+                    'Backup & Wiederherstellung',
+                    subtitle:
+                        'Vollständige JSON-Sicherung aller lokalen Daten herunterladen und wieder einspielen.',
+                    children: const [BackupSection()],
+                  ),
                   _Section('Datensicherung',
                       children: const [DemoSeedSection()]),
                   _Section('Cloud', children: const [SyncSection()]),
@@ -1070,12 +1206,156 @@ class _EinstellungenFormState
                         'Ortstermine, Fristen, Erläuterungen & Wiedervorlagen in einen Google-Kalender spiegeln.',
                     children: const [GoogleCalendarSection()],
                   ),
+                    ],
+                  ),
+                ),
+              ),
+              // ---------------- TAB 7: KÜNSTLICHE INTELLIGENZ ----------------
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _Section(
+                        'Modell pro Funktion',
+                        subtitle:
+                            'Jede KI-Funktion kann einzeln einem Modell '
+                            'zugeordnet werden. Flash ist günstig, Pro ist '
+                            'teurer, aber stärker im Reasoning.',
+                        children: const [KiModelleSection()],
+                      ),
+                      _Section(
+                        'Verbrauch & Kosten',
+                        subtitle:
+                            'Aufrufe, Tokens und Selbstkosten des laufenden '
+                            'Monats — bei Google abgerechnet, ohne '
+                            'Kundenaufschlag.',
+                        children: const [KiUsageSection()],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// TabBar oberhalb der Einstellungen mit den 6 Gruppen.
+class _EinstellungenTabBar extends StatelessWidget {
+  const _EinstellungenTabBar({required this.controller});
+  final TabController controller;
+
+  static const _tabs = <(String, IconData)>[
+    ('Profil', Icons.person_outline),
+    ('Finanzen & Nummern', Icons.euro_symbol),
+    ('Siegel & Unterschrift', Icons.verified_outlined),
+    ('Dokumente', Icons.article_outlined),
+    ('Darstellung', Icons.palette_outlined),
+    ('Daten & Cloud', Icons.cloud_outlined),
+    ('KI', Icons.auto_fix_high),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppTheme.slate50,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (_, _) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < _tabs.length; i++)
+                _EinstellungenReiter(
+                  label: _tabs[i].$1,
+                  icon: _tabs[i].$2,
+                  active: controller.index == i,
+                  onTap: () => controller.animateTo(i),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EinstellungenReiter extends StatefulWidget {
+  const _EinstellungenReiter({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  State<_EinstellungenReiter> createState() => _EinstellungenReiterState();
+}
+
+class _EinstellungenReiterState extends State<_EinstellungenReiter> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.active;
+    final bg = active
+        ? AppTheme.accent600
+        : (_hovered ? AppTheme.slate100 : Colors.transparent);
+    final fg = active
+        ? Colors.white
+        : (_hovered ? AppTheme.slate900 : AppTheme.slate700);
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: Material(
+          color: bg,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(8),
+            topRight: Radius.circular(8),
+          ),
+          child: InkWell(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(8),
+              topRight: Radius.circular(8),
+            ),
+            onTap: widget.onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(widget.icon,
+                      size: 16,
+                      color: active ? Colors.white : AppTheme.slate500),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: fg,
+                        fontWeight: active
+                            ? FontWeight.w700
+                            : FontWeight.w500),
+                  ),
                 ],
               ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

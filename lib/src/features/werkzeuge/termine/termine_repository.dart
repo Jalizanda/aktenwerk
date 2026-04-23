@@ -82,16 +82,41 @@ class TermineRepository {
       for (final r in triple.$2) {
         final w = r.readTable(_db.wiedervorlagen);
         final a = r.readTableOrNull(_db.auftraege);
-        out.add(TerminEintrag(
-          zeitpunkt: w.faelligAm,
-          ende: w.endeAm,
-          titel: w.titel,
-          typ: 'Wiedervorlage',
-          ort: w.anlass,
-          auftragId: w.auftragId,
-          aktenzeichen: a?.aktenzeichen,
-          quellId: w.id,
-        ));
+        final wiederholung = w.wiederholung ?? '';
+        if (wiederholung.isEmpty) {
+          out.add(TerminEintrag(
+            zeitpunkt: w.faelligAm,
+            ende: w.endeAm,
+            titel: w.titel,
+            typ: 'Wiedervorlage',
+            ort: w.anlass,
+            auftragId: w.auftragId,
+            aktenzeichen: a?.aktenzeichen,
+            quellId: w.id,
+          ));
+        } else {
+          final vorkommen = _expandRrule(
+            wiederholung,
+            start: w.faelligAm,
+            fensterVon: fromDate,
+            fensterBis: toDate,
+          );
+          final dauer = (w.endeAm != null)
+              ? w.endeAm!.difference(w.faelligAm)
+              : Duration.zero;
+          for (final zp in vorkommen) {
+            out.add(TerminEintrag(
+              zeitpunkt: zp,
+              ende: dauer.inMinutes > 0 ? zp.add(dauer) : null,
+              titel: '↻ ${w.titel}',
+              typ: 'Wiedervorlage',
+              ort: w.anlass,
+              auftragId: w.auftragId,
+              aktenzeichen: a?.aktenzeichen,
+              quellId: w.id,
+            ));
+          }
+        }
       }
       for (final a in triple.$3) {
         if (a.ortsterminAm != null) {
@@ -171,6 +196,46 @@ Stream<(A, B, C)> _combineLatest3<A, B, C>(
     },
   );
   return controller.stream;
+}
+
+/// Expandiert eine (stark vereinfachte) RRULE zu einer Liste von
+/// Vorkommen innerhalb [fensterVon, fensterBis].
+///
+/// Unterstützt aktuell nur `FREQ=DAILY|WEEKLY|MONTHLY` (mit implizitem
+/// Intervall 1) — mehr ist für Sachverständigen-Wiedervorlagen bisher
+/// nicht nötig.
+List<DateTime> _expandRrule(
+  String rrule, {
+  required DateTime start,
+  required DateTime fensterVon,
+  required DateTime fensterBis,
+}) {
+  final r = rrule.toUpperCase();
+  DateTime Function(DateTime) naechste;
+  if (r.contains('FREQ=DAILY')) {
+    naechste = (d) => d.add(const Duration(days: 1));
+  } else if (r.contains('FREQ=WEEKLY')) {
+    naechste = (d) => d.add(const Duration(days: 7));
+  } else if (r.contains('FREQ=MONTHLY')) {
+    naechste = (d) {
+      final m = d.month + 1;
+      final y = d.year + (m > 12 ? 1 : 0);
+      final mm = ((m - 1) % 12) + 1;
+      return DateTime(y, mm, d.day, d.hour, d.minute);
+    };
+  } else {
+    return const [];
+  }
+
+  final out = <DateTime>[];
+  var cur = start;
+  // Maximal 500 Vorkommen, um bei kaputten RRULEs nicht hängen zu bleiben.
+  for (var i = 0; i < 500; i++) {
+    if (cur.isAfter(fensterBis)) break;
+    if (!cur.isBefore(fensterVon)) out.add(cur);
+    cur = naechste(cur);
+  }
+  return out;
 }
 
 final termineRepositoryProvider = Provider<TermineRepository>((ref) {

@@ -1,0 +1,168 @@
+/* ==========================================================
+   Aktenwerk Design Tokens
+   Import this once at the root of your app.
+   ========================================================== */
+
+:root {
+  /* ---------- Brand ---------- */
+  --aw-orange:         #F25C1F;
+  --aw-orange-deep:    #D94810;
+  --aw-orange-soft:    rgba(242, 92, 31, 0.10);
+  --aw-orange-border:  rgba(242, 92, 31, 0.28);
+
+  --aw-ink:            #0B1220;   /* Primary text, dark surfaces */
+  --aw-ink-2:          #1A2235;
+
+  /* ---------- Neutrals ---------- */
+  --aw-paper:          #FAFAF7;   /* App background */
+  --aw-white:          #FFFFFF;   /* Cards, sidebar */
+  --aw-mute:           rgba(11, 18, 32, 0.55);
+  --aw-mute-soft:      rgba(11, 18, 32, 0.35);
+  --aw-line:           rgba(11, 18, 32, 0.08);
+  --aw-line-strong:    rgba(11, 18, 32, 0.14);
+
+  /* ---------- Status ---------- */
+  --aw-green:          #16794A;
+  --aw-green-soft:     rgba(22, 121, 74, 0.10);
+  --aw-amber:          #B45309;
+  --aw-amber-soft:     rgba(180, 83, 9, 0.10);
+  --aw-red:            #B42318;
+  --aw-red-soft:       rgba(180, 35, 24, 0.10);
+  --aw-blue:           #1E4ED8;
+  --aw-blue-soft:      rgba(30, 78, 216, 0.08);
+
+  /* ---------- Typography ---------- */
+  --aw-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --aw-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --aw-text-xs:   10.5px;
+  --aw-text-sm:   11.5px;
+  --aw-text-base: 12.5px;
+  --aw-text-md:   13px;
+  --aw-text-lg:   14px;
+  --aw-text-xl:   16px;
+  --aw-text-h2:   20px;
+  --aw-text-h1:   24px;
+
+  --aw-tracking-tight: -0.025em;
+  --aw-tracking-body:  -0.01em;
+  --aw-tracking-eyebrow: 0.05em;
+  --aw-tracking-micro: 0.12em;
+
+  /* ---------- Radius & spacing ---------- */
+  --aw-radius-xs: 4px;
+  --aw-radius-sm: 6px;
+  --aw-radius-md: 8px;
+  --aw-radius-lg: 10px;
+  --aw-radius-xl: 14px;
+
+  /* ---------- Shadows (very subtle — we rely on borders) ---------- */
+  --aw-shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.04);
+  --aw-shadow-md: 0 4px 12px rgba(11, 18, 32, 0.06);
+  --aw-shadow-lg: 0 12px 32px rgba(11, 18, 32, 0.10);
+}
+
+/* ---------- Global ---------- */
+html, body {
+  background: var(--aw-paper);
+  color: var(--aw-ink);
+  font-family: var(--aw-font-sans);
+  font-size: var(--aw-text-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Tabular numerics for any IDs, money, dates */
+.aw-tabular { font-variant-numeric: tabular-nums; }
+
+/* Eyebrow label (small uppercase above titles) */
+.aw-eyebrow {
+  font-size: 11px;
+  letter-spacing: var(--aw-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--aw-mute);
+  font-weight: 500;
+}
+
+/* Section title */
+.aw-h1 { font-size: var(--aw-text-h1); font-weight: 600; letter-spacing: var(--aw-tracking-tight); color: var(--aw-ink); margin: 0; line-height: 1.1; }
+.aw-h2 { font-size: var(--aw-text-h2); font-weight: 600; letter-spacing: var(--aw-tracking-tight); color: var(--aw-ink); margin: 0; line-height: 1.15; }
+.aw-h3 { font-size: var(--aw-text-lg); font-weight: 600; letter-spacing: var(--aw-tracking-body); color: var(--aw-ink); margin: 0; }
+
+.aw-muted { color: var(--aw-mute); }
+
+/* Card */
+.aw-card {
+  background: var(--aw-white);
+  border: 1px solid var(--aw-line);
+  border-radius: var(--aw-radius-lg);
+}
+
+/* Primary button */
+.aw-btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  background: var(--aw-orange); color: var(--aw-white);
+  border: none; border-radius: var(--aw-radius-md);
+  font-family: inherit; font-size: var(--aw-text-base); font-weight: 500;
+  cursor: pointer;
+}
+.aw-btn-primary:hover { background: var(--aw-orange-deep); }
+
+/* Ghost button */
+.aw-btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  background: transparent; color: var(--aw-ink);
+  border: 1px solid var(--aw-line); border-radius: var(--aw-radius-md);
+  font-family: inherit; font-size: var(--aw-text-base);
+  cursor: pointer;
+}
+.aw-btn-ghost:hover { background: var(--aw-paper); }
+
+/* Filter chip */
+.aw-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: var(--aw-white);
+  border: 1px solid var(--aw-line);
+  border-radius: 16px;
+  font-family: inherit; font-size: var(--aw-text-sm);
+  color: var(--aw-ink); cursor: pointer;
+}
+
+/* Status badge */
+.aw-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 12px;
+}
+.aw-badge::before {
+  content: ''; width: 5px; height: 5px; border-radius: 3px;
+  background: currentColor;
+}
+
+.aw-badge--in-progress { color: var(--aw-orange); background: var(--aw-orange-soft); }
+.aw-badge--todo        { color: var(--aw-amber);  background: var(--aw-amber-soft);  }
+.aw-badge--done        { color: var(--aw-green);  background: var(--aw-green-soft);  }
+.aw-badge--overdue     { color: var(--aw-red);    background: var(--aw-red-soft);    }
+.aw-badge--draft       { color: var(--aw-mute);   background: var(--aw-paper);       }
+.aw-badge--info        { color: var(--aw-blue);   background: var(--aw-blue-soft);   }
+
+/* Table */
+.aw-table { width: 100%; border-collapse: collapse; font-size: var(--aw-text-base); }
+.aw-table th {
+  text-align: left; padding: 9px 14px;
+  font-size: var(--aw-text-xs); font-weight: 600;
+  color: var(--aw-mute); letter-spacing: var(--aw-tracking-eyebrow); text-transform: uppercase;
+  border-bottom: 1px solid var(--aw-line);
+  background: var(--aw-paper);
+}
+.aw-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--aw-line);
+  color: var(--aw-ink);
+}
+.aw-table td.aw-id  { color: var(--aw-orange); font-weight: 500; font-variant-numeric: tabular-nums; }
+.aw-table td.aw-num { font-variant-numeric: tabular-nums; }

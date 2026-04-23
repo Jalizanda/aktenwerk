@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
@@ -23,12 +24,21 @@ import '../../../shared/widgets/module_scaffold.dart';
 import 'rechnungen_positionen_helpers.dart';
 import 'rechnungen_repository.dart';
 import 'xrechnung.dart';
+import 'zahlungsziel_vorlagen.dart';
 
 class RechnungenScreen extends ConsumerStatefulWidget {
   const RechnungenScreen({super.key});
 
   static const statusValues = RechnungStatusBadge.statusValues;
-  static const typValues = ['privat', 'jveg', 'gutschrift', 'korrektur'];
+  static const typValues = [
+    'privat',
+    'jveg',
+    'akonto',
+    'teilrechnung',
+    'schlussrechnung',
+    'gutschrift',
+    'korrektur',
+  ];
   static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
   static final _moneyFmt =
       NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
@@ -74,6 +84,15 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
                   DropdownMenuItem(value: null, child: Text('Alle Typen')),
                   DropdownMenuItem(value: 'privat', child: Text('Privat')),
                   DropdownMenuItem(value: 'jveg', child: Text('JVEG')),
+                  DropdownMenuItem(
+                      value: 'akonto',
+                      child: Text('Akontoanforderung')),
+                  DropdownMenuItem(
+                      value: 'teilrechnung',
+                      child: Text('Teil-/Abschlagsrechnung')),
+                  DropdownMenuItem(
+                      value: 'schlussrechnung',
+                      child: Text('Schlussrechnung')),
                   DropdownMenuItem(
                       value: 'gutschrift', child: Text('Gutschrift')),
                   DropdownMenuItem(
@@ -220,25 +239,25 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip: 'PDF-Vorschau',
+                      tooltip: 'PDF-Vorschau (ohne Archivierung)',
                       icon: const Icon(Icons.picture_as_pdf_outlined,
                           size: 20),
                       onPressed: () => _previewPdf(context, r),
                     ),
                     IconButton(
                       tooltip: r.rechnung.pdfStorageUrl != null
-                          ? 'Archivierte PDF aktualisieren'
-                          : 'PDF archivieren',
+                          ? 'Erneut drucken (überschreibt Archiv)'
+                          : 'Drucken + Beleg einfrieren',
                       icon: Icon(
                         r.rechnung.pdfStorageUrl != null
-                            ? Icons.cloud_done_outlined
-                            : Icons.cloud_upload_outlined,
+                            ? Icons.print
+                            : Icons.print_outlined,
                         size: 20,
                         color: r.rechnung.pdfStorageUrl != null
                             ? const Color(0xFF16A34A)
                             : null,
                       ),
-                      onPressed: () => _archivePdf(context, r),
+                      onPressed: () => _druckenUndEinfrieren(context, r),
                     ),
                     IconButton(
                       tooltip: 'Löschen',
@@ -270,8 +289,10 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
       dokumentNr: r.rechnung.rechnungsnummer,
       datum: r.rechnung.rechnungsdatum,
       faelligBis: r.rechnung.faelligAm,
+      // Akte/Aktenzeichen wird im Meta-Block oben rechts ausgewiesen;
+      // kein zusätzlicher „Aktenzeichen:"-Betreff nötig.
       aktenzeichen: r.auftrag?.aktenzeichen,
-      betreff: 'Aktenzeichen: ${r.auftrag?.aktenzeichen ?? '-'}',
+      betreff: r.auftrag?.betreff,
       positionen: positionsFromJson(r.rechnung.positionenJson),
       kopftext: r.rechnung.kopftext,
       fusstext: r.rechnung.fusstext ?? fuss,
@@ -279,6 +300,10 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
       empfaenger: r.kunde,
       brutto: r.rechnung.brutto,
       mitSepaQr: r.rechnung.typ != 'gutschrift',
+      gericht: r.auftrag?.gericht,
+      gerichtsAktenzeichen: r.auftrag?.gerichtsAktenzeichen,
+      klaeger: r.auftrag?.klaeger,
+      beklagter: r.auftrag?.beklagter,
     );
   }
 
@@ -291,32 +316,42 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
     await previewDocumentPdf(_buildPdfData(r, absender, fuss));
   }
 
-  Future<void> _archivePdf(
+  /// Aufruf aus der Liste: Druckvorschau öffnen + Beleg einfrieren.
+  /// Damit wird das PDF in Firebase Storage archiviert, in den
+  /// Akten-Dokumenten verlinkt und die Rechnung auf Status "versendet"
+  /// gesetzt (aus "entwurf"). Ab dann sollte der Beleg nicht mehr
+  /// bearbeitet werden.
+  Future<void> _druckenUndEinfrieren(
       BuildContext context, RechnungWithKunde r) async {
     final absender = await absenderFromSettings(ref);
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.rechnungFusstext);
     final data = _buildPdfData(r, absender, fuss);
+
+    // Druckvorschau anzeigen — der Nutzer kann ggf. im Dialog drucken
+    // oder als PDF speichern. Die eigentliche Archivierung passiert
+    // danach (egal ob der Nutzer gedruckt hat — wir frieren beim Klick).
+    await previewDocumentPdf(data);
+
     final uploaded = await freezeRechnungAsBeleg(ref, r.rechnung, data);
+    if (!context.mounted) return;
     if (uploaded == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Upload nicht möglich — bitte anmelden / Cloud prüfen.')),
-        );
-      }
-      return;
-    }
-    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Druckvorschau gezeigt — Archivierung übersprungen (Cloud nicht bereit).')));
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Beleg archiviert: ${uploaded.dateiname}')));
+          content: Text(
+              'Beleg gedruckt, archiviert und eingefroren: ${uploaded.dateiname}')));
     }
   }
 
   String _pdfTitleFor(String typ) => switch (typ) {
         'jveg' => 'Rechnung gemäß JVEG',
+        'akonto' => 'Akontoanforderung',
+        'teilrechnung' => 'Abschlagsrechnung',
+        'schlussrechnung' => 'Schlussrechnung',
         'gutschrift' => 'Gutschrift',
         'korrektur' => 'Rechnungskorrektur',
         _ => 'Rechnung',
@@ -400,6 +435,13 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
   DateTime? _rechnungsdatum;
   DateTime? _leistungsdatum;
   DateTime? _faelligAm;
+
+  /// Werden gesetzt, wenn der Nutzer eine Zahlungsziel-Vorlage mit Skonto
+  /// oder Barzahlung ausgewählt hat — steuert den Skonto-/Bar-Quittung-
+  /// Block auf dem PDF.
+  double? _skontoProzent;
+  int? _skontoTage;
+  bool _barzahlung = false;
   DateTime? _bezahltAm;
   String _status = 'entwurf';
   String _typ = 'privat';
@@ -495,10 +537,16 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     setState(() => _saving = true);
 
     // Nummernkreis: wenn neue Rechnung + Nummer leer → automatisch vergeben.
+    // Akontoanforderungen laufen in einem eigenen Kreis (AZ{YYYY}-{NNN}),
+    // alles andere (Rechnung, JVEG, Teil-, Schluss-, Gutschrift, Korrektur)
+    // nutzt den Standard-Rechnungskreis.
     if (!_isEdit && _nr.text.trim().isEmpty) {
+      final kreis = _typ == 'akonto'
+          ? NummernkreisTyp.akonto
+          : NummernkreisTyp.rechnung;
       final neu = await ref
           .read(nummernkreisServiceProvider)
-          .nextNumber(NummernkreisTyp.rechnung);
+          .nextNumber(kreis);
       _nr.text = neu;
     }
 
@@ -592,16 +640,24 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     final betreff = _leistungszeitraum.text.trim().isNotEmpty
         ? 'Leistungszeitraum: ${_leistungszeitraum.text.trim()}'
         : null;
-    // Aktenzeichen aus dem verknüpften Auftrag ziehen (für Folgeseiten-Kopf).
+    // Aktenzeichen + Gerichtsdaten aus dem verknüpften Auftrag ziehen.
     String? aktenzeichen;
+    String? gericht;
+    String? gerichtsAz;
+    String? klaeger;
+    String? beklagter;
     if (_auftragId != null) {
       final list =
           await ref.read(auftraegeRepositoryProvider).watchAll().first;
-      aktenzeichen = list
+      final a = list
           .where((a) => a.auftrag.id == _auftragId)
           .firstOrNull
-          ?.auftrag
-          .aktenzeichen;
+          ?.auftrag;
+      aktenzeichen = a?.aktenzeichen;
+      gericht = a?.gericht;
+      gerichtsAz = a?.gerichtsAktenzeichen;
+      klaeger = a?.klaeger;
+      beklagter = a?.beklagter;
     }
     return PdfDocumentData(
       dokumentTyp: _pdfTitleFor(_typ),
@@ -616,7 +672,14 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
       absender: absender,
       empfaenger: kunde,
       brutto: brutto,
-      mitSepaQr: _typ != 'gutschrift',
+      mitSepaQr: _typ != 'gutschrift' && !_barzahlung,
+      skontoProzent: _skontoProzent,
+      skontoTage: _skontoTage,
+      barzahlung: _barzahlung,
+      gericht: gericht,
+      gerichtsAktenzeichen: gerichtsAz,
+      klaeger: klaeger,
+      beklagter: beklagter,
     );
   }
 
@@ -706,6 +769,9 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
   String _pdfTitleFor(String typ) => switch (typ) {
         'jveg' => 'Rechnung gemäß JVEG',
+        'akonto' => 'Akontoanforderung',
+        'teilrechnung' => 'Abschlagsrechnung',
+        'schlussrechnung' => 'Schlussrechnung',
         'gutschrift' => 'Gutschrift',
         'korrektur' => 'Rechnungskorrektur',
         _ => 'Rechnung',
@@ -713,6 +779,9 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
   String _typLabel(String typ) => switch (typ) {
         'jveg' => 'JVEG-Rechnung (Gericht)',
+        'akonto' => 'Akontoanforderung',
+        'teilrechnung' => 'Teil-/Abschlagsrechnung',
+        'schlussrechnung' => 'Schlussrechnung',
         'gutschrift' => 'Gutschrift',
         'korrektur' => 'Rechnungskorrektur',
         _ => 'Privat-Rechnung',
@@ -720,8 +789,13 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
   @override
   Widget build(BuildContext context) {
+    final archiviert = widget.eintrag?.rechnung.pdfStorageUrl != null &&
+        widget.eintrag!.rechnung.pdfStorageUrl!.isNotEmpty;
+    final archivTitle = archiviert
+        ? 'Rechnung (festgeschrieben)'
+        : (_isEdit ? 'Rechnung bearbeiten' : 'Neue Rechnung');
     return StandardFormDialog(
-      title: _isEdit ? 'Rechnung bearbeiten' : 'Neue Rechnung',
+      title: archivTitle,
       saving: _saving,
       maxWidth: 1100,
       maxHeight: 900,
@@ -775,6 +849,33 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (archiviert) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lock_outline,
+                          color: Color(0xFFB45309), size: 18),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Beleg ist festgeschrieben — eine PDF-Version '
+                          'wurde archiviert und in die Akte-Dokumente '
+                          'gelegt. Änderungen sollten nur für Fehler '
+                          'erfolgen; erstelle sonst eine Korrektur-Rechnung.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
               // Reihe 1: Rechnungstyp · Auftrag · Status
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -923,6 +1024,29 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                   ),
                 ],
               ),
+              const SizedBox(height: 14),
+              _ZahlungszielAuswahl(
+                onApply: (vorlage) {
+                  setState(() {
+                    _zahlungsziel.text = vorlage.tage.toString();
+                    _faelligAm = (_rechnungsdatum ?? DateTime.now())
+                        .add(Duration(days: vorlage.tage));
+                    _skontoProzent = vorlage.skontoProzent;
+                    _skontoTage = vorlage.skontoTage;
+                    _barzahlung = vorlage.bar;
+                    _fuss.text = vorlage.text.trim();
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              if (_typ == 'akonto' ||
+                  _typ == 'teilrechnung' ||
+                  _typ == 'schlussrechnung')
+                _RechnungsTypHinweis(typ: _typ),
+              if (_typ == 'schlussrechnung' && _auftragId != null) ...[
+                const SizedBox(height: 12),
+                _SchlussrechnungAbzuege(auftragId: _auftragId!),
+              ],
               const SizedBox(height: 20),
               // Positionen mit Action-Chips (Honorar/JVEG/Artikel/+Position)
               PositionsEditor(
@@ -941,6 +1065,12 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                       icon: const Icon(Icons.account_balance, size: 16),
                       label: const Text('JVEG-Auslagen'),
                       onPressed: _jvegPreset,
+                    ),
+                  if (_typ == 'schlussrechnung' && _auftragId != null)
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.remove_circle_outline, size: 16),
+                      label: const Text('Abzüge übernehmen'),
+                      onPressed: () => _abzuegeInPositionenUebernehmen(),
                     ),
                   OutlinedButton.icon(
                     icon:
@@ -1062,4 +1192,266 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     }
     setState(() => _positionen = [..._positionen, ...neu]);
   }
+
+  /// Für Schlussrechnung: liest alle bezahlten Akonto- und alle offenen
+  /// Teilrechnungen dieses Auftrags und fügt sie als Abzugs-Positionen
+  /// (negative Beträge) am Ende der Positionen-Liste ein. Referenz-
+  /// Nummern werden in die Bezeichnung geschrieben.
+  Future<void> _abzuegeInPositionenUebernehmen() async {
+    if (_auftragId == null) return;
+    final db = ref.read(appDatabaseProvider);
+    final alle = await (db.select(db.rechnungen)
+          ..where((t) => t.auftragId.equals(_auftragId!))
+          ..where((t) => t.typ.isIn(const ['akonto', 'teilrechnung'])))
+        .get();
+    final relevant = alle.where((r) {
+      if (r.typ == 'teilrechnung') return r.status != 'storniert';
+      // Akonto: nur wenn bezahlt, sonst USt-technisch nicht relevant
+      return r.bezahltAm != null || r.status == 'bezahlt';
+    }).toList();
+
+    if (relevant.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Keine Teilrechnungen oder bezahlten Akontorechnungen gefunden.')));
+      }
+      return;
+    }
+
+    final df = DateFormat('dd.MM.yyyy', 'de');
+    final mf = NumberFormat.currency(
+        locale: 'de_DE', symbol: '€', decimalDigits: 2);
+
+    final abzuege = relevant.map((r) {
+      final nr = r.rechnungsnummer ?? '';
+      final datum =
+          r.rechnungsdatum == null ? '' : 'vom ${df.format(r.rechnungsdatum!)}';
+      final bezahlt =
+          r.bezahltAm == null ? '' : 'bezahlt am ${df.format(r.bezahltAm!)}';
+      final head = r.typ == 'akonto'
+          ? 'Akontoanforderung $nr'
+          : 'Teilrechnung $nr';
+      final parts = [head, datum, bezahlt]
+          .where((s) => s.isNotEmpty)
+          .join(' · ');
+      final langtext =
+          'Netto ${mf.format(r.netto)} · zzgl. USt ${r.ustSatz.toStringAsFixed(0)} % '
+          '${mf.format(r.ustBetrag)} = brutto ${mf.format(r.brutto)}';
+      return Position(
+        menge: 1,
+        bezeichnung: parts.trim(),
+        langtext: langtext,
+        einheit: 'Pauschal',
+        einzelpreis: -r.netto,
+        ustSatz: r.ustSatz,
+      );
+    }).toList();
+
+    setState(() => _positionen = [..._positionen, ...abzuege]);
+  }
+
 }
+
+/// Dropdown zur Auswahl einer Zahlungsziel-Vorlage. Beim Auswählen
+/// werden Zahlungsziel-Tage, Fälligkeitsdatum und Schlusstext auf
+/// dem aufrufenden Editor gesetzt (Callback).
+class _ZahlungszielAuswahl extends ConsumerWidget {
+  const _ZahlungszielAuswahl({required this.onApply});
+  final void Function(ZahlungszielVorlage) onApply;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(zahlungszielVorlagenProvider);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => Text('Zahlungsziel-Vorlagen: Fehler $e'),
+      data: (list) => LabeledField(
+        'Zahlungsbedingung (Vorlage übernehmen)',
+        DropdownButtonFormField<String>(
+          initialValue: null,
+          isDense: true,
+          hint: const Text('Vorlage wählen …'),
+          items: [
+            for (final v in list)
+              DropdownMenuItem(
+                value: v.key,
+                child: Text(v.label,
+                    overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: (key) {
+            if (key == null) return;
+            final v = list.firstWhere((x) => x.key == key,
+                orElse: () => list.first);
+            onApply(v);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Hinweis-Kachel beim Rechnungstyp „Akonto", „Teilrechnung" oder
+/// „Schlussrechnung". Erklärt die USt-Besonderheit und wie Aktenwerk das
+/// handhabt.
+class _RechnungsTypHinweis extends StatelessWidget {
+  const _RechnungsTypHinweis({required this.typ});
+  final String typ;
+
+  @override
+  Widget build(BuildContext context) {
+    final (titel, text, color) = _infoFuer(typ);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: color, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(titel,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
+                const SizedBox(height: 4),
+                Text(text, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (String, String, Color) _infoFuer(String typ) {
+    switch (typ) {
+      case 'akonto':
+        return (
+          'Akontoanforderung (Nummernkreis AZ{YYYY}-…)',
+          'Reine Zahlungsaufforderung — USt-Pflicht entsteht erst mit Zahlungseingang (Zufluss-/Istversteuerung §13 Abs. 1 Nr. 1 b UStG). Sobald die Anforderung bezahlt ist, trägt sie zur USt-Bemessungsgrundlage bei und wird in der Schlussrechnung als „Bezahlte Akontoanforderung …" abgezogen.',
+          const Color(0xFF7C3AED),
+        );
+      case 'teilrechnung':
+        return (
+          'Teil-/Abschlagsrechnung',
+          'USt-pflichtig mit Rechnungsdatum (Soll-Versteuerung §13 Abs. 1 Nr. 1 a UStG). Netto + USt werden sofort in der Voranmeldung geführt. Bezahlte Teilrechnungen werden in der Schlussrechnung als Abzug ausgewiesen.',
+          const Color(0xFF2563EB),
+        );
+      case 'schlussrechnung':
+        return (
+          'Schlussrechnung',
+          'Weist das volle Auftragshonorar aus und zieht alle vorangegangenen Teilrechnungen sowie bezahlten Akontorechnungen mit jeweiliger USt ab (§14 Abs. 5 UStG). Den Button „Abzüge übernehmen" klicken, um die Abzugs-Positionen automatisch anzulegen.',
+          const Color(0xFF059669),
+        );
+    }
+    return ('', '', const Color(0xFF475569));
+  }
+}
+
+/// Kleine Kachel, die die relevanten Akonto-/Teilrechnungen zur Akte
+/// in der Schlussrechnung auflistet — bevor sie als Positionen übernommen
+/// werden. So sieht der Nutzer, was Aktenwerk kennt.
+class _SchlussrechnungAbzuege extends ConsumerWidget {
+  const _SchlussrechnungAbzuege({required this.auftragId});
+  final int auftragId;
+
+  static final _money = NumberFormat.currency(
+      locale: "de_DE", symbol: "€", decimalDigits: 2);
+  static final _fmt = DateFormat("dd.MM.yyyy", "de");
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final db = ref.watch(appDatabaseProvider);
+    return FutureBuilder<List<RechnungenData>>(
+      future: (db.select(db.rechnungen)
+            ..where((t) => t.auftragId.equals(auftragId))
+            ..where((t) => t.typ.isIn(const ['akonto', 'teilrechnung'])))
+          .get(),
+      builder: (ctx, snap) {
+        final list = snap.data ?? const [];
+        if (list.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        double summe = 0;
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            border: Border.all(color: const Color(0xFF86EFAC)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text("Vorhandene Teil-/Akontorechnungen dieser Akte",
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              for (final r in list) ...[
+                Builder(builder: (_) {
+                  final bezahlt = r.bezahltAm != null || r.status == "bezahlt";
+                  final istAkonto = r.typ == "akonto";
+                  final relevant = istAkonto ? bezahlt : r.status != "storniert";
+                  if (relevant) summe += r.netto;
+                  return Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        Icon(
+                          relevant
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          size: 14,
+                          color: relevant
+                              ? const Color(0xFF059669)
+                              : const Color(0xFFB45309),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "${istAkonto ? "Akonto" : "Teilrg."} ${r.rechnungsnummer ?? ""} · ${r.rechnungsdatum == null ? "" : _fmt.format(r.rechnungsdatum!)} · ${bezahlt ? "bezahlt" : "offen"}",
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        Text(_money.format(r.netto),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+              const Divider(height: 14),
+              Row(
+                children: [
+                  const Expanded(
+                      child: Text("Summe abziehbar (netto)",
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700))),
+                  Text(_money.format(summe),
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+

@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/sync/wiedervorlagen_push.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
@@ -39,6 +42,22 @@ class WiedervorlagenScreen extends ConsumerWidget {
           title: 'Wiedervorlagen',
           subtitle: 'Aufgaben mit Fälligkeit pro Auftrag',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.notifications_outlined, size: 16),
+              label: const Text('Benachrichtigungen'),
+              onPressed: () async {
+                final svc =
+                    ref.read(wiedervorlagenPushServiceProvider);
+                final ok = await svc.requestPermission();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(ok
+                      ? 'Browser-Benachrichtigungen aktiviert.'
+                      : 'Benachrichtigungen wurden nicht erlaubt.'),
+                ));
+                if (ok) await svc.checkAndNotify();
+              },
+            ),
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neue Wiedervorlage'),
@@ -241,6 +260,8 @@ class _WiedervorlageFormState
   int? _auftragId;
   bool _erledigt = false;
   bool _saving = false;
+  String _wiederholung = 'keine';
+  List<_ChecklistItem> _checkliste = [];
 
   @override
   void initState() {
@@ -249,6 +270,10 @@ class _WiedervorlageFormState
     _prio = widget.eintrag?.eintrag.prioritaet ?? 'normal';
     _auftragId = widget.eintrag?.eintrag.auftragId;
     _erledigt = widget.eintrag?.eintrag.erledigt ?? false;
+    _wiederholung =
+        _rruleZuLabel(widget.eintrag?.eintrag.wiederholung);
+    _checkliste =
+        _ChecklistItem.parse(widget.eintrag?.eintrag.checklisteJson);
   }
 
   @override
@@ -274,6 +299,8 @@ class _WiedervorlageFormState
       auftragId: Value(_auftragId),
       erledigt: Value(_erledigt),
       erledigtAm: Value(_erledigt ? DateTime.now() : null),
+      wiederholung: Value(_labelZuRrule(_wiederholung)),
+      checklisteJson: Value(_ChecklistItem.encode(_checkliste)),
     );
     try {
       await ref.read(wiedervorlagenRepositoryProvider).upsert(companion);
@@ -290,6 +317,29 @@ class _WiedervorlageFormState
   Value<String?> _nt(TextEditingController c) {
     final v = c.text.trim();
     return Value(v.isEmpty ? null : v);
+  }
+
+  /// Mapping vom UI-Label zur iCal-RRULE-Kurzform.
+  String? _labelZuRrule(String label) {
+    switch (label) {
+      case 'taeglich':
+        return 'FREQ=DAILY';
+      case 'woechentlich':
+        return 'FREQ=WEEKLY';
+      case 'monatlich':
+        return 'FREQ=MONTHLY';
+      default:
+        return null;
+    }
+  }
+
+  String _rruleZuLabel(String? rrule) {
+    if (rrule == null || rrule.isEmpty) return 'keine';
+    final r = rrule.toUpperCase();
+    if (r.contains('FREQ=DAILY')) return 'taeglich';
+    if (r.contains('FREQ=WEEKLY')) return 'woechentlich';
+    if (r.contains('FREQ=MONTHLY')) return 'monatlich';
+    return 'keine';
   }
 
   @override
@@ -360,6 +410,78 @@ class _WiedervorlageFormState
                 onChanged: (id) => setState(() => _auftragId = id),
               ),
               const SizedBox(height: 12),
+              LabeledField(
+                'Wiederholung',
+                DropdownButtonFormField<String>(
+                  initialValue: _wiederholung,
+                  isDense: true,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'keine', child: Text('Einmalig')),
+                    DropdownMenuItem(
+                        value: 'taeglich', child: Text('Täglich')),
+                    DropdownMenuItem(
+                        value: 'woechentlich', child: Text('Wöchentlich')),
+                    DropdownMenuItem(
+                        value: 'monatlich', child: Text('Monatlich')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _wiederholung = v ?? 'keine'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Text('Checkliste',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Punkt'),
+                    onPressed: () => setState(() => _checkliste
+                        .add(_ChecklistItem(text: '', erledigt: false))),
+                  ),
+                ],
+              ),
+              if (_checkliste.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    '— keine Einträge —',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                )
+              else
+                for (var i = 0; i < _checkliste.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: _checkliste[i].erledigt,
+                          onChanged: (v) => setState(() =>
+                              _checkliste[i].erledigt = v ?? false),
+                        ),
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: _checkliste[i].text,
+                            onChanged: (v) => _checkliste[i].text = v,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              hintText: 'Prüfpunkt …',
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          onPressed: () =>
+                              setState(() => _checkliste.removeAt(i)),
+                        ),
+                      ],
+                    ),
+                  ),
+              const SizedBox(height: 12),
               Row(children: [
                 Checkbox(
                     value: _erledigt,
@@ -372,5 +494,36 @@ class _WiedervorlageFormState
         ),
       ),
     );
+  }
+}
+
+/// Einzelner Checklisten-Punkt in einer Wiedervorlage.
+class _ChecklistItem {
+  String text;
+  bool erledigt;
+  _ChecklistItem({required this.text, required this.erledigt});
+
+  static List<_ChecklistItem> parse(String? json) {
+    if (json == null || json.trim().isEmpty) return [];
+    try {
+      final list = jsonDecode(json);
+      if (list is! List) return [];
+      return list.whereType<Map>().map((m) {
+        return _ChecklistItem(
+          text: m['text']?.toString() ?? '',
+          erledigt: m['erledigt'] == true,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static String? encode(List<_ChecklistItem> items) {
+    if (items.isEmpty) return null;
+    return jsonEncode(items
+        .where((i) => i.text.trim().isNotEmpty)
+        .map((i) => {'text': i.text, 'erledigt': i.erledigt})
+        .toList());
   }
 }

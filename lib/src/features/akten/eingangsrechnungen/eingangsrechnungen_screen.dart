@@ -1,9 +1,12 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
+import '../../../core/ai/beleg_extraktion_service.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/sync/storage_service.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/lieferanten/lieferanten_repository.dart';
 import '../../../features/system/konten/konto_picker.dart';
@@ -12,6 +15,7 @@ import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/file_upload_section.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import 'beleg_bulk_dialog.dart';
 import 'eingangsrechnungen_repository.dart';
 import 'sepa_export.dart';
 import 'skr_kategorien.dart';
@@ -77,6 +81,15 @@ class EingangsrechnungenScreen extends ConsumerWidget {
           title: 'Eingangsrechnungen',
           subtitle: 'Lieferantenrechnungen, Kategorien, Fälligkeiten',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              label: const Text('KI-Belegerfassung (Massen)'),
+              onPressed: () => showDialog(
+                context: context,
+                useRootNavigator: true,
+                builder: (_) => const BelegBulkDialog(),
+              ),
+            ),
             OutlinedButton.icon(
               icon: const Icon(Icons.account_balance, size: 16),
               label: const Text('SEPA-Sammelüberweisung'),
@@ -184,6 +197,10 @@ class EingangsrechnungenScreen extends ConsumerWidget {
                                     .surfaceContainerHighest,
                               ),
                               columns: const [
+                                DataColumn(
+                                    label: Tooltip(
+                                        message: 'Geprüft',
+                                        child: Icon(Icons.verified, size: 16))),
                                 DataColumn(label: Text('Beleg-Nr.')),
                                 DataColumn(label: Text('Datum')),
                                 DataColumn(label: Text('Lieferant')),
@@ -219,9 +236,34 @@ class EingangsrechnungenScreen extends ConsumerWidget {
       EingangsrechnungWithAuftrag e) {
     final r = e.rechnung;
     final kat = skrByKey(r.kategorie);
+    // Ungeprüfte KI-Datensätze bekommen einen warmen Hintergrund, damit
+    // der SV sie sofort als „bitte prüfen" erkennt.
+    final ungeprueft = !r.geprueft;
     return DataRow(
+      color: ungeprueft
+          ? WidgetStateProperty.all(const Color(0xFFFFF7ED)) // amber-50
+          : null,
       onSelectChanged: (_) => _show(context, ref, e),
       cells: [
+        DataCell(Tooltip(
+          message: r.geprueft
+              ? 'Manuell geprüft'
+              : 'Noch nicht geprüft — Klick zum Freigeben',
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            iconSize: 20,
+            icon: Icon(
+              r.geprueft ? Icons.check_circle : Icons.circle_outlined,
+              color: r.geprueft
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFFEA580C),
+            ),
+            onPressed: () => ref
+                .read(eingangsrechnungenRepositoryProvider)
+                .setGeprueft(r.id, !r.geprueft),
+          ),
+        )),
         DataCell(Text(r.rechnungsnummer ?? '',
             style: const TextStyle(
                 fontFamily: 'monospace', fontSize: 12))),
@@ -346,6 +388,89 @@ class _EingangsrechnungFormState
   late final _notiz = _tec(widget.eintrag?.rechnung.notiz);
 
   bool _saving = false;
+  bool _kiLaeuft = false;
+
+  /// Lädt das erste verfügbare Beleg-PDF/Bild via HTTP, schickt es an
+  /// Gemini zur Extraktion und befüllt die Form-Felder mit dem, was
+  /// zurückkommt. Schon ausgefüllte Felder bleiben unverändert —
+  /// überschreibt werden nur leere / Null-Werte.
+  Future<void> _felderAusKiFuellen() async {
+    final firstUrl = _belege.isNotEmpty ? _belege.first.storageUrl : null;
+    if (firstUrl == null || firstUrl.isEmpty) return;
+
+    setState(() => _kiLaeuft = true);
+    try {
+      // Firebase Storage Download-URL ist bereits signiert — mit
+      // einfachem http.get holen.
+      final resp = await http.get(Uri.parse(firstUrl));
+      if (resp.statusCode != 200) {
+        throw Exception('HTTP ${resp.statusCode}');
+      }
+      final bytes = resp.bodyBytes;
+      final mime = _belege.first.mimeType ?? 'application/pdf';
+      final extr = await extrahiereBeleg(
+          ref: ref, bytes: bytes, mimeType: mime);
+
+      setState(() {
+        if ((_nr.text).isEmpty && extr.rechnungsnummer != null) {
+          _nr.text = extr.rechnungsnummer!;
+        }
+        if (_rechnungsdatum == null && extr.rechnungsdatum != null) {
+          _rechnungsdatum = extr.rechnungsdatum;
+        }
+        if (_leistungsdatum == null && extr.leistungsdatum != null) {
+          _leistungsdatum = extr.leistungsdatum;
+        }
+        if (_faelligAm == null && extr.faelligkeitsdatum != null) {
+          _faelligAm = extr.faelligkeitsdatum;
+        }
+        if (_lieferantName.text.isEmpty && extr.lieferantName != null) {
+          _lieferantName.text = extr.lieferantName!;
+        }
+        if (_lieferantStrasse.text.isEmpty &&
+            extr.lieferantStrasse != null) {
+          _lieferantStrasse.text = extr.lieferantStrasse!;
+        }
+        if (_lieferantPlz.text.isEmpty && extr.lieferantPlz != null) {
+          _lieferantPlz.text = extr.lieferantPlz!;
+        }
+        if (_lieferantOrt.text.isEmpty && extr.lieferantOrt != null) {
+          _lieferantOrt.text = extr.lieferantOrt!;
+        }
+        if (_lieferantUstId.text.isEmpty &&
+            extr.lieferantUstId != null) {
+          _lieferantUstId.text = extr.lieferantUstId!;
+        }
+        if (_netto.text.isEmpty && extr.netto != null) {
+          _netto.text = extr.netto!.toStringAsFixed(2);
+        }
+        if ((_ustSatz.text.isEmpty ||
+                double.tryParse(_ustSatz.text.replaceAll(',', '.')) ==
+                    19) &&
+            extr.ustSatz != null &&
+            extr.ustSatz! >= 0) {
+          _ustSatz.text = extr.ustSatz!.toStringAsFixed(0);
+        }
+        if (_brutto.text.isEmpty && extr.brutto != null) {
+          _brutto.text = extr.brutto!.toStringAsFixed(2);
+        }
+        if (extr.zahlungsweise != null &&
+            extr.zahlungsweise!.isNotEmpty) {
+          _zahlungsweise = extr.zahlungsweise!;
+        }
+        if (_beschreibung.text.isEmpty && extr.beschreibung != null) {
+          _beschreibung.text = extr.beschreibung!;
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('KI-Extraktion fehlgeschlagen: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _kiLaeuft = false);
+    }
+  }
   List<UploadedFile> _belege = [];
 
   TextEditingController _tec(String? v) =>
@@ -469,6 +594,8 @@ class _EingangsrechnungFormState
       belegPfad: _nt(_belegPfad),
       belegeJson: Value(_belege.isEmpty ? null : encodeUploadedFiles(_belege)),
       notiz: _nt(_notiz),
+      // Manuelles Speichern bestätigt die Werte — als geprüft markieren.
+      geprueft: const Value(true),
     );
     try {
       await ref
@@ -675,6 +802,8 @@ class _EingangsrechnungFormState
                             value: 'kreditkarte', child: Text('Kreditkarte')),
                         DropdownMenuItem(
                             value: 'paypal', child: Text('PayPal')),
+                        DropdownMenuItem(
+                            value: 'bar', child: Text('Bar')),
                       ],
                       onChanged: (v) =>
                           setState(() => _zahlungsweise = v ?? 'ueberweisung'),
@@ -741,6 +870,26 @@ class _EingangsrechnungFormState
                   hint:
                       'PDF oder Foto der Original-Rechnung. Mehrere Seiten möglich.',
                   onChanged: (list) => setState(() => _belege = list),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    icon: _kiLaeuft
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 16),
+                    label: Text(_kiLaeuft
+                        ? 'KI liest Beleg …'
+                        : 'Felder per KI aus erstem Beleg ausfüllen'),
+                    onPressed: (_belege.isEmpty || _kiLaeuft)
+                        ? null
+                        : _felderAusKiFuellen,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 LabeledField(

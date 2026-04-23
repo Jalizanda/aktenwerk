@@ -11,6 +11,12 @@ import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/storage_service.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:web/web.dart' as web;
+
+import 'normen_chat_dialog.dart';
+import 'normen_import.dart';
+import 'normen_pdf_bulk_dialog.dart';
 import 'normen_repository.dart';
 
 class NormenScreen extends ConsumerWidget {
@@ -31,6 +37,25 @@ class NormenScreen extends ConsumerWidget {
           title: 'Normen',
           subtitle: 'Normen-, Richtlinien- & Gesetze-Katalog',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.psychology_alt_outlined, size: 18),
+              label: const Text('KI-Frage stellen'),
+              onPressed: () => _oeffneKiChat(context),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.upload_file_outlined, size: 18),
+              label: const Text('JSON-Import'),
+              onPressed: () => _importJson(context, ref),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+              label: const Text('PDFs-Massen-Upload'),
+              onPressed: () => showDialog(
+                context: context,
+                useRootNavigator: true,
+                builder: (_) => const NormenPdfBulkDialog(),
+              ),
+            ),
             OutlinedButton.icon(
               icon: const Icon(Icons.fact_check_outlined, size: 18),
               label: const Text('Aktualität prüfen'),
@@ -56,6 +81,64 @@ class NormenScreen extends ConsumerWidget {
               ),
               const Text('Nur Favoriten'),
             ]),
+            Consumer(builder: (_, ref, _) {
+              final gewerkeAsync = ref.watch(normenGewerkeProvider);
+              final gewerke = gewerkeAsync.valueOrNull ?? const <String>[];
+              if (gewerke.isEmpty) return const SizedBox.shrink();
+              return DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: filter.gewerk,
+                  hint: const Text('Alle Gewerke'),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                        value: null, child: Text('Alle Gewerke')),
+                    for (final g in gewerke)
+                      DropdownMenuItem<String?>(value: g, child: Text(g)),
+                  ],
+                  onChanged: (v) => ref
+                      .read(normenFilterProvider.notifier)
+                      .update((f) => f.copyWith(gewerkOverride: v)),
+                ),
+              );
+            }),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: filter.kategorie,
+                hint: const Text('Alle Kategorien'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('Alle Kategorien')),
+                  for (final k in normKategorien)
+                    DropdownMenuItem<String?>(value: k, child: Text(k)),
+                ],
+                onChanged: (v) => ref
+                    .read(normenFilterProvider.notifier)
+                    .update((f) => f.copyWith(kategorieOverride: v)),
+              ),
+            ),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: filter.aktualitaetStatus,
+                hint: const Text('Jeder Status'),
+                items: const [
+                  DropdownMenuItem<String?>(
+                      value: null, child: Text('Jeder Status')),
+                  DropdownMenuItem<String?>(
+                      value: 'aktuell',
+                      child: Text('Nur aktuelle')),
+                  DropdownMenuItem<String?>(
+                      value: 'veraltet',
+                      child: Text('Nur veraltete')),
+                  DropdownMenuItem<String?>(
+                      value: '_unbekannt_oder_leer',
+                      child: Text('Nicht geprüft / unbekannt')),
+                ],
+                onChanged: (v) => ref
+                    .read(normenFilterProvider.notifier)
+                    .update((f) =>
+                        f.copyWith(aktualitaetStatusOverride: v)),
+              ),
+            ),
           ],
         ),
         const Divider(height: 1),
@@ -115,6 +198,95 @@ class NormenScreen extends ConsumerWidget {
         context: context,
         useRootNavigator: true,
         builder: (_) => _NormForm(norm: n));
+  }
+
+  /// Öffnet den KI-Normen-Chat in einem eigenen Browser-Tab/Fenster
+  /// (Web). Auf anderen Plattformen fallen wir auf einen normalen
+  /// Dialog zurück, damit's dort nicht hart fehlschlägt.
+  void _oeffneKiChat(BuildContext context) {
+    if (kIsWeb) {
+      // Eigenes Fenster — Aktenwerk bleibt parallel bedienbar.
+      web.window.open(
+        '${web.window.location.origin}/normen/chat',
+        'aktenwerk_ki_chat',
+        'popup=yes,width=900,height=760,resizable=yes,scrollbars=yes',
+      );
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => const NormenChatDialog(),
+    );
+  }
+
+  Future<void> _importJson(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Normen aus JSON importieren?'),
+        content: const Text(
+          'Wähle eine JSON-Datei mit Normen aus. Normen, deren Nummer '
+          'bereits im Katalog vorhanden ist, werden aktualisiert — neue '
+          'werden hinzugefügt. Deine auftragsspezifischen Normen '
+          'bleiben unverändert.\n\n'
+          'Erwartete Felder je Eintrag: "Nummer / Kennung", "Titel", '
+          '"Ausgabe / Version", "Kategorie", "Art", "Herausgeber", '
+          '"Relevanz", "Zusammenfassung / Kernaussage", '
+          '"Zitat / Keywords / Meta-Tags", "Beschreibung / Gewerke".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.file_open, size: 16),
+            label: const Text('Datei wählen …'),
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+      withData: true,
+    );
+    if (res == null || res.files.isEmpty) return;
+    final bytes = res.files.first.bytes;
+    if (bytes == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Datei konnte nicht gelesen werden.')));
+      }
+      return;
+    }
+
+    try {
+      final report = await importiereNormenJson(ref, bytes);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${report.neu} neu · ${report.aktualisiert} aktualisiert'
+              '${report.uebersprungen > 0 ? " · ${report.uebersprungen} übersprungen" : ""}',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import fehlgeschlagen: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirm(
@@ -208,6 +380,7 @@ class _NormenTabelle extends StatelessWidget {
                     DataColumn(label: Text('Nummer')),
                     DataColumn(label: Text('Ausgabe')),
                     DataColumn(label: Text('Titel')),
+                    DataColumn(label: Text('Gewerk')),
                     DataColumn(label: Text('Kategorie')),
                     DataColumn(label: Text('Aktualität')),
                     DataColumn(label: SizedBox(width: 28, child: Text(''))),
@@ -243,6 +416,15 @@ class _NormenTabelle extends StatelessWidget {
                             width: 380,
                             child: Text(
                               n.titel ?? '—',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          )),
+                          DataCell(SizedBox(
+                            width: 160,
+                            child: Text(
+                              n.gewerk ?? '—',
+                              style: const TextStyle(fontSize: 12),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -614,6 +796,8 @@ class _NormFormState extends ConsumerState<_NormForm> {
       TextEditingController(text: widget.norm?.zitat ?? '');
   late final _beschreibung =
       TextEditingController(text: widget.norm?.beschreibung ?? '');
+  late final _gewerk =
+      TextEditingController(text: widget.norm?.gewerk ?? '');
   late final _aktQuelle =
       TextEditingController(text: widget.norm?.aktualitaetQuelle ?? '');
   late final _aktNotiz =
@@ -668,7 +852,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
   void dispose() {
     for (final c in [
       _nr, _titel, _ausgabe, _herausgeber,
-      _zusammenfassung, _zitat, _beschreibung,
+      _zusammenfassung, _zitat, _beschreibung, _gewerk,
       _aktQuelle, _aktNotiz,
     ]) {
       c.dispose();
@@ -752,6 +936,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
       zusammenfassung: _nt(_zusammenfassung),
       zitat: _nt(_zitat),
       beschreibung: _nt(_beschreibung),
+      gewerk: _nt(_gewerk),
       aktiv: Value(_aktiv),
       favorit: Value(_favorit),
       pdfStorageUrl: Value(_pdfStorageUrl),
@@ -901,6 +1086,16 @@ class _NormFormState extends ConsumerState<_NormForm> {
                     controller: _beschreibung,
                     minLines: 2,
                     maxLines: 5),
+              ),
+              const SizedBox(height: 12),
+              LabeledField(
+                'Gewerk (primär)',
+                TextFormField(
+                  controller: _gewerk,
+                  decoration: const InputDecoration(
+                    hintText: 'z. B. Fenster/Türen, Abdichtung, Schallschutz/Akustik',
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               const Divider(),

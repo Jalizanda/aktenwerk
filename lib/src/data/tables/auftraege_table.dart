@@ -72,6 +72,10 @@ class Auftraege extends Table {
   TextColumn get richterAnrede => text().nullable()();
   TextColumn get richterBriefanrede => text().nullable()();
 
+  /// Streitparteien im gerichtlichen Verfahren.
+  TextColumn get klaeger => text().nullable()();
+  TextColumn get beklagter => text().nullable()();
+
   TextColumn get beteiligteJson => text().nullable()();
 
   /// Aufgaben-Array: `[{"text":"…","done":false,"doneAt":null}]`.

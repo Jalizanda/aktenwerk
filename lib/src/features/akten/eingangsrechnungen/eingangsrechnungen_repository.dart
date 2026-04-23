@@ -54,6 +54,17 @@ class EingangsrechnungenRepository {
   Future<int> delete(int id) => (_db.delete(_db.eingangsrechnungen)
         ..where((t) => t.id.equals(id)))
       .go();
+
+  /// Markiert einen Datensatz als geprüft / wieder als ungeprüft.
+  /// Wird vom Listen-Haken und vom Form-Speichern aufgerufen.
+  Future<void> setGeprueft(int id, bool value) async {
+    await (_db.update(_db.eingangsrechnungen)
+          ..where((t) => t.id.equals(id)))
+        .write(EingangsrechnungenCompanion(
+      geprueft: Value(value),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
 }
 
 final eingangsrechnungenRepositoryProvider =

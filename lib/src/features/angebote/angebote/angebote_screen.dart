@@ -465,6 +465,11 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 
   bool get _isEdit => widget.eintrag != null;
 
+  /// true, wenn dieses „Angebot"-Objekt eigentlich eine Auftragsbestätigung
+  /// ist (Status `auftragsbestaetigung`). Dann wird der PDF-Typ AB gedruckt
+  /// und der Button „→ Auftragsbestätigung" entfällt.
+  bool get _istAb => _status == 'auftragsbestaetigung';
+
   Future<void> _save({bool close = true}) async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -571,6 +576,88 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     await previewDocumentPdf(await _buildPdfData(alsAb: alsAb));
   }
 
+  /// Wandelt das Angebot in eine Auftragsbestätigung (AB) um. Legt ein
+  /// neues Angebot-Objekt mit `status=auftragsbestaetigung` und einer
+  /// AB-Nummer aus dem eigenen Nummernkreis an (Default AB{YYYY}-{NNN}).
+  Future<void> _convertToAb() async {
+    if (!_isEdit) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Auftragsbestätigung anlegen?'),
+        content: const Text(
+            'Es wird eine neue Auftragsbestätigung (eigener Nummernkreis, '
+            'z.B. AB2026-001) mit den Positionen und Beträgen dieses Angebots '
+            'erzeugt. Das Angebot bleibt unverändert. Aus der AB heraus kannst '
+            'du später eine Rechnung erstellen.'),
+        actions: [
+          TextButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(true),
+              child: const Text('AB anlegen')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final workflow = ref.read(dokumentWorkflowProvider);
+    final abId = await workflow.angebotToAb(widget.eintrag!.angebot);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Auftragsbestätigung #$abId angelegt')));
+      Navigator.of(context, rootNavigator: true).pop(true);
+    }
+  }
+
+  /// Legt aus diesem Angebot eine neue Akte (AW-Nummer) an, wenn noch keine
+  /// zugeordnet ist.
+  Future<void> _akteAnlegen() async {
+    if (!_isEdit) return;
+    final a = widget.eintrag!.angebot;
+    if (a.auftragId != null) return;
+    if (a.kundeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Angebot hat keinen Auftraggeber.')));
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Akte anlegen?'),
+        content: const Text(
+            'Es wird eine neue Akte (AW-Nummer) aus diesem Angebot '
+            'erzeugt. Das Angebot wird auf „Angenommen" gesetzt.'),
+        actions: [
+          TextButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(true),
+              child: const Text('Akte anlegen')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final workflow = ref.read(dokumentWorkflowProvider);
+    await ref.read(angeboteRepositoryProvider).upsert(AngeboteCompanion(
+          id: Value(a.id),
+          status: const Value('angenommen'),
+        ));
+    final auftragId = await workflow.angebotToAuftrag(a);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Akte #$auftragId angelegt — im Akten-Modul bearbeiten.')));
+      Navigator.of(context, rootNavigator: true).pop(true);
+    }
+  }
+
   Future<void> _convertToRechnung() async {
     if (!_isEdit) return;
     final ok = await showDialog<bool>(
@@ -636,37 +723,83 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
               .read(angeboteRepositoryProvider)
               .delete(widget.eintrag!.angebot.id)
           : null,
-      footerLeading: Wrap(
-        spacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      footerLeading: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           OutlinedButton.icon(
             icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-            label: const Text('Angebot drucken'),
-            onPressed: () => _previewPdf(alsAb: false),
+            label: const Text('Drucken'),
+            onPressed: () => _previewPdf(alsAb: _istAb),
           ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.assignment_turned_in_outlined, size: 16),
-            label: const Text('Auftragsbestätigung'),
-            onPressed: () => _previewPdf(alsAb: true),
-          ),
+          const SizedBox(width: 6),
           if (_isEdit)
             OutlinedButton.icon(
               icon: const Icon(Icons.cloud_upload_outlined, size: 16),
-              label: const Text('PDF archivieren'),
+              label: const Text('Archivieren'),
               onPressed: _archivePdfFromDialog,
             ),
+          if (_isEdit) const SizedBox(width: 6),
           if (_isEdit)
-            OutlinedButton.icon(
-              icon: const Icon(Icons.receipt_long_outlined, size: 16),
-              label: const Text('→ Rechnung erstellen'),
-              onPressed: _convertToRechnung,
-            ),
-          if (_isEdit)
-            _InAuftragUmwandelnButton(
-              angebot: widget.eintrag!,
-              onDone: () =>
-                  Navigator.of(context, rootNavigator: true).pop(true),
+            PopupMenuButton<String>(
+              tooltip: 'Weiterer Schritt',
+              position: PopupMenuPosition.under,
+              onSelected: (value) async {
+                switch (value) {
+                  case 'ab':
+                    await _convertToAb();
+                  case 'rechnung':
+                    await _convertToRechnung();
+                  case 'akte':
+                    await _akteAnlegen();
+                }
+              },
+              itemBuilder: (_) => [
+                if (!_istAb)
+                  const PopupMenuItem(
+                    value: 'ab',
+                    child: Row(children: [
+                      Icon(Icons.assignment_turned_in_outlined, size: 16),
+                      SizedBox(width: 8),
+                      Text('→ Auftragsbestätigung'),
+                    ]),
+                  ),
+                const PopupMenuItem(
+                  value: 'rechnung',
+                  child: Row(children: [
+                    Icon(Icons.receipt_long_outlined, size: 16),
+                    SizedBox(width: 8),
+                    Text('→ Rechnung'),
+                  ]),
+                ),
+                if (widget.eintrag!.angebot.auftragId == null)
+                  const PopupMenuItem(
+                    value: 'akte',
+                    child: Row(children: [
+                      Icon(Icons.folder_open_outlined, size: 16),
+                      SizedBox(width: 8),
+                      Text('→ Akte anlegen'),
+                    ]),
+                  ),
+              ],
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.forward, size: 16),
+                    SizedBox(width: 6),
+                    Text('Weiter zu …'),
+                    SizedBox(width: 2),
+                    Icon(Icons.arrow_drop_down, size: 18),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
@@ -852,79 +985,3 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 }
 
 /// Erstellt aus einem angenommenen Angebot einen neuen Auftrag.
-/// Setzt den Angebotsstatus auf „angenommen".
-class _InAuftragUmwandelnButton extends ConsumerWidget {
-  const _InAuftragUmwandelnButton(
-      {required this.angebot, required this.onDone});
-  final AngebotWithKunde angebot;
-  final VoidCallback onDone;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final workflow = ref.read(dokumentWorkflowProvider);
-    return FutureBuilder<bool>(
-      future: workflow.hatKundeAuftrag(angebot.angebot.kundeId),
-      builder: (ctx, snap) {
-        final hatAuftrag = snap.data == true;
-        final label = hatAuftrag
-            ? '→ Weiteren Auftrag anlegen'
-            : '→ In Auftrag umwandeln';
-        return OutlinedButton.icon(
-          icon: const Icon(Icons.assignment_outlined),
-          label: Text(label),
-          onPressed: () async {
-            if (angebot.angebot.kundeId == null) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Angebot hat keinen Auftraggeber.')));
-              return;
-            }
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: Text(hatAuftrag
-                    ? 'Weiteren Auftrag anlegen?'
-                    : 'In Auftrag umwandeln?'),
-                content: Text(hatAuftrag
-                    ? 'Für diesen Kunden existiert bereits ein Auftrag. '
-                        'Ein zusätzlicher Auftrag wird aus diesem Angebot erzeugt.'
-                    : 'Es wird ein neuer Auftrag aus diesem Angebot erzeugt. '
-                        'Das Angebot wird auf „Angenommen" gesetzt.'),
-                actions: [
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(false),
-                    child: const Text('Abbrechen'),
-                  ),
-                  FilledButton(
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(true),
-                    child: Text(hatAuftrag ? 'Anlegen' : 'Umwandeln'),
-                  ),
-                ],
-              ),
-            );
-            if (ok != true) return;
-
-            final db = ref.read(angeboteRepositoryProvider);
-            final a = angebot.angebot;
-            // Status aktualisieren.
-            await db.upsert(AngeboteCompanion(
-              id: Value(a.id),
-              status: const Value('angenommen'),
-            ));
-            // Neuen Auftrag über Workflow-Service anlegen.
-            final auftragId = await workflow.angebotToAuftrag(a);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(
-                        'Auftrag #$auftragId angelegt — im Aufträge-Modul bearbeiten.')),
-              );
-              onDone();
-            }
-          },
-        );
-      },
-    );
-  }
-}

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/auth/user_approval_service.dart';
 import '../../features/system/einstellungen/einstellungen_repository.dart';
@@ -9,17 +10,18 @@ import '../database/database_provider.dart';
 import '../sync/org_service.dart';
 import 'demo_seed.dart';
 
-/// Wächter, der den Demo-Seed automatisch einmal lädt, wenn:
-///   1) der aktive Mandant der Demo-Mandant ist, UND
-///   2) die lokale Drift-DB (im Browser: IndexedDB) leer ist.
+/// Wächter, der beim Mandanten-Wechsel stille Aufräumarbeiten erledigt
+/// (Einstellungen pullen, DATEV-Konten, Debitor-Nummern) und — und NUR
+/// dann — den Demo-Seed einmalig lädt:
+///   1) der aktive Mandant der Demo-Mandant ist,
+///   2) die lokale Drift-DB komplett leer ist,
+///   3) der Demo-Seed für diesen Mandanten noch nie gelaufen ist.
 ///
-/// Hintergrund: Bei einem Schema-Upgrade werden neue Spalten ergänzt, die
-/// Daten bleiben grundsätzlich erhalten (echte Migration statt Drop-All).
-/// Falls aber nach einem früheren Deploy Daten verloren gingen oder der
-/// User frisch im Browser ist, sorgt dieser Provider dafür, dass der
-/// Demo-Mandant sofort wieder mit Beispieldaten befüllt ist.
+/// Punkt 3 ist wichtig, damit ein User, der seine Demo-Daten absichtlich
+/// gelöscht hat, nicht beim nächsten Mandanten-Wechsel wieder mit den
+/// Demo-Daten überschrieben wird. Und natürlich: Im Produktiv-Mandanten
+/// wird NIE auto-geseeded — das würde echte Kunden-Daten ruinieren.
 final demoAutoReseedProvider = Provider<void>((ref) {
-  // Provider wird beim App-Start initialisiert (kein Build-Cycle nötig).
   ref.listen<AsyncValue<String?>>(currentOrgIdProvider, (prev, next) async {
     final orgId = next.valueOrNull;
     if (orgId == null) return;
@@ -32,14 +34,23 @@ final demoAutoReseedProvider = Provider<void>((ref) {
           .pullFromFirestore();
     } catch (_) {}
 
-    // 2) Demo-Daten nachladen, wenn der Demo-Mandant aktiv und die lokale
-    //    DB noch leer ist.
+    // 2) Demo-Seed NUR im Demo-Mandanten, und nur ein einziges Mal pro
+    //    Browser/Session. Produktiv-Mandanten werden NIEMALS auto-geseeded.
     if (orgId == UserApprovalService.demoOrgId) {
-      final db = ref.read(appDatabaseProvider);
-      if (await _istDbLeer(db)) {
-        try {
-          await ref.read(demoSeederProvider).loadAll();
-        } catch (_) {}
+      final prefs = await SharedPreferences.getInstance();
+      final flag = 'demo_seeded_for_${orgId}_v1';
+      if (!(prefs.getBool(flag) ?? false)) {
+        final db = ref.read(appDatabaseProvider);
+        if (await _istDbLeer(db)) {
+          try {
+            await ref.read(demoSeederProvider).loadAll();
+            await prefs.setBool(flag, true);
+          } catch (_) {}
+        } else {
+          // DB hat bereits Daten (z.B. nach manuellem Backup-Import) —
+          // flag trotzdem setzen, damit wir nicht später doch noch seeden.
+          await prefs.setBool(flag, true);
+        }
       }
     }
 

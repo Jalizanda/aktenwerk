@@ -11,6 +11,11 @@ class Fotos extends Table {
   IntColumn get gutachtenId =>
       integer().nullable().references(Gutachten, #id, onDelete: KeyAction.setNull)();
 
+  /// Optionaler Abschnitts-Schlüssel (z. B. "objektbeschreibung") — ordnet
+  /// das Foto einem Gutachten-Block zu. NULL → Foto erscheint nur in der
+  /// allgemeinen Lichtbildanlage am Ende.
+  TextColumn get gutachtenAbschnitt => text().nullable()();
+
   TextColumn get titel => text().nullable()();
   /// Raum- oder Ortszuordnung im Objekt (z. B. "Schlafzimmer OG", "Fassade Ost").
   TextColumn get raum => text().nullable()();

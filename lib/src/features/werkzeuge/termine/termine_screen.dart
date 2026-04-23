@@ -77,9 +77,10 @@ class TermineScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ModuleHeader(
-          icon: Icons.event_outlined,
-          title: 'Termine',
-          subtitle: 'Kalender, Fristen und Wiedervorlagen',
+          icon: Icons.calendar_month_outlined,
+          title: 'Kalender',
+          subtitle:
+              'Ortstermine, Fristen, Erläuterungstermine und Wiedervorlagen',
           searchHint: 'Suche Titel, Akte, Ort …',
           onSearchChanged: (v) =>
               ref.read(_termineQueryProvider.notifier).state = v,

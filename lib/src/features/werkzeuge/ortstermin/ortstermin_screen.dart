@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/ai/audio_transkript_service.dart';
+import '../../../core/ai/rechtschreibung_service.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../data/sync/auth_service.dart';
@@ -55,6 +57,17 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   int? _auftragId;
   final _notizController = TextEditingController();
   final List<_NotizEintrag> _eintraege = [];
+
+  /// Fortlaufender Zähler für die Audio-Nummerierung in den Transkript-
+  /// Titeln ("Transkript von Audio-Aufnahme 1" etc.).
+  int _audioCounter = 0;
+
+  /// Blockiert den Notiz-Speichern-Button während die KI-Korrektur läuft.
+  bool _notizKiLaeuft = false;
+
+  /// Menge der gerade transkribierten Audios (für Spinner-Anzeige in der
+  /// Journal-Zeile), geschlüsselt auf den Entry-Zeitstempel.
+  final Set<DateTime> _transkribiereLaeuft = {};
 
   @override
   void dispose() {
@@ -225,12 +238,26 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     );
   }
 
-  void _notizSpeichern() {
+  Future<void> _notizSpeichern() async {
     final text = _notizController.text.trim();
     if (text.isEmpty) return;
+
+    // Klartext sofort wegsichern, KI kann er später ersetzen.
+    setState(() => _notizKiLaeuft = true);
+    String korrigiert = text;
+    try {
+      korrigiert = await kiAnwenden(ref, text, KiModus.korrektur)
+          .timeout(const Duration(seconds: 10), onTimeout: () => text);
+    } catch (_) {
+      // KI-Fehler dürfen das Speichern nicht blockieren — Originaltext nehmen.
+      korrigiert = text;
+    }
+    if (!mounted) return;
     setState(() {
-      _eintraege.insert(0, _NotizEintrag(zeit: DateTime.now(), text: text));
+      _eintraege.insert(
+          0, _NotizEintrag(zeit: DateTime.now(), text: korrigiert));
       _notizController.clear();
+      _notizKiLaeuft = false;
     });
   }
 
@@ -259,8 +286,9 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   }
 
   Future<void> _audioHinzufuegen() async {
-    // Web: MediaRecorder der Plattform wird über Dialog genutzt.
-    // Desktop/Android/iOS: File-Picker als Fallback.
+    Uint8List? audioBytes;
+    String audioMime = 'audio/webm';
+
     if (kIsWeb) {
       final result = await showDialog<_AudioErgebnis?>(
         context: context,
@@ -268,34 +296,71 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
         builder: (_) => const _WebAudioDialog(),
       );
       if (result == null) return;
-      setState(() {
-        _eintraege.insert(
-            0,
-            _NotizEintrag(
-              zeit: DateTime.now(),
-              audioBytes: result.bytes,
-              audioMime: result.mime,
-            ));
-      });
-      return;
+      audioBytes = result.bytes;
+      audioMime = result.mime;
+    } else {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.audio,
+        withData: true,
+      );
+      if (res == null || res.files.isEmpty) return;
+      final f = res.files.first;
+      if (f.bytes == null) return;
+      audioBytes = f.bytes!;
     }
-    // Fallback: Datei wählen.
-    final res = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-      withData: true,
-    );
-    if (res == null || res.files.isEmpty) return;
-    final f = res.files.first;
-    if (f.bytes == null) return;
+
+    // Audio-Eintrag sofort sichtbar machen.
+    final audioZeit = DateTime.now();
+    _audioCounter += 1;
+    final aufnahmeNummer = _audioCounter;
     setState(() {
       _eintraege.insert(
           0,
           _NotizEintrag(
-            zeit: DateTime.now(),
-            audioBytes: f.bytes,
-            audioMime: 'audio/webm',
+            zeit: audioZeit,
+            audioBytes: audioBytes,
+            audioMime: audioMime,
           ));
+      _transkribiereLaeuft.add(audioZeit);
     });
+
+    // Transkription läuft im Hintergrund — Nutzer kann weiterarbeiten.
+    _transkribiereImHintergrund(
+      bytes: audioBytes,
+      mime: audioMime,
+      audioZeit: audioZeit,
+      nummer: aufnahmeNummer,
+    );
+  }
+
+  Future<void> _transkribiereImHintergrund({
+    required Uint8List bytes,
+    required String mime,
+    required DateTime audioZeit,
+    required int nummer,
+  }) async {
+    try {
+      final ergebnis = await transkribiereAudio(ref, bytes, mime);
+      if (!mounted) return;
+      setState(() {
+        _transkribiereLaeuft.remove(audioZeit);
+        _eintraege.insert(
+          0,
+          _NotizEintrag(
+            zeit: DateTime.now(),
+            text: ergebnis.kombiniert(nummer),
+          ),
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _transkribiereLaeuft.remove(audioZeit));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Transkription von Aufnahme $nummer fehlgeschlagen: $e')),
+      );
+    }
   }
 
   Future<void> _alleInAuftragUebernehmen() async {
@@ -372,9 +437,11 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
                   onTimer:
                       _auftragId == null ? null : (timer.running ? _timerStop : _timerStart),
                   onAudio: _audioHinzufuegen,
+                  notizKiLaeuft: _notizKiLaeuft,
                 );
                 final right = _JournalPanel(
                   eintraege: _eintraege,
+                  transkribiereLaeuft: _transkribiereLaeuft,
                   onUebernehmen: _auftragId == null || _eintraege.isEmpty
                       ? null
                       : _alleInAuftragUebernehmen,
@@ -412,6 +479,7 @@ class _ActionsColumn extends StatelessWidget {
     required this.onNotiz,
     required this.onTimer,
     required this.onAudio,
+    required this.notizKiLaeuft,
   });
   final TimerState timer;
   final Duration elapsed;
@@ -421,6 +489,7 @@ class _ActionsColumn extends StatelessWidget {
   final VoidCallback onNotiz;
   final VoidCallback? onTimer;
   final VoidCallback onAudio;
+  final bool notizKiLaeuft;
 
   String _fmt(Duration d) =>
       '${d.inHours.toString().padLeft(2, '0')}:'
@@ -472,25 +541,50 @@ class _ActionsColumn extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Schnell-Notiz',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Row(
+                  children: [
+                    Text('Schnell-Notiz',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message:
+                          'Beim Hinzufügen prüft die KI den Text einmal auf '
+                          'Rechtschreibung und Grammatik.',
+                      child: Icon(Icons.auto_fix_high,
+                          size: 16,
+                          color:
+                              Theme.of(context).colorScheme.primary),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: notizCtrl,
-                  minLines: 2,
-                  maxLines: 4,
+                  minLines: 6,
+                  maxLines: 14,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    hintText: 'Was soll festgehalten werden?',
+                    hintText:
+                        'Was soll festgehalten werden? (freier Text, die KI korrigiert beim Hinzufügen)',
                   ),
                 ),
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
                   child: FilledButton.icon(
-                    onPressed: onNotiz,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Notiz hinzufügen'),
+                    onPressed: notizKiLaeuft ? null : onNotiz,
+                    icon: notizKiLaeuft
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white),
+                          )
+                        : const Icon(Icons.add),
+                    label: Text(notizKiLaeuft
+                        ? 'KI prüft …'
+                        : 'Notiz hinzufügen'),
                   ),
                 ),
               ],
@@ -507,10 +601,14 @@ class _JournalPanel extends StatelessWidget {
     required this.eintraege,
     required this.onUebernehmen,
     required this.onRemove,
+    required this.transkribiereLaeuft,
   });
   final List<_NotizEintrag> eintraege;
   final VoidCallback? onUebernehmen;
   final void Function(int index) onRemove;
+
+  /// Zeiten der Audio-Einträge, für die gerade transkribiert wird.
+  final Set<DateTime> transkribiereLaeuft;
 
   @override
   Widget build(BuildContext context) {
@@ -554,6 +652,8 @@ class _JournalPanel extends StatelessWidget {
                   eintrag: eintraege[i],
                   timeFmt: fmt,
                   onDelete: () => onRemove(i),
+                  transkribiert:
+                      transkribiereLaeuft.contains(eintraege[i].zeit),
                 ),
           ],
         ),
@@ -567,10 +667,12 @@ class _JournalItem extends StatelessWidget {
     required this.eintrag,
     required this.timeFmt,
     required this.onDelete,
+    this.transkribiert = false,
   });
   final _NotizEintrag eintrag;
   final DateFormat timeFmt;
   final VoidCallback onDelete;
+  final bool transkribiert;
 
   @override
   Widget build(BuildContext context) {
@@ -640,6 +742,27 @@ class _JournalItem extends StatelessWidget {
                     'Audio-Aufnahme · ${(eintrag.audioBytes!.lengthInBytes / 1024).toStringAsFixed(0)} KB',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (transkribiert) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('KI transkribiert …',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                      fontStyle: FontStyle.italic,
+                                    )),
+                      ],
+                    ),
+                  ],
                 ],
                 if (eintrag.isFoto && eintrag.fotoDbId != null) ...[
                   const SizedBox(height: 4),

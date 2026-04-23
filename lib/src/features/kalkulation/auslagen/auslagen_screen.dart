@@ -6,8 +6,12 @@ import 'package:intl/intl.dart';
 import '../../../data/database/app_database.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../shared/widgets/badges.dart';
+import '../../../core/geo/geo_service.dart';
+import '../../../features/akten/auftraege/auftraege_repository.dart';
+import '../../../features/system/einstellungen/einstellungen_repository.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
+import '../../../shared/widgets/formel_text_field.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'auslagen_repository.dart';
 
@@ -304,12 +308,64 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
 
   bool get _isEdit => widget.eintrag != null;
 
+  /// Öffnet den km-Rechner. Ermittelt Firma-Adresse aus Einstellungen
+  /// und (falls Auftrag gewählt) Objekt/Kunde/Gericht des Auftrags als
+  /// Ziel-Optionen. Rechnet via Nominatim+OSRM, bietet Hin+Rück-Checkbox
+  /// und übernimmt die km in das Mengen-Feld.
+  Future<void> _oeffneKmRechner() async {
+    final repo = ref.read(einstellungenRepositoryProvider);
+    final firmaName = await repo.getOr('firma.name', '');
+    final firmaAnschrift = await repo.getOr('firma.anschrift', '');
+    if (firmaAnschrift.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Bitte zuerst unter Einstellungen → Profil die '
+              'Firmen-Anschrift hinterlegen.')));
+      return;
+    }
+
+    AuftraegeData? auftrag;
+    KundenData? kunde;
+    if (_auftragId != null) {
+      final list =
+          await ref.read(auftraegeRepositoryProvider).watchAll().first;
+      final match =
+          list.where((a) => a.auftrag.id == _auftragId).firstOrNull;
+      auftrag = match?.auftrag;
+      kunde = match?.kunde;
+    }
+
+    final jvegKmSatz = await repo.getOr('jveg.km_satz', '0.42');
+
+    if (!mounted) return;
+    final ergebnis = await showDialog<(double, String)>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => _KmRechnerDialog(
+        startLabel: firmaName.isEmpty ? firmaAnschrift : firmaName,
+        startAdresse: firmaAnschrift,
+        auftrag: auftrag,
+        kunde: kunde,
+      ),
+    );
+    if (ergebnis == null) return;
+    final (km, beschreibung) = ergebnis;
+    setState(() {
+      _menge.text = km.toStringAsFixed(0);
+      if (_einheit.text.trim().isEmpty) _einheit.text = 'km';
+      if (_einzel.text.trim().isEmpty) _einzel.text = jvegKmSatz;
+      if (_beschreibung.text.trim().isEmpty) {
+        _beschreibung.text = 'Fahrt: $beschreibung';
+      }
+    });
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final menge = double.tryParse(_menge.text.replaceAll(',', '.')) ?? 1;
-    final ep =
-        double.tryParse(_einzel.text.replaceAll(',', '.')) ?? 0;
+    final menge = parseMengeOrFormel(_menge.text);
+    final ep = parseMengeOrFormel(_einzel.text);
     final summe = menge * ep;
     final companion = AuslagenCompanion(
       id: _isEdit ? Value(widget.eintrag!.auslage.id) : const Value.absent(),
@@ -397,17 +453,37 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
               Row3(
                 a: LabeledField(
                   'Menge',
-                  TextFormField(
-                    controller: _menge,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FormelTextField(
+                          controller: _menge,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(
+                                  decimal: true),
+                        ),
+                      ),
+                      if (_art == 'fahrt') ...[
+                        const SizedBox(width: 6),
+                        Tooltip(
+                          message:
+                              'Kilometer vom Firmensitz aus berechnen',
+                          child: IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.route, size: 20),
+                            onPressed: _oeffneKmRechner,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 b: LabeledField(
                     'Einheit', TextFormField(controller: _einheit)),
                 c: LabeledField(
                   'Einzelpreis (€)',
-                  TextFormField(
+                  FormelTextField(
                     controller: _einzel,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -431,6 +507,355 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// ------------- km-Rechner-Dialog -------------
+
+enum _ZielTyp { objekt, kunde, gericht, frei }
+
+class _KmRechnerDialog extends StatefulWidget {
+  const _KmRechnerDialog({
+    required this.startLabel,
+    required this.startAdresse,
+    required this.auftrag,
+    required this.kunde,
+  });
+  final String startLabel;
+  final String startAdresse;
+  final AuftraegeData? auftrag;
+  final KundenData? kunde;
+
+  @override
+  State<_KmRechnerDialog> createState() => _KmRechnerDialogState();
+}
+
+class _KmRechnerDialogState extends State<_KmRechnerDialog> {
+  _ZielTyp _zielTyp = _ZielTyp.objekt;
+  bool _hinRueck = true;
+  bool _berechne = false;
+  double? _einfacheKm;
+  double? _dauerMin;
+  String? _fehler;
+  String? _zielBeschreibung;
+  final _freieAdresseCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Vorauswahl: Objekt > Kunde > Gericht > frei
+    if (_objektAdresse() != null) {
+      _zielTyp = _ZielTyp.objekt;
+    } else if (_kundenAdresse() != null) {
+      _zielTyp = _ZielTyp.kunde;
+    } else if ((widget.auftrag?.gericht ?? '').isNotEmpty) {
+      _zielTyp = _ZielTyp.gericht;
+    } else {
+      _zielTyp = _ZielTyp.frei;
+    }
+  }
+
+  @override
+  void dispose() {
+    _freieAdresseCtrl.dispose();
+    super.dispose();
+  }
+
+  String? _objektAdresse() {
+    final a = widget.auftrag;
+    if (a == null) return null;
+    final teile = <String>[
+      if ((a.objektStrasse ?? '').trim().isNotEmpty) a.objektStrasse!,
+      [
+        if ((a.objektPlz ?? '').trim().isNotEmpty) a.objektPlz!,
+        if ((a.objektOrt ?? '').trim().isNotEmpty) a.objektOrt!,
+      ].join(' ').trim(),
+    ].where((s) => s.trim().isNotEmpty).toList();
+    if (teile.isEmpty) return null;
+    return teile.join(', ');
+  }
+
+  String? _kundenAdresse() {
+    final k = widget.kunde;
+    if (k == null) return null;
+    final teile = <String>[
+      if ((k.strasse ?? '').trim().isNotEmpty) k.strasse!,
+      [
+        if ((k.plz ?? '').trim().isNotEmpty) k.plz!,
+        if ((k.ort ?? '').trim().isNotEmpty) k.ort!,
+      ].join(' ').trim(),
+    ].where((s) => s.trim().isNotEmpty).toList();
+    if (teile.isEmpty) return null;
+    return teile.join(', ');
+  }
+
+  String _kundenLabel() {
+    final k = widget.kunde;
+    if (k == null) return 'Kunde (kein Auftrag gewählt)';
+    final name = [k.vorname, k.nachname, k.firma]
+        .where((s) => (s ?? '').isNotEmpty)
+        .join(' ');
+    return name.trim().isEmpty ? 'Auftraggeber' : name.trim();
+  }
+
+  String? _zielAdresse() => switch (_zielTyp) {
+        _ZielTyp.objekt => _objektAdresse(),
+        _ZielTyp.kunde => _kundenAdresse(),
+        _ZielTyp.gericht => (widget.auftrag?.gericht ?? '').trim().isEmpty
+            ? null
+            : widget.auftrag!.gericht!.trim(),
+        _ZielTyp.frei => _freieAdresseCtrl.text.trim().isEmpty
+            ? null
+            : _freieAdresseCtrl.text.trim(),
+      };
+
+  String _zielLabel() => switch (_zielTyp) {
+        _ZielTyp.objekt => 'Objektadresse',
+        _ZielTyp.kunde => _kundenLabel(),
+        _ZielTyp.gericht =>
+          widget.auftrag?.gericht ?? 'Gericht',
+        _ZielTyp.frei => 'Freie Adresse',
+      };
+
+  Future<void> _berechnen() async {
+    final ziel = _zielAdresse();
+    if (ziel == null) {
+      setState(() =>
+          _fehler = 'Keine Zieladresse verfügbar — bitte eingeben.');
+      return;
+    }
+    setState(() {
+      _berechne = true;
+      _fehler = null;
+      _einfacheKm = null;
+      _dauerMin = null;
+      _zielBeschreibung = ziel;
+    });
+
+    try {
+      final start = await adresseZuKoordinaten(widget.startAdresse);
+      final zielCoord = await adresseZuKoordinaten(ziel);
+      if (start == null) {
+        setState(() => _fehler =
+            'Start-Adresse konnte nicht geokodiert werden.');
+        return;
+      }
+      if (zielCoord == null) {
+        setState(
+            () => _fehler = 'Ziel-Adresse konnte nicht geokodiert werden.');
+        return;
+      }
+      final strecke = await routeKm(start, zielCoord);
+      if (strecke == null) {
+        setState(() => _fehler = 'Routenberechnung fehlgeschlagen.');
+        return;
+      }
+      setState(() {
+        _einfacheKm = strecke.kilometer;
+        _dauerMin = strecke.dauerMinuten;
+      });
+    } catch (e) {
+      setState(() => _fehler = 'Fehler: $e');
+    } finally {
+      if (mounted) setState(() => _berechne = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final km = _einfacheKm;
+    final gesamt = km == null ? null : (_hinRueck ? km * 2 : km);
+    final gerichtVorhanden =
+        (widget.auftrag?.gericht ?? '').trim().isNotEmpty;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(32),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.route, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Kilometer berechnen',
+                        style: Theme.of(context).textTheme.titleLarge),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context,
+                            rootNavigator: true)
+                        .pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Startpunkt', style: Theme.of(context).textTheme.labelSmall),
+              Text(widget.startAdresse,
+                  style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 14),
+              Text('Ziel', style: Theme.of(context).textTheme.labelSmall),
+              const SizedBox(height: 4),
+              _zielOption(_ZielTyp.objekt, 'Objektadresse',
+                  _objektAdresse(), Icons.home_outlined),
+              _zielOption(_ZielTyp.kunde, _kundenLabel(),
+                  _kundenAdresse(), Icons.person_outline),
+              _zielOption(_ZielTyp.gericht, 'Gericht',
+                  gerichtVorhanden ? widget.auftrag!.gericht : null,
+                  Icons.gavel_outlined),
+              RadioListTile<_ZielTyp>(
+                value: _ZielTyp.frei,
+                groupValue: _zielTyp,
+                dense: true,
+                title: const Text('Freie Adresse',
+                    style: TextStyle(fontSize: 13)),
+                onChanged: (v) => setState(() => _zielTyp = v!),
+              ),
+              if (_zielTyp == _ZielTyp.frei)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 0, 0, 8),
+                  child: TextField(
+                    controller: _freieAdresseCtrl,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      hintText: 'Straße, PLZ Ort',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Row(children: [
+                Checkbox(
+                    value: _hinRueck,
+                    onChanged: (v) =>
+                        setState(() => _hinRueck = v ?? true)),
+                const Expanded(
+                  child: Text(
+                    'Hin- und Rückfahrt berücksichtigen (× 2) — '
+                    'nach §5 JVEG werden die tatsächlich gefahrenen km vergütet.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 14),
+              if (_fehler != null)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(_fehler!,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onErrorContainer)),
+                ),
+              if (km != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Einfache Strecke: ${km.toStringAsFixed(1)} km '
+                          '(${_dauerMin?.toStringAsFixed(0) ?? "—"} Min)',
+                          style: const TextStyle(fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Text(
+                        _hinRueck
+                            ? 'Hin + Rück: ${gesamt!.toStringAsFixed(0)} km'
+                            : 'Einfach: ${gesamt!.toStringAsFixed(0)} km',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onPrimaryContainer,
+                          fontFeatures: const [
+                            FontFeature.tabularFigures()
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context,
+                            rootNavigator: true)
+                        .pop(),
+                    child: const Text('Abbrechen'),
+                  ),
+                  const SizedBox(width: 8),
+                  if (km == null)
+                    FilledButton.icon(
+                      icon: _berechne
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white),
+                            )
+                          : const Icon(Icons.route, size: 16),
+                      label: Text(_berechne ? 'Rechne …' : 'Berechnen'),
+                      onPressed: _berechne ? null : _berechnen,
+                    )
+                  else
+                    FilledButton.icon(
+                      icon: const Icon(Icons.check, size: 16),
+                      label: Text(
+                          '${gesamt!.toStringAsFixed(0)} km übernehmen'),
+                      onPressed: () => Navigator.of(context,
+                              rootNavigator: true)
+                          .pop((gesamt, _zielBeschreibung ?? _zielLabel())),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _zielOption(_ZielTyp typ, String label, String? adresse,
+      IconData icon) {
+    final aktiv = adresse != null && adresse.isNotEmpty;
+    return RadioListTile<_ZielTyp>(
+      value: typ,
+      groupValue: _zielTyp,
+      dense: true,
+      title: Row(
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: aktiv ? null : Colors.grey)),
+          ),
+        ],
+      ),
+      subtitle: adresse == null
+          ? const Text('— nicht hinterlegt —',
+              style: TextStyle(fontSize: 11, color: Colors.grey))
+          : Text(adresse, style: const TextStyle(fontSize: 11)),
+      onChanged: aktiv ? (v) => setState(() => _zielTyp = v!) : null,
     );
   }
 }

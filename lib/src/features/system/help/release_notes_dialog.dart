@@ -18,6 +18,158 @@ class _ReleaseNotesDialog extends StatelessWidget {
 
   static const _releases = <_Release>[
     _Release(
+      version: '0.12.0',
+      datum: '2026-04-21',
+      titel:
+          'Rechnungs-Workflow: Akontoanforderung, Teil-/Schlussrechnung; Serienbrief-Historie; Abmelde-Button',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Neue Rechnungs-Typen „Akontoanforderung", '
+            '„Teil-/Abschlagsrechnung" und „Schlussrechnung" mit den '
+            'korrekten USt-Regeln: Akonto wird erst mit Zahlung USt-pflichtig '
+            '(§13 Abs. 1 Nr. 1 b UStG), Teilrechnung sofort mit '
+            'Rechnungsdatum. Info-Kachel im Editor erklärt die Regel.'),
+        _Change(_ChangeType.feature,
+            'Eigener Nummernkreis für Akontoanforderungen (Default: '
+            'AZ{YYYY}-{NNN}) — unter Einstellungen → „Nummernkreise" '
+            'individuell konfigurierbar.'),
+        _Change(_ChangeType.feature,
+            'Schlussrechnung-Editor: Übersicht der bezahlten Akonto- und '
+            'aller Teilrechnungen dieser Akte. Button „Abzüge übernehmen" '
+            'fügt sie als negative Positionen mit Rechnungsnummer, '
+            'Rechnungsdatum und Zahlungsdatum ein (§14 Abs. 5 UStG).'),
+        _Change(_ChangeType.feature,
+            'Serienbrief-Historie: jeder versendete Serienbrief wird '
+            'als Batch abgelegt (Datum, Betreff, Anzahl, '
+            'Empfänger-IDs). Über „Historie" im Serienbrief-Modul lässt '
+            'sich ein früherer Serienbrief kopieren und erneut versenden.'),
+        _Change(_ChangeType.feature,
+            'Top-Bar: Avatar-Menü mit Name/E-Mail und Abmelden-Button '
+            '(zuvor nur in Einstellungen → Cloud).'),
+        _Change(_ChangeType.feature,
+            'Foto-Editor: Drehen 90° links/rechts, Zuschneiden-Modus '
+            'mit Live-Rahmen, Monochrom-Filter.'),
+        _Change(_ChangeType.fix,
+            'CO₂-Tracker: Format-Bug behoben, Empty-State ergänzt.'),
+        _Change(_ChangeType.design,
+            'Nummernkreise setzen standardmäßig NICHT mehr automatisch '
+            'zum Jahreswechsel auf 1 zurück — Aktenwerk behält den '
+            'Zähler, bis du ihn bewusst manuell änderst. Das verhindert '
+            'Nummern-Kollisionen bei Jahresübergang und bleibt GoBD-konform.'),
+      ],
+    ),
+    _Release(
+      version: '0.11.0',
+      datum: '2026-04-21',
+      titel:
+          'Per-Mandant-Datenbanken, Backup/Restore, Auto-Mahnung, Cache-Fix',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Pro Mandant eine eigene lokale Datenbank (IndexedDB). '
+            'Demo- und Produktiv-Daten sind physisch getrennt, Wechsel '
+            'zwischen den Mandanten zeigt die richtigen Daten. '
+            'Legacy-DB wird einmalig in den aktiven Mandanten migriert.'),
+        _Change(_ChangeType.feature,
+            'Einstellungen → „Backup & Wiederherstellung": JSON-Export '
+            'aller 35 Tabellen der lokalen DB + JSON-Import mit '
+            'vollständigem Überschreiben in einer Transaktion. '
+            'Sicherheitsnetz vor Releases und Browser-Umzügen.'),
+        _Change(_ChangeType.feature,
+            'Auto-Trigger: beim Anlegen/Ändern einer Rechnung mit '
+            'Fälligkeit entsteht automatisch eine Wiedervorlage '
+            '„Mahnung prüfen" 14 Tage nach Fälligkeit.'),
+        _Change(_ChangeType.feature,
+            'Wiedervorlagen können wiederholt werden (täglich/wöchentlich/'
+            'monatlich) und haben optional eine Checkliste. Der '
+            'Terminkalender expandiert wiederkehrende Einträge.'),
+        _Change(_ChangeType.feature,
+            'Browser-Benachrichtigungen: für heute fällige und überfällige '
+            'Wiedervorlagen erscheinen Browser-Pushes, solange Aktenwerk '
+            'in einem Tab geöffnet ist.'),
+        _Change(_ChangeType.fix,
+            'PDF-Fußzeile: Kontoinhaber-Zeile entfernt. Bank/IBAN/BIC '
+            'bleiben in der vierten Spalte am unteren Seitenrand.'),
+        _Change(_ChangeType.fix,
+            'Demo-Auto-Reseed: läuft nur noch einmal pro Browser/Mandant '
+            'und nie im Produktiv-Mandanten. Das schützt echte Kunden-Daten '
+            'vor versehentlichem Überschreiben.'),
+        _Change(_ChangeType.fix,
+            'Graue Seite nach Deploy: selfHeal lädt die Seite jetzt einmal '
+            'per Session automatisch neu, sobald alte Service-Worker '
+            'entfernt wurden. Manuelles Cache-Löschen nicht mehr nötig.'),
+      ],
+    ),
+    _Release(
+      version: '0.10.0',
+      datum: '2026-04-21',
+      titel:
+          'Sachverständigen-Features: ImmoWertV, Messwerte, Bauteilöffnungen, Mängel',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Wertermittlung": ImmoWertV-Rechner mit Bodenwert, '
+            'Sachwert, Alterswertminderung, Marktanpassung, Vergleichswert '
+            'und Verkehrswert. Ergebnisse werden live berechnet.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Messwerte": Logger für Temperatur, Feuchte, Schall, '
+            'BlowerDoor — mit Zeitverlaufs-Chart (fl_chart) und CSV-Export.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Bauteilöffnung": Dokumentation mit Lage, Methode, '
+            'Befund und Foto vor/nach der Öffnung.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Mängel": Mängel-Register nach DIN 4426 mit '
+            'Priorität A/B/C, Bauteil, Ursache, Folge, geschätztem Aufwand '
+            'und Kennzahl-Summen je Priorität.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Journal": chronologisches Projekt-Tagebuch für '
+            'Telefonate, Mails, Ortstermine, Rückfragen.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Übergabe": Aktenübergabe-Protokoll an Kollegen '
+            'mit Datum, Umfang und Unterlagenliste.'),
+        _Change(_ChangeType.feature,
+            'Akten-Übersicht: neue Benchmark-Kachel — vergleicht Stunden, '
+            'Netto-Honorar und Bearbeitungsdauer mit anderen Akten im '
+            'gleichen Sachgebiet.'),
+        _Change(_ChangeType.feature,
+            'Werkzeug-Modul „Qualifikationen": zentrale Ablage von Diplomen '
+            'und Zertifikaten mit Ablaufdatum-Ampel, PDF-Upload und '
+            'Standard-Anhang-Flag fürs Gutachten.'),
+        _Change(_ChangeType.feature,
+            'Auswertung „CO₂-Tracker": Klimabilanz aus Fahrt-Kilometern und '
+            'Druckkopien, KPI-Kacheln und Jahres-Auswertung.'),
+      ],
+    ),
+    _Release(
+      version: '0.9.0',
+      datum: '2026-04-20',
+      titel: 'Google-Kalender-Sync, Layout-Feinschliff, Tab-Navigation',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Google-Kalender-Sync: Ortstermine, Fristen, Erläuterungs-'
+            'Termine und Wiedervorlagen werden in einen ausgewählten '
+            'Kalender gespiegelt. Auto-Sync bei Änderungen und App-Start.'),
+        _Change(_ChangeType.feature,
+            'Akten-Übersicht: 3-Spalten-Layout — Stammdaten · Objekt/Lage · '
+            'Finanzen. Objekt-Luftbild kompakter zwischen den beiden '
+            'Kacheln.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tabs: Klick auf Stunden/Auslagen/Rechnungen/Angebote/'
+            'Gutachten/Dokumente/Erläuterungen-Einträge öffnet direkt '
+            'den Editor-Dialog (statt Navigation zum Modul).'),
+        _Change(_ChangeType.feature,
+            'Fotos-Modul gruppiert nach Akte, je Gruppe Kopfzeile mit '
+            'Aktenzeichen und Link zur Akte.'),
+        _Change(_ChangeType.feature,
+            'Anschreiben: Vorlagen-Picker mit Platzhalter-Ersetzung '
+            '({{aktenzeichen}}, {{gericht}}, {{heute}} etc.) und '
+            'neuer Vorlage „Mitteilung – Fristüberschreitung Gutachten".'),
+        _Change(_ChangeType.fix,
+            'Anschreiben-Editor: als Modal-Overlay statt Vollbildwechsel.'),
+        _Change(_ChangeType.fix,
+            'Serienbrief-Layout: Felder schmaler (max 820px), grau '
+            'umrandete Card für besseren Kontrast.'),
+      ],
+    ),
+    _Release(
       version: '0.8.0',
       datum: '2026-04-19',
       titel: 'Dashboard-Umbau, Admin-Bereich, Release-Notes & Hilfe',

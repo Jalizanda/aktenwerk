@@ -13,6 +13,7 @@ import '../../features/akten/lieferanten/lieferanten_screen.dart';
 import '../../features/akten/rechnungen/rechnungen_screen.dart';
 import '../../features/angebote/angebote/angebote_screen.dart';
 import '../../features/angebote/anschreiben/anschreiben_screen.dart';
+import '../../features/auswertung/co2/co2_screen.dart';
 import '../../features/auswertung/fortbildungen/fortbildungen_screen.dart';
 import '../../features/auswertung/jahresbericht/jahresbericht_screen.dart';
 import '../../features/auswertung/opos/opos_screen.dart';
@@ -31,10 +32,13 @@ import '../../features/werkzeuge/fotos/fotos_screen.dart';
 import '../../features/werkzeuge/geraete/geraete_screen.dart';
 import '../../features/werkzeuge/jveg_rechner/jveg_rechner_screen.dart';
 import '../../features/werkzeuge/normen/normen_screen.dart';
+import '../../features/werkzeuge/qualifikationen/qualifikationen_screen.dart';
 import '../../features/akten/partner/partner_screen.dart';
 import '../../features/werkzeuge/ortstermin/ortstermin_screen.dart';
 import '../../features/werkzeuge/serienbrief/serienbrief_screen.dart';
 import '../../features/werkzeuge/termine/termine_screen.dart';
+import '../../features/werkzeuge/normen/normen_chat_screen.dart';
+import '../../features/werkzeuge/recherche_ablage/recherche_ablage_screen.dart';
 import '../../features/werkzeuge/textbausteine/textbausteine_screen.dart';
 import '../../features/werkzeuge/wiedervorlagen/wiedervorlagen_screen.dart';
 
@@ -91,6 +95,9 @@ GoRouter buildRouter() {
           GoRoute(
               path: '/textbausteine',
               builder: (_, _) => const TextbausteineScreen()),
+          GoRoute(
+              path: '/recherche',
+              builder: (_, _) => const RechercheAblageScreen()),
           GoRoute(path: '/fotos', builder: (_, _) => const FotosScreen()),
           GoRoute(path: '/termine', builder: (_, _) => const TermineScreen()),
           GoRoute(
@@ -113,6 +120,10 @@ GoRouter buildRouter() {
               path: '/fortbildungen',
               builder: (_, _) => const FortbildungenScreen()),
           GoRoute(
+              path: '/qualifikationen',
+              builder: (_, _) => const QualifikationenScreen()),
+          GoRoute(path: '/co2', builder: (_, _) => const Co2Screen()),
+          GoRoute(
               path: '/einstellungen',
               builder: (_, _) => const EinstellungenScreen()),
           GoRoute(
@@ -123,6 +134,11 @@ GoRouter buildRouter() {
           GoRoute(path: '/admin', builder: (_, _) => const AdminScreen()),
         ],
       ),
+      // Standalone-Route außerhalb der Shell: wird als eigenes Browser-
+      // Fenster verwendet, damit der Nutzer parallel weiterarbeiten kann.
+      GoRoute(
+          path: '/normen/chat',
+          builder: (_, _) => const NormenChatScreen()),
     ],
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(title: const Text('Nicht gefunden')),

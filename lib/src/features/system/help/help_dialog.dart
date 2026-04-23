@@ -37,6 +37,8 @@ class _HelpDialog extends StatelessWidget {
                   const SizedBox(height: 16),
                   const _TippsCard(),
                   const SizedBox(height: 16),
+                  const _FaqCard(),
+                  const SizedBox(height: 16),
                   const _MobileCard(),
                 ],
               ),
@@ -328,7 +330,27 @@ class _ModulesCard extends StatelessWidget {
     ['Termine',
         'Ortstermine und Abgabefristen zusammengeführt, 4-Stufen-Eskalations-Farben.'],
     ['Wiedervorlagen',
-        'Akten mit Stichtag auf Wiedervorlage legen, Scope-Filter (Alle/Heute/Woche/Überfällig/Offen/Erledigt).'],
+        'Akten mit Stichtag auf Wiedervorlage legen, Scope-Filter (Alle/Heute/Woche/Überfällig/Offen/Erledigt). Wiederholung (täglich/wöchentlich/monatlich), Checkliste, Auto-Trigger „Mahnung prüfen" 14 Tage nach Rechnungs-Fälligkeit. Browser-Benachrichtigungen für fällige Punkte.'],
+    ['Journal (in der Akte)',
+        'Chronologisches Projekt-Tagebuch: Telefonate, Mails, Ortstermine, Rückfragen mit Datum + Uhrzeit + Kontakt.'],
+    ['Mängel-Register (in der Akte)',
+        'Nummerierte Mängel mit Priorität A/B/C nach DIN 4426, Bauteil, Ursache, Folge, geschätzter Aufwand. Summen je Priorität.'],
+    ['Bauteilöffnungen (in der Akte)',
+        'Dokumentierte Bauteil-Öffnungen mit Lage, Methode, anwesenden Personen, Befund und Foto vor/nach.'],
+    ['Messwerte (in der Akte)',
+        'Logger für Temperatur, Feuchte, Schall, BlowerDoor — Zeitverlaufs-Chart, CSV-Export. Für Langzeit-Messungen.'],
+    ['Wertermittlung (in der Akte)',
+        'ImmoWertV-Rechner: Bodenwert, Sachwert mit Alterswertminderung, Marktanpassung, Vergleichswert, Verkehrswert.'],
+    ['Übergabe (in der Akte)',
+        'Aktenübergabe-Protokoll an Kollegen: Datum, Umfang, mitgegebene Unterlagen.'],
+    ['Qualifikationen',
+        'Diplome, Zertifikate, Prüfungen mit Ablauf-Ampel (rot/orange/grün) und PDF-Upload. Als Standard-Anhang zum Gutachten markierbar.'],
+    ['CO₂-Tracker',
+        'Klimabilanz aus Fahrt-km und Druckkopien (UBA-Faktoren). KPI-Kacheln und Jahres-Summen.'],
+    ['Google-Kalender-Sync',
+        'Einstellungen → Google Kalender: Ortstermine/Fristen/Erläuterungen/Wiedervorlagen in einen Google-Kalender spiegeln. Auto-Sync bei Änderungen.'],
+    ['Backup & Wiederherstellung',
+        'Einstellungen → Backup: JSON-Export aller Tabellen der lokalen DB, Import überschreibt alle lokalen Daten.'],
     ['Ortstermin-Modus',
         'Fokussierte Mobile-Ansicht: Akte wählen, Fotos hochladen, Notizen anhängen, Timer laufen lassen, Notizen an Akte pushen.'],
     ['JVEG-Rechner',
@@ -424,6 +446,148 @@ class _TippsCard extends StatelessWidget {
             '"Bauelemente-Experte" wechseln.',
             style: TextStyle(fontSize: 12.5, height: 1.6),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FaqCard extends StatelessWidget {
+  const _FaqCard();
+
+  static const _qas = <List<String>>[
+    [
+      'Wo landen meine Daten?',
+      'Alle Einträge werden lokal in deinem Browser gespeichert (IndexedDB). '
+          'Pro Mandant eine eigene lokale Datenbank — Demo- und Produktiv-Daten '
+          'sind physisch getrennt. Zusätzlich wird pro Mandant in Firestore '
+          'synchronisiert, wenn du angemeldet bist.',
+    ],
+    [
+      'Wie mache ich ein Backup meiner Daten?',
+      'Einstellungen → „Backup & Wiederherstellung" → „Backup herunterladen". '
+          'Du bekommst eine JSON-Datei mit allen 35 Tabellen. Leg die '
+          'regelmäßig (z. B. vor jedem größeren Arbeitsschritt) auf deinem '
+          'Rechner oder in der Cloud ab.',
+    ],
+    [
+      'Wie spiele ich ein Backup zurück?',
+      'Einstellungen → „Backup & Wiederherstellung" → „Backup einspielen …". '
+          'Die JSON-Datei auswählen und bestätigen. ACHTUNG: Die komplette '
+          'aktuelle lokale DB wird dabei ersetzt.',
+    ],
+    [
+      'Ich wechsle zwischen Demo und Produktiv — sehe ich dann die richtigen Daten?',
+      'Ja. Ab Version 0.11 hat jeder Mandant eine eigene lokale Datenbank. '
+          'Der Wechsel im Org-Switcher schließt die alte DB und öffnet die '
+          'neue. Änderungen an einem Mandanten beeinflussen die anderen nicht.',
+    ],
+    [
+      'Nach einem Deploy erscheint die Seite grau.',
+      'Das bedeutet, dass ein alter Service-Worker noch Daten aus dem Cache '
+          'liefert. Aktenwerk räumt das automatisch auf und lädt die Seite '
+          'einmal frisch. Beim nächsten Mal sollte der Start normal sein. '
+          'Falls es einmal nicht geht: https://aktenwerk-app.web.app/fresh.html '
+          'öffnen.',
+    ],
+    [
+      'Wie funktioniert die Google-Kalender-Synchronisation?',
+      'Einstellungen → „Google Kalender" → „Verbinden". Popup bestätigen '
+          '(erlaubt Aktenwerk Zugriff auf deinen Kalender). Danach Kalender '
+          'auswählen und einmal „Jetzt synchronisieren" klicken. Ab dann läuft '
+          'der Sync automatisch bei jeder Termin-Änderung und beim App-Start.',
+    ],
+    [
+      'Wie lege ich Vorlagen für Anschreiben an?',
+      'Werkzeuge → Textbausteine → Kategorie „anschreiben". Du kannst '
+          'Platzhalter wie {{aktenzeichen}}, {{gericht}}, {{betreff}}, '
+          '{{heute}} verwenden. Beim Einfügen im Anschreiben werden die '
+          'Platzhalter automatisch durch die Werte aus der gewählten Akte '
+          'ersetzt.',
+    ],
+    [
+      'Wo wird das Gutachten geschrieben?',
+      'Akte → Tab „Gutachten". Im Gutachten-Editor Rich-Text bearbeiten, '
+          'Textbausteine picken, PDF exportieren. Qualifikationen mit '
+          'Flag „Standard-Anhang" werden dem Gutachten automatisch '
+          'beigelegt.',
+    ],
+    [
+      'Mein Produktiv-Mandant soll auch nach neuen Releases erhalten bleiben — wie?',
+      '1) Schema-Migrationen sind strikt additiv (keine Drop-All-Schritte). '
+          '2) Pro Mandant eigene DB — kein Überschreiben durch Demo. '
+          '3) Trotzdem: regelmäßig per Einstellungen → Backup ein JSON '
+          'herunterladen und ablegen. Das ist die letzte Sicherheit.',
+    ],
+    [
+      'Wie lege ich eine Akontoanforderung, Teilrechnung oder Schlussrechnung an?',
+      'Im Rechnungs-Editor den Typ wählen. Akontoanforderungen bekommen '
+          'einen eigenen Nummernkreis (Default AZ{YYYY}-{NNN}) und sind '
+          'USt-technisch erst mit Zahlungseingang relevant — Aktenwerk '
+          'weist im Editor darauf hin. Teilrechnungen sind sofort '
+          'USt-pflichtig. Eine Schlussrechnung mit verknüpftem Auftrag '
+          'zeigt eine grüne Übersichts-Kachel aller bezahlten Akonto- und '
+          'aller Teilrechnungen; „Abzüge übernehmen" fügt sie mit '
+          'Rechnungsnummer, Datum und Zahldatum als negative Positionen in '
+          'den Beleg ein.',
+    ],
+    [
+      'Wie wird der Nummernkreis zum Jahreswechsel behandelt?',
+      'Aktenwerk setzt den Zähler standardmäßig NICHT automatisch zurück '
+          '(GoBD-konforme, lückenlose Nummerierung). Wenn du zum 01.01. '
+          'eines Jahres neu bei 1 starten willst, trage das unter '
+          'Einstellungen → Nummernkreise beim jeweiligen Kreis manuell '
+          'ein und setze die „Nächste Nummer" auf 1. Oder stelle den '
+          'Reset auf „jahr", wenn die Software das automatisch tun soll.',
+    ],
+    [
+      'Kann ich einen bereits versendeten Serienbrief nochmal verwenden?',
+      'Ja. Unter Werkzeuge → Serienbriefe gibt es oben den Button '
+          '„Historie". Klick auf einen alten Eintrag lädt Betreff, Anrede, '
+          'Grußformel, Brieftext, Versandart und die Empfängerliste '
+          'zurück ins Formular — du kannst anpassen und erneut versenden.',
+    ],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(children: [
+            Icon(Icons.question_answer_outlined,
+                size: 18, color: AppTheme.accent600),
+            SizedBox(width: 8),
+            Text('Häufige Fragen',
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 10),
+          for (var i = 0; i < _qas.length; i++) ...[
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              shape: const Border(),
+              collapsedShape: const Border(),
+              title: Text(_qas[i][0],
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10, right: 8),
+                    child: Text(_qas[i][1],
+                        style: const TextStyle(
+                            fontSize: 12.5, height: 1.5)),
+                  ),
+                ),
+              ],
+            ),
+            if (i < _qas.length - 1)
+              const Divider(
+                  height: 1, color: AppTheme.slate200, thickness: 0.5),
+          ],
         ],
       ),
     );

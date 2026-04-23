@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -51,6 +53,25 @@ class PdfDocumentData {
   /// Default passt zum `dokumentTyp` (Angebots-Nr., Rechnungs-Nr., AB-Nr.).
   final String? nummerLabel;
 
+  /// Gericht, gerichtliches Aktenzeichen und Streitparteien der Akte —
+  /// werden als eigener „In Sachen"-Block zwischen Titel und Sachverhalt
+  /// ausgewiesen, sofern mindestens ein Feld gesetzt ist.
+  final String? gericht;
+  final String? gerichtsAktenzeichen;
+  final String? klaeger;
+  final String? beklagter;
+
+  /// Skonto-Prozent, falls gewünscht — erzeugt eine Skonto-Box vor dem
+  /// SEPA-QR-Block.
+  final double? skontoProzent;
+
+  /// Skonto-Frist in Tagen (gerechnet ab [datum]).
+  final int? skontoTage;
+
+  /// Barzahlung — erzeugt eine Quittungs-Zeile „in bar erhalten am ___"
+  /// mit Unterschriftsfeld.
+  final bool barzahlung;
+
   const PdfDocumentData({
     required this.dokumentTyp,
     this.dokumentNr,
@@ -68,6 +89,13 @@ class PdfDocumentData {
     this.brutto,
     this.mitSepaQr = false,
     this.nummerLabel,
+    this.skontoProzent,
+    this.skontoTage,
+    this.barzahlung = false,
+    this.gericht,
+    this.gerichtsAktenzeichen,
+    this.klaeger,
+    this.beklagter,
   });
 }
 
@@ -88,10 +116,11 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
   doc.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      // Margins: oben 10mm (Logo ragt aus dem Header), rechts/links 18mm,
-      // unten 10mm (Fußzeile steht ca. 1 cm vor dem Dokumenten-Ende).
+      // Margins: oben 10mm (Logo ragt aus dem Header), rechts/links 18mm.
+      // Unten 0mm → die Fußzeile sitzt direkt am Papierende (1 cm tiefer
+      // als vorher, wie von Anwendern gewünscht).
       margin:
-          pw.EdgeInsets.fromLTRB(_mm(18), _mm(10), _mm(18), _mm(10)),
+          pw.EdgeInsets.fromLTRB(_mm(18), _mm(10), _mm(18), 0),
       theme: pw.ThemeData.withFont(
         base: await PdfGoogleFonts.interRegular(),
         bold: await PdfGoogleFonts.interBold(),
@@ -103,8 +132,10 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
       // Footer rendert auf JEDER Seite mit dünnem Strich darüber.
       footer: (ctx) => _footer(data.absender),
       build: (ctx) => [
-        // ~4 cm Abstand unter dem Logo, bevor Anschrift + Metadaten beginnen.
-        pw.SizedBox(height: _mm(40)),
+        // Kein zusätzlicher Spacer nötig — der Header ist jetzt 44mm
+        // hoch (Logo 20mm tiefer), und das Adressfeld soll unmittelbar
+        // unter dem Logo ins DIN-Sichtfenster rücken.
+        pw.SizedBox(height: _mm(2)),
         // Erste-Seite-Block: Empfänger mit Absender-Mini (Sichtfenster-Höhe)
         // + Metadaten rechts. Nur auf Seite 1.
         _ersteSeiteKopf(data, dateFmt),
@@ -125,6 +156,9 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
           pw.Text(data.fusstext!,
               style: const pw.TextStyle(fontSize: 10)),
         ],
+        if (data.skontoProzent != null && data.skontoTage != null)
+          _skontoBlock(data, money, dateFmt),
+        if (data.barzahlung) _barQuittungBlock(data, money),
         if (zeigeQr) _sepaQrBlock(data, money),
       ],
     ),
@@ -137,24 +171,140 @@ Future<void> previewDocumentPdf(PdfDocumentData data) async {
   await Printing.layoutPdf(onLayout: (_) => buildDocumentPdf(data));
 }
 
+/// Baut EIN gebündeltes PDF aus mehreren [PdfDocumentData]. Jeder Beleg
+/// bekommt seine eigenen Seiten (MultiPage), alle zusammen in einem PDF.
+/// Wird für den Monats-Sammelausdruck im Steuer-Modul genutzt.
+Future<Uint8List> buildMergedDocumentsPdf(
+    List<PdfDocumentData> alle) async {
+  final doc = pw.Document();
+  final dateFmt = DateFormat('d.M.yyyy', 'de');
+  final druckDatum = DateFormat('dd.MM.yyyy').format(DateTime.now());
+  final money =
+      NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
+  final theme = pw.ThemeData.withFont(
+    base: await PdfGoogleFonts.interRegular(),
+    bold: await PdfGoogleFonts.interBold(),
+    italic: await PdfGoogleFonts.interMedium(),
+  );
+  for (final data in alle) {
+    final totals = PositionsTotals.fromList(data.positionen);
+    final logo = await _loadLogo(data.absender?.logoPfad);
+    final istRechnung = data.dokumentTyp.startsWith('Rechnung') ||
+        data.dokumentTyp == 'Rechnungskorrektur';
+    final zeigeQr = data.mitSepaQr || istRechnung;
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        // Fußzeile 1 cm tiefer als früher — Bottom-Margin auf 0.
+        margin: pw.EdgeInsets.fromLTRB(
+            _mm(18), _mm(10), _mm(18), 0),
+        theme: theme,
+        header: (ctx) => _pageHeader(data, logo, ctx, druckDatum),
+        footer: (ctx) => _footer(data.absender),
+        build: (ctx) => [
+          pw.SizedBox(height: _mm(20)),
+          _ersteSeiteKopf(data, dateFmt),
+          pw.SizedBox(height: _mm(8)),
+          pw.Text(
+            data.dokumentTyp,
+            style: pw.TextStyle(
+                fontSize: 22, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: _mm(6)),
+          _introText(data),
+          pw.SizedBox(height: _mm(6)),
+          _positionenTabelle(data.positionen, money),
+          pw.SizedBox(height: _mm(4)),
+          _summenBlock(totals, money, data.dokumentTyp),
+          if ((data.fusstext ?? '').isNotEmpty) ...[
+            pw.SizedBox(height: _mm(6)),
+            pw.Text(data.fusstext!,
+                style: const pw.TextStyle(fontSize: 10)),
+          ],
+          if (data.skontoProzent != null && data.skontoTage != null)
+            _skontoBlock(data, money, dateFmt),
+          if (data.barzahlung) _barQuittungBlock(data, money),
+          if (zeigeQr) _sepaQrBlock(data, money),
+        ],
+      ),
+    );
+  }
+  return doc.save();
+}
+
 double _mm(double mm) => mm * PdfPageFormat.mm;
 
 Future<pw.ImageProvider?> _loadLogo(String? pfad) async {
   if (pfad == null || pfad.trim().isEmpty) return null;
   try {
     Uint8List? bytes;
+    String? mime;
     if (pfad.startsWith('data:')) {
+      // data:image/<mime>;base64,<payload>
       final comma = pfad.indexOf(',');
       if (comma < 0) return null;
+      final header = pfad.substring(0, comma);
+      mime = RegExp(r'data:([^;]+)').firstMatch(header)?.group(1);
       bytes = base64Decode(pfad.substring(comma + 1));
     } else if (pfad.startsWith('assets/')) {
       final b = await rootBundle.load(pfad);
       bytes = b.buffer.asUint8List();
+      if (pfad.endsWith('.svg')) mime = 'image/svg+xml';
     } else {
       // Lokale Datei-Pfade ignorieren wir — für Web nicht erreichbar.
       return null;
     }
+
+    // SVG rastern — das pdf-Paket kann SVG nicht direkt als MemoryImage
+    // darstellen. Ohne diesen Schritt erscheint kein Logo.
+    final isSvg =
+        mime == 'image/svg+xml' || _looksLikeSvg(bytes);
+    if (isSvg) {
+      final png = await _rasterSvgToPng(bytes);
+      if (png == null) return null;
+      bytes = png;
+    }
     return pw.MemoryImage(bytes);
+  } catch (_) {
+    return null;
+  }
+}
+
+bool _looksLikeSvg(Uint8List bytes) {
+  if (bytes.length < 5) return false;
+  final head = String.fromCharCodes(
+      bytes.take(200).where((b) => b > 0 && b < 128));
+  return head.contains('<svg') || head.trimLeft().startsWith('<?xml');
+}
+
+/// Rastert SVG-Bytes in ein PNG — damit das pdf-Paket sie als
+/// [MemoryImage] rendern kann.
+Future<Uint8List?> _rasterSvgToPng(Uint8List svgBytes,
+    {int width = 800, int height = 300}) async {
+  try {
+    final info = await vg.loadPicture(SvgBytesLoader(svgBytes), null);
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    // transparenter Hintergrund, sonst wird das Logo mit weißem Rand
+    // gerendert, was im Briefkopf störend ist.
+    final size = info.size;
+    final scaleX = width / (size.width == 0 ? 1 : size.width);
+    final scaleY = height / (size.height == 0 ? 1 : size.height);
+    final scale = scaleX < scaleY ? scaleX : scaleY;
+    final offX = (width - size.width * scale) / 2;
+    final offY = (height - size.height * scale) / 2;
+    canvas.translate(offX, offY);
+    canvas.scale(scale);
+    canvas.drawPicture(info.picture);
+    info.picture.dispose();
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(width, height);
+    final byteData =
+        await img.toByteData(format: ui.ImageByteFormat.png);
+    picture.dispose();
+    img.dispose();
+    return byteData?.buffer.asUint8List();
   } catch (_) {
     return null;
   }
@@ -170,7 +320,9 @@ pw.Widget _pageHeader(PdfDocumentData d, pw.ImageProvider? logo,
     pw.Context ctx, String druckDatum) {
   final isFirst = ctx.pageNumber == 1;
   return pw.Container(
-    height: _mm(24),
+    // Höhe inkl. 20 mm Logo-Top-Offset — sonst wird der Inhalt unter
+    // dem Header verschoben.
+    height: _mm(44),
     margin: pw.EdgeInsets.only(bottom: _mm(4)),
     child: pw.Stack(
       children: [
@@ -182,8 +334,9 @@ pw.Widget _pageHeader(PdfDocumentData d, pw.ImageProvider? logo,
           ),
         if (logo != null)
           pw.Positioned(
-            right: 0,
-            top: 0,
+            // Logo 1 cm nach rechts (in die Seiten-Margin), 2 cm tiefer.
+            right: -_mm(10),
+            top: _mm(20),
             child: pw.ConstrainedBox(
               constraints:
                   pw.BoxConstraints(maxWidth: _mm(55), maxHeight: _mm(24)),
@@ -270,6 +423,8 @@ pw.Widget _ersteSeiteKopf(PdfDocumentData d, DateFormat dateFmt) {
             ),
           ),
         ),
+        // Metadaten rechts — unterhalb des (jetzt 2cm tiefer sitzenden)
+        // Logos, auf gleicher Höhe wie das Adressfeld.
         pw.Positioned(
           right: 0,
           top: 0,
@@ -359,6 +514,9 @@ pw.Widget _metaTabelle(PdfDocumentData d, DateFormat dateFmt) {
         : 'Fällig am';
     rows.add([label, dateFmt.format(d.faelligBis!)]);
   }
+  if ((d.aktenzeichen ?? '').isNotEmpty) {
+    rows.add(['Akte', d.aktenzeichen!]);
+  }
   return pw.Column(
     children: [
       for (final r in rows)
@@ -381,6 +539,49 @@ pw.Widget _metaTabelle(PdfDocumentData d, DateFormat dateFmt) {
         ),
     ],
   );
+}
+
+bool _hatGerichtInfo(PdfDocumentData d) {
+  return (d.gericht ?? '').trim().isNotEmpty ||
+      (d.gerichtsAktenzeichen ?? '').trim().isNotEmpty ||
+      (d.klaeger ?? '').trim().isNotEmpty ||
+      (d.beklagter ?? '').trim().isNotEmpty;
+}
+
+/// Gerichts-Block: „In Sachen Kläger ./. Beklagter / AZ: … / Gericht: …"
+pw.Widget _gerichtsblock(PdfDocumentData d) {
+  final zeilen = <pw.TextSpan>[];
+  final kl = (d.klaeger ?? '').trim();
+  final be = (d.beklagter ?? '').trim();
+  if (kl.isNotEmpty || be.isNotEmpty) {
+    zeilen.add(pw.TextSpan(
+      text: 'In Sachen: ',
+      style: pw.TextStyle(
+          fontSize: 11, fontWeight: pw.FontWeight.bold),
+    ));
+    zeilen.add(pw.TextSpan(
+      text:
+          '${kl.isEmpty ? '—' : kl} ./. ${be.isEmpty ? '—' : be}\n',
+      style: const pw.TextStyle(fontSize: 11),
+    ));
+  }
+  final g = (d.gericht ?? '').trim();
+  final az = (d.gerichtsAktenzeichen ?? '').trim();
+  if (g.isNotEmpty || az.isNotEmpty) {
+    zeilen.add(pw.TextSpan(
+      text: 'Gericht: ',
+      style: pw.TextStyle(
+          fontSize: 11, fontWeight: pw.FontWeight.bold),
+    ));
+    final gText = [g, az.isEmpty ? '' : 'Az. $az']
+        .where((s) => s.isNotEmpty)
+        .join(' · ');
+    zeilen.add(pw.TextSpan(
+      text: gText,
+      style: const pw.TextStyle(fontSize: 11),
+    ));
+  }
+  return pw.RichText(text: pw.TextSpan(children: zeilen));
 }
 
 pw.Widget _introText(PdfDocumentData d) {
@@ -411,6 +612,10 @@ pw.Widget _introText(PdfDocumentData d) {
             ],
           ),
         ),
+      ],
+      if (_hatGerichtInfo(d)) ...[
+        pw.SizedBox(height: _mm(3)),
+        _gerichtsblock(d),
       ],
       if ((d.objektAdresse ?? '').trim().isNotEmpty) ...[
         pw.SizedBox(height: _mm(2)),
@@ -623,6 +828,139 @@ pw.Widget _summenZeile(String label, String value, {bool bold = false}) {
   );
 }
 
+/// Skonto-Block auf der Rechnung: hellgraue Box mit Prozentsatz,
+/// Stichtag und dem errechneten Zahlbetrag nach Skontoabzug.
+pw.Widget _skontoBlock(
+    PdfDocumentData d, NumberFormat money, DateFormat dateFmt) {
+  final prozent = d.skontoProzent;
+  final tage = d.skontoTage;
+  if (prozent == null || tage == null) return pw.SizedBox.shrink();
+  final brutto = d.brutto ?? 0;
+  final abzug = brutto * (prozent / 100);
+  final zuZahlen = brutto - abzug;
+  final start = d.datum ?? DateTime.now();
+  final bis = start.add(Duration(days: tage));
+  return pw.Container(
+    margin: pw.EdgeInsets.only(top: _mm(8)),
+    padding: const pw.EdgeInsets.all(10),
+    decoration: pw.BoxDecoration(
+      color: PdfColors.grey100,
+      borderRadius:
+          const pw.BorderRadius.all(pw.Radius.circular(4)),
+      border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text('Skonto-Angebot',
+            style: pw.TextStyle(
+                fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          'Bei Zahlung bis zum ${dateFmt.format(bis)} '
+          '(innerhalb von $tage Tagen) gewähren wir '
+          '${prozent.toStringAsFixed(1).replaceAll('.', ',')} % Skonto.',
+          style: const pw.TextStyle(fontSize: 10),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Text(
+                'Rechnungsbetrag: ${money.format(brutto)}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ),
+            pw.Expanded(
+              child: pw.Text(
+                'Skonto ${prozent.toStringAsFixed(1).replaceAll('.', ',')} %: '
+                '− ${money.format(abzug)}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            ),
+            pw.Expanded(
+              child: pw.Text(
+                'Zu zahlen: ${money.format(zuZahlen)}',
+                style: pw.TextStyle(
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey900),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// Bar-Quittungsblock mit Linien für Datum und Unterschrift.
+pw.Widget _barQuittungBlock(PdfDocumentData d, NumberFormat money) {
+  final brutto = d.brutto ?? 0;
+  return pw.Container(
+    margin: pw.EdgeInsets.only(top: _mm(8)),
+    padding: const pw.EdgeInsets.all(10),
+    decoration: pw.BoxDecoration(
+      color: PdfColors.amber50,
+      borderRadius:
+          const pw.BorderRadius.all(pw.Radius.circular(4)),
+      border: pw.Border.all(color: PdfColors.amber200, width: 0.5),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Barzahlung — Quittung',
+          style: pw.TextStyle(
+              fontSize: 11, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          'Betrag in Höhe von ${money.format(brutto)} in bar erhalten.',
+          style: const pw.TextStyle(fontSize: 10),
+        ),
+        pw.SizedBox(height: 14),
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    height: 0.6,
+                    color: PdfColors.grey600,
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text('Datum',
+                      style: const pw.TextStyle(
+                          fontSize: 9, color: PdfColors.grey700)),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 20),
+            pw.Expanded(
+              flex: 2,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    height: 0.6,
+                    color: PdfColors.grey600,
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text('Unterschrift Empfänger',
+                      style: const pw.TextStyle(
+                          fontSize: 9, color: PdfColors.grey700)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
 pw.Widget _sepaQrBlock(PdfDocumentData d, NumberFormat money) {
   final a = d.absender;
   final iban = (a?.iban ?? '').replaceAll(' ', '');
@@ -740,11 +1078,7 @@ pw.Widget _footer(BenutzerData? a) {
     if ((a.email ?? '').isNotEmpty) a.email!,
     if ((a.website ?? '').isNotEmpty) a.website!,
   ];
-  final kontoInhaber = name.isNotEmpty
-      ? name
-      : (a.firma?.trim().isNotEmpty == true ? a.firma!.trim() : '');
   final col4Lines = <String>[
-    if (kontoInhaber.isNotEmpty) 'Kto-Inh.: $kontoInhaber',
     if ((a.bank ?? '').isNotEmpty) a.bank!,
     if ((a.iban ?? '').isNotEmpty) 'IBAN: ${a.iban}',
     if ((a.bic ?? '').isNotEmpty) 'BIC: ${a.bic}',

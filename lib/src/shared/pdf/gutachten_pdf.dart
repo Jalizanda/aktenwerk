@@ -14,8 +14,15 @@ class GutachtenPdfData {
   final AuftraegeData? auftrag;
   final KundenData? kunde;
   final BenutzerData? absender;
+  /// Map `abschnittsKey → Text`. Key passt zu [abschnittsReihenfolge]
+  /// und zu [abschnittsLabels].
   final Map<String, String> abschnitte;
+
+  /// Reihenfolge der Abschnitts-Keys im PDF.
   final List<String> abschnittsReihenfolge;
+
+  /// Map `abschnittsKey → menschenlesbares Label` für die PDF-Überschriften.
+  final Map<String, String> abschnittsLabels;
 
   /// Sachverständigen-Siegel (PNG/JPG-Bytes) fürs Unterschriftsblock.
   final Uint8List? siegelBytes;
@@ -27,10 +34,20 @@ class GutachtenPdfData {
   final String? bestellNr;
   final DateTime? bestellGueltigBis;
 
+  /// Verwendete Normen der Akte — werden am Ende als Quellenliste
+  /// ausgegeben.
+  final List<NormenData> verwendeteNormen;
+
+  /// Lichtbildanlage: Fotos (Metadaten + bereits heruntergeladene Bytes)
+  /// die ans Gutachten gepinnt sind. Jedes Tuple liefert Titel,
+  /// Beschreibung, Raum und die Bild-Bytes.
+  final List<LichtbildPdfEntry> lichtbilder;
+
   const GutachtenPdfData({
     required this.gutachten,
     required this.abschnitte,
     required this.abschnittsReihenfolge,
+    this.abschnittsLabels = const {},
     this.auftrag,
     this.kunde,
     this.absender,
@@ -40,7 +57,29 @@ class GutachtenPdfData {
     this.bestellBehoerde,
     this.bestellNr,
     this.bestellGueltigBis,
+    this.verwendeteNormen = const [],
+    this.lichtbilder = const [],
   });
+}
+
+/// Ein Lichtbild als Teil der Gutachten-Anlage.
+class LichtbildPdfEntry {
+  const LichtbildPdfEntry({
+    required this.bytes,
+    this.titel,
+    this.raum,
+    this.beschreibung,
+    this.abschnittKey,
+  });
+  final Uint8List bytes;
+  final String? titel;
+  final String? raum;
+  final String? beschreibung;
+
+  /// Wenn gesetzt, wird das Foto im passenden Gutachten-Abschnitt
+  /// direkt hinter dem Text eingefügt statt in der Lichtbildanlage
+  /// am Ende.
+  final String? abschnittKey;
 }
 
 Future<Uint8List> buildGutachtenPdf(GutachtenPdfData data) async {
@@ -74,29 +113,55 @@ Future<Uint8List> buildGutachtenPdf(GutachtenPdfData data) async {
       header: (ctx) => _kopfzeile(data),
       footer: (ctx) => _fusszeile(ctx, data.absender),
       build: (ctx) {
+        // Fotos nach Abschnitts-Key gruppieren; Fotos ohne Key landen
+        // später in der Lichtbildanlage.
+        final inlineProAbschnitt = <String, List<LichtbildPdfEntry>>{};
+        for (final l in data.lichtbilder) {
+          final k = l.abschnittKey;
+          if (k == null || k.isEmpty) continue;
+          (inlineProAbschnitt[k] ??= []).add(l);
+        }
         final widgets = <pw.Widget>[];
         var idx = 1;
-        for (final name in data.abschnittsReihenfolge) {
-          final inhalt = (data.abschnitte[name] ?? '').trim();
-          if (inhalt.isEmpty) {
+        // Globaler Fotozähler — die Nummerierung läuft quer durch Inline-
+        // und Anlagen-Fotos, damit Bild-Referenzen eindeutig bleiben.
+        var fotoIndex = 1;
+        for (final key in data.abschnittsReihenfolge) {
+          final inhalt = (data.abschnitte[key] ?? '').trim();
+          final inline = inlineProAbschnitt[key] ?? const [];
+          if (inhalt.isEmpty && inline.isEmpty) {
             idx++;
             continue;
           }
+          final label = data.abschnittsLabels[key] ?? key;
           widgets.add(pw.Padding(
             padding: pw.EdgeInsets.only(top: _mm(6), bottom: _mm(3)),
             child: pw.Text(
-              '${_roman(idx)}. $name',
+              '${_roman(idx)}. $label',
               style: pw.TextStyle(
                   fontSize: 13, fontWeight: pw.FontWeight.bold),
             ),
           ));
-          widgets.add(_quillDeltaToRichText(inhalt));
+          if (inhalt.isNotEmpty) {
+            widgets.add(_quillDeltaToRichText(inhalt));
+          }
+          if (inline.isNotEmpty) {
+            widgets.add(pw.SizedBox(height: _mm(3)));
+            for (final f in inline) {
+              widgets.addAll(_lichtbildBlock(f, fotoIndex));
+              fotoIndex++;
+            }
+          }
           widgets.add(pw.SizedBox(height: _mm(4)));
           idx++;
         }
         if (widgets.isEmpty) {
           widgets.add(pw.Text('Keine Inhalte erfasst.',
               style: const pw.TextStyle(fontSize: 11)));
+        }
+        if (data.verwendeteNormen.isNotEmpty) {
+          widgets.add(pw.SizedBox(height: _mm(10)));
+          widgets.add(_quellenListe(data.verwendeteNormen));
         }
         widgets.add(pw.SizedBox(height: _mm(14)));
         widgets.add(_unterschriftsBlock(data, dateFmt));
@@ -105,7 +170,124 @@ Future<Uint8List> buildGutachtenPdf(GutachtenPdfData data) async {
     ),
   );
 
+  // Lichtbild-Anlage nur mit den Fotos *ohne* Abschnitts-Zuordnung
+  // (inline-Fotos stehen bereits in den Abschnitten).
+  final anlageFotos = data.lichtbilder
+      .where((f) => (f.abschnittKey ?? '').isEmpty)
+      .toList();
+  if (anlageFotos.isNotEmpty) {
+    // Offset für die Nummerierung: alle inline-Fotos vorher zählen.
+    final inlineVorher = data.lichtbilder
+        .where((f) => (f.abschnittKey ?? '').isNotEmpty)
+        .length;
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: pw.EdgeInsets.fromLTRB(_mm(22), _mm(20), _mm(18), _mm(20)),
+        theme: theme,
+        header: (ctx) => _kopfzeile(data),
+        footer: (ctx) => _fusszeile(ctx, data.absender),
+        build: (ctx) =>
+            _lichtbildAnlage(anlageFotos, startIndex: inlineVorher + 1),
+      ),
+    );
+  }
+
   return doc.save();
+}
+
+List<pw.Widget> _lichtbildAnlage(
+  List<LichtbildPdfEntry> fotos, {
+  int startIndex = 1,
+}) {
+  final widgets = <pw.Widget>[
+    pw.Text('Lichtbildanlage',
+        style: pw.TextStyle(
+            fontSize: 15, fontWeight: pw.FontWeight.bold)),
+    pw.Divider(thickness: 0.5),
+    pw.SizedBox(height: 4),
+  ];
+  for (var i = 0; i < fotos.length; i++) {
+    widgets.addAll(_lichtbildBlock(fotos[i], startIndex + i));
+  }
+  return widgets;
+}
+
+List<pw.Widget> _lichtbildBlock(LichtbildPdfEntry f, int nr) {
+  // Einzeln in pw.Wrap packen, damit Titel + Bild möglichst zusammen
+  // auf einer Seite umbrechen.
+  return [
+    pw.Padding(
+      padding: pw.EdgeInsets.only(top: _mm(3), bottom: _mm(1)),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text('Bild $nr',
+              style: pw.TextStyle(
+                  fontSize: 11, fontWeight: pw.FontWeight.bold)),
+          if ((f.titel ?? '').isNotEmpty) ...[
+            pw.SizedBox(width: 6),
+            pw.Expanded(
+              child: pw.Text(f.titel!,
+                  style: const pw.TextStyle(fontSize: 11)),
+            ),
+          ],
+          if ((f.raum ?? '').isNotEmpty) ...[
+            pw.SizedBox(width: 6),
+            pw.Text('— ${f.raum!}',
+                style: pw.TextStyle(
+                    fontSize: 10, color: PdfColors.grey700)),
+          ],
+        ],
+      ),
+    ),
+    pw.Container(
+      alignment: pw.Alignment.center,
+      constraints: const pw.BoxConstraints(maxHeight: 340),
+      child: pw.Image(
+        pw.MemoryImage(f.bytes),
+        fit: pw.BoxFit.contain,
+      ),
+    ),
+    if ((f.beschreibung ?? '').isNotEmpty)
+      pw.Padding(
+        padding: pw.EdgeInsets.only(top: _mm(1)),
+        child: pw.Text(f.beschreibung!,
+            style: pw.TextStyle(
+                fontSize: 10,
+                fontStyle: pw.FontStyle.italic,
+                color: PdfColors.grey700)),
+      ),
+    pw.SizedBox(height: _mm(4)),
+  ];
+}
+
+pw.Widget _quellenListe(List<NormenData> normen) {
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Text('Herangezogene Normen, Richtlinien und Regelwerke',
+          style: pw.TextStyle(
+              fontSize: 12, fontWeight: pw.FontWeight.bold)),
+      pw.SizedBox(height: 4),
+      pw.Divider(thickness: 0.5),
+      pw.SizedBox(height: 2),
+      ...normen.map((n) {
+        final zeile = <String>[
+          n.nummer,
+          if (n.ausgabe != null && n.ausgabe!.isNotEmpty) '(${n.ausgabe})',
+          if (n.titel != null && n.titel!.isNotEmpty) '— ${n.titel}',
+        ].join(' ');
+        return pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 1.2),
+          child: pw.Text(
+            '• $zeile',
+            style: const pw.TextStyle(fontSize: 10),
+          ),
+        );
+      }),
+    ],
+  );
 }
 
 pw.Widget _unterschriftsBlock(GutachtenPdfData d, DateFormat dateFmt) {

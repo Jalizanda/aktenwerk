@@ -122,9 +122,9 @@ class DokumentWorkflowService {
   /// Angebot → Auftragsbestätigung (als neues Angebot mit Typ "AB" / Status
   /// `auftragsbestaetigung`).
   Future<int> angebotToAb(AngeboteData a) async {
-    final nr = await _nk.nextNumber(NummernkreisTyp.angebot);
+    final nr = await _nk.nextNumber(NummernkreisTyp.auftragsbestaetigung);
     return _db.into(_db.angebote).insert(AngeboteCompanion.insert(
-          angebotsnummer: Value('AB-$nr'),
+          angebotsnummer: Value(nr),
           kundeId: Value(a.kundeId),
           betreff: Value('Auftragsbestätigung zu ${a.angebotsnummer ?? ""}'),
           anfrage: Value(a.anfrage),

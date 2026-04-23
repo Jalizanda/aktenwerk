@@ -63,10 +63,24 @@ class SettingsKeys {
       'nummernkreis.rechnung.naechste';
   static const nummernkreisRechnungReset = 'nummernkreis.rechnung.reset';
 
+  // Eigener Kreis für Akontoanforderungen — die werden USt-technisch erst
+  // mit Zahlung als Anzahlungsrechnung relevant; darum getrennte Nummernfolge.
+  static const nummernkreisAkonto = 'nummernkreis.akonto';
+  static const nummernkreisAkontoNaechste =
+      'nummernkreis.akonto.naechste';
+  static const nummernkreisAkontoReset = 'nummernkreis.akonto.reset';
+
   static const nummernkreisAngebot = 'nummernkreis.angebot';
   static const nummernkreisAngebotNaechste =
       'nummernkreis.angebot.naechste';
   static const nummernkreisAngebotReset = 'nummernkreis.angebot.reset';
+
+  static const nummernkreisAuftragsbestaetigung =
+      'nummernkreis.auftragsbestaetigung';
+  static const nummernkreisAuftragsbestaetigungNaechste =
+      'nummernkreis.auftragsbestaetigung.naechste';
+  static const nummernkreisAuftragsbestaetigungReset =
+      'nummernkreis.auftragsbestaetigung.reset';
 
   static const nummernkreisGutachten = 'nummernkreis.gutachten';
   static const nummernkreisGutachtenNaechste =
@@ -114,6 +128,17 @@ class SettingsKeys {
 
   // ---------- UI ----------
   static const theme = 'ui.theme'; // 'system' | 'light' | 'dark'
+
+  // ---------- KI-Modell-Zuordnung pro Feature ----------
+  /// Werte: 'gemini-2.5-flash' | 'gemini-2.5-flash-lite' | 'gemini-2.5-pro'
+  static const kiModellKorrektur = 'ki.modell.korrektur';
+  static const kiModellUmformulieren = 'ki.modell.umformulieren';
+  static const kiModellJuristisch = 'ki.modell.juristisch';
+  static const kiModellKuerzen = 'ki.modell.kuerzen';
+  static const kiModellErweitern = 'ki.modell.erweitern';
+  static const kiModellNormenChat = 'ki.modell.normen_chat';
+  static const kiModellAudioTranskript = 'ki.modell.audio_transkript';
+  static const kiModellBelegErfassung = 'ki.modell.beleg_erfassung';
 }
 
 class EinstellungenRepository {

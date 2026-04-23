@@ -7,6 +7,7 @@ import '../tables/artikel_table.dart';
 import '../tables/auftraege_geraete_table.dart';
 import '../tables/auftraege_table.dart';
 import '../tables/auslagen_table.dart';
+import '../tables/bauteiloeffnungen_table.dart';
 import '../tables/benutzer_table.dart';
 import '../tables/dokumente_table.dart';
 import '../tables/eingangsrechnungen_table.dart';
@@ -16,18 +17,26 @@ import '../tables/fortbildungen_table.dart';
 import '../tables/fotos_table.dart';
 import '../tables/geraete_table.dart';
 import '../tables/gutachten_table.dart';
+import '../tables/journaleintraege_table.dart';
 import '../tables/kalkulationen_table.dart';
 import '../tables/konten_table.dart';
 import '../tables/kunden_table.dart';
 import '../tables/lieferanten_table.dart';
+import '../tables/maengel_table.dart';
+import '../tables/messwerte_table.dart';
 import '../tables/normen_table.dart';
 import '../tables/partner_table.dart';
 import '../tables/protokolle_table.dart';
+import '../tables/qualifikationen_table.dart';
 import '../tables/rechnungen_table.dart';
+import '../tables/recherche_notizen_table.dart';
 import '../tables/rueckfragen_table.dart';
+import '../tables/serienbriefe_table.dart';
 import '../tables/stunden_table.dart';
 import '../tables/textbausteine_table.dart';
+import '../tables/uebergaben_table.dart';
 import '../tables/versand_table.dart';
+import '../tables/wertermittlungen_table.dart';
 import '../tables/wiedervorlagen_table.dart';
 
 part 'app_database.g.dart';
@@ -61,21 +70,44 @@ part 'app_database.g.dart';
   Konten,
   Protokolle,
   Partner,
+  Journaleintraege,
+  Maengel,
+  Uebergaben,
+  Qualifikationen,
+  Bauteiloeffnungen,
+  Messwerte,
+  Wertermittlungen,
+  Serienbriefe,
+  RechercheNotizen,
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor])
-      : super(executor ?? _open());
+  AppDatabase._(super.executor);
 
-  static QueryExecutor _open() => driftDatabase(
-        name: 'aktenwerk',
-        web: DriftWebOptions(
-          sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-          driftWorker: Uri.parse('drift_worker.js'),
-        ),
-      );
+  /// Öffnet eine Datenbank unter dem angegebenen Namen. Jeder Name
+  /// entspricht einer eigenen IndexedDB/Datei — so lassen sich
+  /// Produktiv- und Demo-Mandant sauber trennen.
+  factory AppDatabase.named(String dbName) {
+    return AppDatabase._(driftDatabase(
+      name: dbName,
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
+      ),
+    ));
+  }
+
+  /// Legacy-Konstruktor für Tests / Direktaufruf.
+  AppDatabase([QueryExecutor? executor])
+      : super(executor ?? driftDatabase(
+          name: 'aktenwerk',
+          web: DriftWebOptions(
+            sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+            driftWorker: Uri.parse('drift_worker.js'),
+          ),
+        ));
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -198,6 +230,58 @@ class AppDatabase extends _$AppDatabase {
           // v15 → v16: Endzeit für Termine (Wiedervorlagen).
           if (from < 16) {
             await m.addColumn(wiedervorlagen, wiedervorlagen.endeAm);
+          }
+
+          // v16 → v17: Sachverständigen-Features #12, #13, #14, #15, #16,
+          // #17, #18 sowie Erweiterungen der Wiedervorlagen (#11).
+          if (from < 17) {
+            await m.createTable(journaleintraege);
+            await m.createTable(maengel);
+            await m.createTable(uebergaben);
+            await m.createTable(qualifikationen);
+            await m.createTable(bauteiloeffnungen);
+            await m.createTable(messwerte);
+            await m.createTable(wertermittlungen);
+
+            await m.addColumn(wiedervorlagen, wiedervorlagen.wiederholung);
+            await m.addColumn(wiedervorlagen, wiedervorlagen.triggerTyp);
+            await m.addColumn(wiedervorlagen, wiedervorlagen.triggerQuellId);
+            await m.addColumn(wiedervorlagen, wiedervorlagen.checklisteJson);
+          }
+
+          // v17 → v18: Serienbrief-Historie.
+          if (from < 18) {
+            await m.createTable(serienbriefe);
+          }
+
+          // v18 → v19: Streitparteien (Kläger/Beklagter) an der Akte.
+          if (from < 19) {
+            await m.addColumn(auftraege, auftraege.klaeger);
+            await m.addColumn(auftraege, auftraege.beklagter);
+          }
+
+          // v19 → v20: Primäres Gewerk an der Norm (für Gruppierung/Filter).
+          if (from < 20) {
+            await m.addColumn(normen, normen.gewerk);
+          }
+
+          // v20 → v21: Recherche-Ablage (Notizen aus Normen-KI-Chat,
+          // die beim Gutachten-Schreiben als Baustein eingefügt werden).
+          if (from < 21) {
+            await m.createTable(rechercheNotizen);
+          }
+
+          // v21 → v22: Geprüft-Flag an Eingangsrechnungen. KI-Massen-
+          // erfassung legt neue Rechnungen mit geprueft=false an, damit
+          // der SV die Werte noch einmal durchgehen kann.
+          if (from < 22) {
+            await m.addColumn(eingangsrechnungen, eingangsrechnungen.geprueft);
+          }
+
+          // v22 → v23: Abschnitts-Zuordnung an Fotos (Inline-Platzierung
+          // pro Gutachten-Block).
+          if (from < 23) {
+            await m.addColumn(fotos, fotos.gutachtenAbschnitt);
           }
         },
       );

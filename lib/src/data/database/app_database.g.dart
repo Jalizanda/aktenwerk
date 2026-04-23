@@ -1744,6 +1744,28 @@ class $AuftraegeTable extends Auftraege
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _klaegerMeta = const VerificationMeta(
+    'klaeger',
+  );
+  @override
+  late final GeneratedColumn<String> klaeger = GeneratedColumn<String>(
+    'klaeger',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _beklagterMeta = const VerificationMeta(
+    'beklagter',
+  );
+  @override
+  late final GeneratedColumn<String> beklagter = GeneratedColumn<String>(
+    'beklagter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _beteiligteJsonMeta = const VerificationMeta(
     'beteiligteJson',
   );
@@ -1961,6 +1983,8 @@ class $AuftraegeTable extends Auftraege
     richter,
     richterAnrede,
     richterBriefanrede,
+    klaeger,
+    beklagter,
     beteiligteJson,
     aufgabenJson,
     schneelastzone,
@@ -2308,6 +2332,18 @@ class $AuftraegeTable extends Auftraege
         ),
       );
     }
+    if (data.containsKey('klaeger')) {
+      context.handle(
+        _klaegerMeta,
+        klaeger.isAcceptableOrUnknown(data['klaeger']!, _klaegerMeta),
+      );
+    }
+    if (data.containsKey('beklagter')) {
+      context.handle(
+        _beklagterMeta,
+        beklagter.isAcceptableOrUnknown(data['beklagter']!, _beklagterMeta),
+      );
+    }
     if (data.containsKey('beteiligte_json')) {
       context.handle(
         _beteiligteJsonMeta,
@@ -2617,6 +2653,14 @@ class $AuftraegeTable extends Auftraege
         DriftSqlType.string,
         data['${effectivePrefix}richter_briefanrede'],
       ),
+      klaeger: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}klaeger'],
+      ),
+      beklagter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}beklagter'],
+      ),
       beteiligteJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}beteiligte_json'],
@@ -2749,6 +2793,10 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
   final String? richter;
   final String? richterAnrede;
   final String? richterBriefanrede;
+
+  /// Streitparteien im gerichtlichen Verfahren.
+  final String? klaeger;
+  final String? beklagter;
   final String? beteiligteJson;
 
   /// Aufgaben-Array: `[{"text":"…","done":false,"doneAt":null}]`.
@@ -2822,6 +2870,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     this.richter,
     this.richterAnrede,
     this.richterBriefanrede,
+    this.klaeger,
+    this.beklagter,
     this.beteiligteJson,
     this.aufgabenJson,
     this.schneelastzone,
@@ -2961,6 +3011,12 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     }
     if (!nullToAbsent || richterBriefanrede != null) {
       map['richter_briefanrede'] = Variable<String>(richterBriefanrede);
+    }
+    if (!nullToAbsent || klaeger != null) {
+      map['klaeger'] = Variable<String>(klaeger);
+    }
+    if (!nullToAbsent || beklagter != null) {
+      map['beklagter'] = Variable<String>(beklagter);
     }
     if (!nullToAbsent || beteiligteJson != null) {
       map['beteiligte_json'] = Variable<String>(beteiligteJson);
@@ -3137,6 +3193,12 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
       richterBriefanrede: richterBriefanrede == null && nullToAbsent
           ? const Value.absent()
           : Value(richterBriefanrede),
+      klaeger: klaeger == null && nullToAbsent
+          ? const Value.absent()
+          : Value(klaeger),
+      beklagter: beklagter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(beklagter),
       beteiligteJson: beteiligteJson == null && nullToAbsent
           ? const Value.absent()
           : Value(beteiligteJson),
@@ -3247,6 +3309,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
       richterBriefanrede: serializer.fromJson<String?>(
         json['richterBriefanrede'],
       ),
+      klaeger: serializer.fromJson<String?>(json['klaeger']),
+      beklagter: serializer.fromJson<String?>(json['beklagter']),
       beteiligteJson: serializer.fromJson<String?>(json['beteiligteJson']),
       aufgabenJson: serializer.fromJson<String?>(json['aufgabenJson']),
       schneelastzone: serializer.fromJson<String?>(json['schneelastzone']),
@@ -3323,6 +3387,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
       'richter': serializer.toJson<String?>(richter),
       'richterAnrede': serializer.toJson<String?>(richterAnrede),
       'richterBriefanrede': serializer.toJson<String?>(richterBriefanrede),
+      'klaeger': serializer.toJson<String?>(klaeger),
+      'beklagter': serializer.toJson<String?>(beklagter),
       'beteiligteJson': serializer.toJson<String?>(beteiligteJson),
       'aufgabenJson': serializer.toJson<String?>(aufgabenJson),
       'schneelastzone': serializer.toJson<String?>(schneelastzone),
@@ -3391,6 +3457,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     Value<String?> richter = const Value.absent(),
     Value<String?> richterAnrede = const Value.absent(),
     Value<String?> richterBriefanrede = const Value.absent(),
+    Value<String?> klaeger = const Value.absent(),
+    Value<String?> beklagter = const Value.absent(),
     Value<String?> beteiligteJson = const Value.absent(),
     Value<String?> aufgabenJson = const Value.absent(),
     Value<String?> schneelastzone = const Value.absent(),
@@ -3480,6 +3548,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     richterBriefanrede: richterBriefanrede.present
         ? richterBriefanrede.value
         : this.richterBriefanrede,
+    klaeger: klaeger.present ? klaeger.value : this.klaeger,
+    beklagter: beklagter.present ? beklagter.value : this.beklagter,
     beteiligteJson: beteiligteJson.present
         ? beteiligteJson.value
         : this.beteiligteJson,
@@ -3607,6 +3677,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
       richterBriefanrede: data.richterBriefanrede.present
           ? data.richterBriefanrede.value
           : this.richterBriefanrede,
+      klaeger: data.klaeger.present ? data.klaeger.value : this.klaeger,
+      beklagter: data.beklagter.present ? data.beklagter.value : this.beklagter,
       beteiligteJson: data.beteiligteJson.present
           ? data.beteiligteJson.value
           : this.beteiligteJson,
@@ -3695,6 +3767,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
           ..write('richter: $richter, ')
           ..write('richterAnrede: $richterAnrede, ')
           ..write('richterBriefanrede: $richterBriefanrede, ')
+          ..write('klaeger: $klaeger, ')
+          ..write('beklagter: $beklagter, ')
           ..write('beteiligteJson: $beteiligteJson, ')
           ..write('aufgabenJson: $aufgabenJson, ')
           ..write('schneelastzone: $schneelastzone, ')
@@ -3759,6 +3833,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     richter,
     richterAnrede,
     richterBriefanrede,
+    klaeger,
+    beklagter,
     beteiligteJson,
     aufgabenJson,
     schneelastzone,
@@ -3822,6 +3898,8 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
           other.richter == this.richter &&
           other.richterAnrede == this.richterAnrede &&
           other.richterBriefanrede == this.richterBriefanrede &&
+          other.klaeger == this.klaeger &&
+          other.beklagter == this.beklagter &&
           other.beteiligteJson == this.beteiligteJson &&
           other.aufgabenJson == this.aufgabenJson &&
           other.schneelastzone == this.schneelastzone &&
@@ -3883,6 +3961,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
   final Value<String?> richter;
   final Value<String?> richterAnrede;
   final Value<String?> richterBriefanrede;
+  final Value<String?> klaeger;
+  final Value<String?> beklagter;
   final Value<String?> beteiligteJson;
   final Value<String?> aufgabenJson;
   final Value<String?> schneelastzone;
@@ -3942,6 +4022,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     this.richter = const Value.absent(),
     this.richterAnrede = const Value.absent(),
     this.richterBriefanrede = const Value.absent(),
+    this.klaeger = const Value.absent(),
+    this.beklagter = const Value.absent(),
     this.beteiligteJson = const Value.absent(),
     this.aufgabenJson = const Value.absent(),
     this.schneelastzone = const Value.absent(),
@@ -4002,6 +4084,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     this.richter = const Value.absent(),
     this.richterAnrede = const Value.absent(),
     this.richterBriefanrede = const Value.absent(),
+    this.klaeger = const Value.absent(),
+    this.beklagter = const Value.absent(),
     this.beteiligteJson = const Value.absent(),
     this.aufgabenJson = const Value.absent(),
     this.schneelastzone = const Value.absent(),
@@ -4062,6 +4146,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     Expression<String>? richter,
     Expression<String>? richterAnrede,
     Expression<String>? richterBriefanrede,
+    Expression<String>? klaeger,
+    Expression<String>? beklagter,
     Expression<String>? beteiligteJson,
     Expression<String>? aufgabenJson,
     Expression<String>? schneelastzone,
@@ -4124,6 +4210,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
       if (richter != null) 'richter': richter,
       if (richterAnrede != null) 'richter_anrede': richterAnrede,
       if (richterBriefanrede != null) 'richter_briefanrede': richterBriefanrede,
+      if (klaeger != null) 'klaeger': klaeger,
+      if (beklagter != null) 'beklagter': beklagter,
       if (beteiligteJson != null) 'beteiligte_json': beteiligteJson,
       if (aufgabenJson != null) 'aufgaben_json': aufgabenJson,
       if (schneelastzone != null) 'schneelastzone': schneelastzone,
@@ -4192,6 +4280,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     Value<String?>? richter,
     Value<String?>? richterAnrede,
     Value<String?>? richterBriefanrede,
+    Value<String?>? klaeger,
+    Value<String?>? beklagter,
     Value<String?>? beteiligteJson,
     Value<String?>? aufgabenJson,
     Value<String?>? schneelastzone,
@@ -4252,6 +4342,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
       richter: richter ?? this.richter,
       richterAnrede: richterAnrede ?? this.richterAnrede,
       richterBriefanrede: richterBriefanrede ?? this.richterBriefanrede,
+      klaeger: klaeger ?? this.klaeger,
+      beklagter: beklagter ?? this.beklagter,
       beteiligteJson: beteiligteJson ?? this.beteiligteJson,
       aufgabenJson: aufgabenJson ?? this.aufgabenJson,
       schneelastzone: schneelastzone ?? this.schneelastzone,
@@ -4406,6 +4498,12 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     if (richterBriefanrede.present) {
       map['richter_briefanrede'] = Variable<String>(richterBriefanrede.value);
     }
+    if (klaeger.present) {
+      map['klaeger'] = Variable<String>(klaeger.value);
+    }
+    if (beklagter.present) {
+      map['beklagter'] = Variable<String>(beklagter.value);
+    }
     if (beteiligteJson.present) {
       map['beteiligte_json'] = Variable<String>(beteiligteJson.value);
     }
@@ -4514,6 +4612,8 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
           ..write('richter: $richter, ')
           ..write('richterAnrede: $richterAnrede, ')
           ..write('richterBriefanrede: $richterBriefanrede, ')
+          ..write('klaeger: $klaeger, ')
+          ..write('beklagter: $beklagter, ')
           ..write('beteiligteJson: $beteiligteJson, ')
           ..write('aufgabenJson: $aufgabenJson, ')
           ..write('schneelastzone: $schneelastzone, ')
@@ -11968,6 +12068,17 @@ class $FotosTable extends Fotos with TableInfo<$FotosTable, Foto> {
       'REFERENCES gutachten (id) ON DELETE SET NULL',
     ),
   );
+  static const VerificationMeta _gutachtenAbschnittMeta =
+      const VerificationMeta('gutachtenAbschnitt');
+  @override
+  late final GeneratedColumn<String> gutachtenAbschnitt =
+      GeneratedColumn<String>(
+        'gutachten_abschnitt',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _titelMeta = const VerificationMeta('titel');
   @override
   late final GeneratedColumn<String> titel = GeneratedColumn<String>(
@@ -12161,6 +12272,7 @@ class $FotosTable extends Fotos with TableInfo<$FotosTable, Foto> {
     id,
     auftragId,
     gutachtenId,
+    gutachtenAbschnitt,
     titel,
     raum,
     beschreibung,
@@ -12207,6 +12319,15 @@ class $FotosTable extends Fotos with TableInfo<$FotosTable, Foto> {
         gutachtenId.isAcceptableOrUnknown(
           data['gutachten_id']!,
           _gutachtenIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('gutachten_abschnitt')) {
+      context.handle(
+        _gutachtenAbschnittMeta,
+        gutachtenAbschnitt.isAcceptableOrUnknown(
+          data['gutachten_abschnitt']!,
+          _gutachtenAbschnittMeta,
         ),
       );
     }
@@ -12357,6 +12478,10 @@ class $FotosTable extends Fotos with TableInfo<$FotosTable, Foto> {
         DriftSqlType.int,
         data['${effectivePrefix}gutachten_id'],
       ),
+      gutachtenAbschnitt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gutachten_abschnitt'],
+      ),
       titel: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}titel'],
@@ -12442,6 +12567,11 @@ class Foto extends DataClass implements Insertable<Foto> {
   final int id;
   final int? auftragId;
   final int? gutachtenId;
+
+  /// Optionaler Abschnitts-Schlüssel (z. B. "objektbeschreibung") — ordnet
+  /// das Foto einem Gutachten-Block zu. NULL → Foto erscheint nur in der
+  /// allgemeinen Lichtbildanlage am Ende.
+  final String? gutachtenAbschnitt;
   final String? titel;
 
   /// Raum- oder Ortszuordnung im Objekt (z. B. "Schlafzimmer OG", "Fassade Ost").
@@ -12476,6 +12606,7 @@ class Foto extends DataClass implements Insertable<Foto> {
     required this.id,
     this.auftragId,
     this.gutachtenId,
+    this.gutachtenAbschnitt,
     this.titel,
     this.raum,
     this.beschreibung,
@@ -12504,6 +12635,9 @@ class Foto extends DataClass implements Insertable<Foto> {
     }
     if (!nullToAbsent || gutachtenId != null) {
       map['gutachten_id'] = Variable<int>(gutachtenId);
+    }
+    if (!nullToAbsent || gutachtenAbschnitt != null) {
+      map['gutachten_abschnitt'] = Variable<String>(gutachtenAbschnitt);
     }
     if (!nullToAbsent || titel != null) {
       map['titel'] = Variable<String>(titel);
@@ -12565,6 +12699,9 @@ class Foto extends DataClass implements Insertable<Foto> {
       gutachtenId: gutachtenId == null && nullToAbsent
           ? const Value.absent()
           : Value(gutachtenId),
+      gutachtenAbschnitt: gutachtenAbschnitt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gutachtenAbschnitt),
       titel: titel == null && nullToAbsent
           ? const Value.absent()
           : Value(titel),
@@ -12617,6 +12754,9 @@ class Foto extends DataClass implements Insertable<Foto> {
       id: serializer.fromJson<int>(json['id']),
       auftragId: serializer.fromJson<int?>(json['auftragId']),
       gutachtenId: serializer.fromJson<int?>(json['gutachtenId']),
+      gutachtenAbschnitt: serializer.fromJson<String?>(
+        json['gutachtenAbschnitt'],
+      ),
       titel: serializer.fromJson<String?>(json['titel']),
       raum: serializer.fromJson<String?>(json['raum']),
       beschreibung: serializer.fromJson<String?>(json['beschreibung']),
@@ -12648,6 +12788,7 @@ class Foto extends DataClass implements Insertable<Foto> {
       'id': serializer.toJson<int>(id),
       'auftragId': serializer.toJson<int?>(auftragId),
       'gutachtenId': serializer.toJson<int?>(gutachtenId),
+      'gutachtenAbschnitt': serializer.toJson<String?>(gutachtenAbschnitt),
       'titel': serializer.toJson<String?>(titel),
       'raum': serializer.toJson<String?>(raum),
       'beschreibung': serializer.toJson<String?>(beschreibung),
@@ -12673,6 +12814,7 @@ class Foto extends DataClass implements Insertable<Foto> {
     int? id,
     Value<int?> auftragId = const Value.absent(),
     Value<int?> gutachtenId = const Value.absent(),
+    Value<String?> gutachtenAbschnitt = const Value.absent(),
     Value<String?> titel = const Value.absent(),
     Value<String?> raum = const Value.absent(),
     Value<String?> beschreibung = const Value.absent(),
@@ -12695,6 +12837,9 @@ class Foto extends DataClass implements Insertable<Foto> {
     id: id ?? this.id,
     auftragId: auftragId.present ? auftragId.value : this.auftragId,
     gutachtenId: gutachtenId.present ? gutachtenId.value : this.gutachtenId,
+    gutachtenAbschnitt: gutachtenAbschnitt.present
+        ? gutachtenAbschnitt.value
+        : this.gutachtenAbschnitt,
     titel: titel.present ? titel.value : this.titel,
     raum: raum.present ? raum.value : this.raum,
     beschreibung: beschreibung.present ? beschreibung.value : this.beschreibung,
@@ -12727,6 +12872,9 @@ class Foto extends DataClass implements Insertable<Foto> {
       gutachtenId: data.gutachtenId.present
           ? data.gutachtenId.value
           : this.gutachtenId,
+      gutachtenAbschnitt: data.gutachtenAbschnitt.present
+          ? data.gutachtenAbschnitt.value
+          : this.gutachtenAbschnitt,
       titel: data.titel.present ? data.titel.value : this.titel,
       raum: data.raum.present ? data.raum.value : this.raum,
       beschreibung: data.beschreibung.present
@@ -12770,6 +12918,7 @@ class Foto extends DataClass implements Insertable<Foto> {
           ..write('id: $id, ')
           ..write('auftragId: $auftragId, ')
           ..write('gutachtenId: $gutachtenId, ')
+          ..write('gutachtenAbschnitt: $gutachtenAbschnitt, ')
           ..write('titel: $titel, ')
           ..write('raum: $raum, ')
           ..write('beschreibung: $beschreibung, ')
@@ -12797,6 +12946,7 @@ class Foto extends DataClass implements Insertable<Foto> {
     id,
     auftragId,
     gutachtenId,
+    gutachtenAbschnitt,
     titel,
     raum,
     beschreibung,
@@ -12823,6 +12973,7 @@ class Foto extends DataClass implements Insertable<Foto> {
           other.id == this.id &&
           other.auftragId == this.auftragId &&
           other.gutachtenId == this.gutachtenId &&
+          other.gutachtenAbschnitt == this.gutachtenAbschnitt &&
           other.titel == this.titel &&
           other.raum == this.raum &&
           other.beschreibung == this.beschreibung &&
@@ -12847,6 +12998,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
   final Value<int> id;
   final Value<int?> auftragId;
   final Value<int?> gutachtenId;
+  final Value<String?> gutachtenAbschnitt;
   final Value<String?> titel;
   final Value<String?> raum;
   final Value<String?> beschreibung;
@@ -12869,6 +13021,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
     this.id = const Value.absent(),
     this.auftragId = const Value.absent(),
     this.gutachtenId = const Value.absent(),
+    this.gutachtenAbschnitt = const Value.absent(),
     this.titel = const Value.absent(),
     this.raum = const Value.absent(),
     this.beschreibung = const Value.absent(),
@@ -12892,6 +13045,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
     this.id = const Value.absent(),
     this.auftragId = const Value.absent(),
     this.gutachtenId = const Value.absent(),
+    this.gutachtenAbschnitt = const Value.absent(),
     this.titel = const Value.absent(),
     this.raum = const Value.absent(),
     this.beschreibung = const Value.absent(),
@@ -12915,6 +13069,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
     Expression<int>? id,
     Expression<int>? auftragId,
     Expression<int>? gutachtenId,
+    Expression<String>? gutachtenAbschnitt,
     Expression<String>? titel,
     Expression<String>? raum,
     Expression<String>? beschreibung,
@@ -12938,6 +13093,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
       if (id != null) 'id': id,
       if (auftragId != null) 'auftrag_id': auftragId,
       if (gutachtenId != null) 'gutachten_id': gutachtenId,
+      if (gutachtenAbschnitt != null) 'gutachten_abschnitt': gutachtenAbschnitt,
       if (titel != null) 'titel': titel,
       if (raum != null) 'raum': raum,
       if (beschreibung != null) 'beschreibung': beschreibung,
@@ -12965,6 +13121,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
     Value<int>? id,
     Value<int?>? auftragId,
     Value<int?>? gutachtenId,
+    Value<String?>? gutachtenAbschnitt,
     Value<String?>? titel,
     Value<String?>? raum,
     Value<String?>? beschreibung,
@@ -12988,6 +13145,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
       id: id ?? this.id,
       auftragId: auftragId ?? this.auftragId,
       gutachtenId: gutachtenId ?? this.gutachtenId,
+      gutachtenAbschnitt: gutachtenAbschnitt ?? this.gutachtenAbschnitt,
       titel: titel ?? this.titel,
       raum: raum ?? this.raum,
       beschreibung: beschreibung ?? this.beschreibung,
@@ -13020,6 +13178,9 @@ class FotosCompanion extends UpdateCompanion<Foto> {
     }
     if (gutachtenId.present) {
       map['gutachten_id'] = Variable<int>(gutachtenId.value);
+    }
+    if (gutachtenAbschnitt.present) {
+      map['gutachten_abschnitt'] = Variable<String>(gutachtenAbschnitt.value);
     }
     if (titel.present) {
       map['titel'] = Variable<String>(titel.value);
@@ -13086,6 +13247,7 @@ class FotosCompanion extends UpdateCompanion<Foto> {
           ..write('id: $id, ')
           ..write('auftragId: $auftragId, ')
           ..write('gutachtenId: $gutachtenId, ')
+          ..write('gutachtenAbschnitt: $gutachtenAbschnitt, ')
           ..write('titel: $titel, ')
           ..write('raum: $raum, ')
           ..write('beschreibung: $beschreibung, ')
@@ -19706,6 +19868,50 @@ class $WiedervorlagenTable extends Wiedervorlagen
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _wiederholungMeta = const VerificationMeta(
+    'wiederholung',
+  );
+  @override
+  late final GeneratedColumn<String> wiederholung = GeneratedColumn<String>(
+    'wiederholung',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _triggerTypMeta = const VerificationMeta(
+    'triggerTyp',
+  );
+  @override
+  late final GeneratedColumn<String> triggerTyp = GeneratedColumn<String>(
+    'trigger_typ',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _triggerQuellIdMeta = const VerificationMeta(
+    'triggerQuellId',
+  );
+  @override
+  late final GeneratedColumn<int> triggerQuellId = GeneratedColumn<int>(
+    'trigger_quell_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _checklisteJsonMeta = const VerificationMeta(
+    'checklisteJson',
+  );
+  @override
+  late final GeneratedColumn<String> checklisteJson = GeneratedColumn<String>(
+    'checkliste_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -19743,6 +19949,10 @@ class $WiedervorlagenTable extends Wiedervorlagen
     prioritaet,
     erledigt,
     extras,
+    wiederholung,
+    triggerTyp,
+    triggerQuellId,
+    checklisteJson,
     createdAt,
     updatedAt,
   ];
@@ -19826,6 +20036,39 @@ class $WiedervorlagenTable extends Wiedervorlagen
         extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
       );
     }
+    if (data.containsKey('wiederholung')) {
+      context.handle(
+        _wiederholungMeta,
+        wiederholung.isAcceptableOrUnknown(
+          data['wiederholung']!,
+          _wiederholungMeta,
+        ),
+      );
+    }
+    if (data.containsKey('trigger_typ')) {
+      context.handle(
+        _triggerTypMeta,
+        triggerTyp.isAcceptableOrUnknown(data['trigger_typ']!, _triggerTypMeta),
+      );
+    }
+    if (data.containsKey('trigger_quell_id')) {
+      context.handle(
+        _triggerQuellIdMeta,
+        triggerQuellId.isAcceptableOrUnknown(
+          data['trigger_quell_id']!,
+          _triggerQuellIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('checkliste_json')) {
+      context.handle(
+        _checklisteJsonMeta,
+        checklisteJson.isAcceptableOrUnknown(
+          data['checkliste_json']!,
+          _checklisteJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -19891,6 +20134,22 @@ class $WiedervorlagenTable extends Wiedervorlagen
         DriftSqlType.string,
         data['${effectivePrefix}extras'],
       ),
+      wiederholung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wiederholung'],
+      ),
+      triggerTyp: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trigger_typ'],
+      ),
+      triggerQuellId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}trigger_quell_id'],
+      ),
+      checklisteJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}checkliste_json'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -19926,6 +20185,23 @@ class WiedervorlagenData extends DataClass
   final String prioritaet;
   final bool erledigt;
   final String? extras;
+
+  /// Wiederholungs-Regel nach iCal-RRULE-Kurzform — z.B.
+  /// "FREQ=WEEKLY;INTERVAL=1" oder "FREQ=MONTHLY;BYMONTHDAY=15".
+  /// Leer = einmalige Wiedervorlage.
+  final String? wiederholung;
+
+  /// Trigger-Typ, wenn die Wiedervorlage automatisch aus einem anderen
+  /// Event entstanden ist — z.B. "rechnung.created+3d" für "3 Tage nach
+  /// Rechnungsdatum prüfen".
+  final String? triggerTyp;
+
+  /// ID des auslösenden Datensatzes (z.B. Rechnungs-ID) für die Trigger.
+  final int? triggerQuellId;
+
+  /// Checklisten-Punkte als JSON-Array `[{text, erledigt}]` — wenn gesetzt,
+  /// wird die Wiedervorlage als Checkliste dargestellt.
+  final String? checklisteJson;
   final DateTime createdAt;
   final DateTime updatedAt;
   const WiedervorlagenData({
@@ -19940,6 +20216,10 @@ class WiedervorlagenData extends DataClass
     required this.prioritaet,
     required this.erledigt,
     this.extras,
+    this.wiederholung,
+    this.triggerTyp,
+    this.triggerQuellId,
+    this.checklisteJson,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -19968,6 +20248,18 @@ class WiedervorlagenData extends DataClass
     map['erledigt'] = Variable<bool>(erledigt);
     if (!nullToAbsent || extras != null) {
       map['extras'] = Variable<String>(extras);
+    }
+    if (!nullToAbsent || wiederholung != null) {
+      map['wiederholung'] = Variable<String>(wiederholung);
+    }
+    if (!nullToAbsent || triggerTyp != null) {
+      map['trigger_typ'] = Variable<String>(triggerTyp);
+    }
+    if (!nullToAbsent || triggerQuellId != null) {
+      map['trigger_quell_id'] = Variable<int>(triggerQuellId);
+    }
+    if (!nullToAbsent || checklisteJson != null) {
+      map['checkliste_json'] = Variable<String>(checklisteJson);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -19999,6 +20291,18 @@ class WiedervorlagenData extends DataClass
       extras: extras == null && nullToAbsent
           ? const Value.absent()
           : Value(extras),
+      wiederholung: wiederholung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wiederholung),
+      triggerTyp: triggerTyp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(triggerTyp),
+      triggerQuellId: triggerQuellId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(triggerQuellId),
+      checklisteJson: checklisteJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checklisteJson),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -20021,6 +20325,10 @@ class WiedervorlagenData extends DataClass
       prioritaet: serializer.fromJson<String>(json['prioritaet']),
       erledigt: serializer.fromJson<bool>(json['erledigt']),
       extras: serializer.fromJson<String?>(json['extras']),
+      wiederholung: serializer.fromJson<String?>(json['wiederholung']),
+      triggerTyp: serializer.fromJson<String?>(json['triggerTyp']),
+      triggerQuellId: serializer.fromJson<int?>(json['triggerQuellId']),
+      checklisteJson: serializer.fromJson<String?>(json['checklisteJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -20040,6 +20348,10 @@ class WiedervorlagenData extends DataClass
       'prioritaet': serializer.toJson<String>(prioritaet),
       'erledigt': serializer.toJson<bool>(erledigt),
       'extras': serializer.toJson<String?>(extras),
+      'wiederholung': serializer.toJson<String?>(wiederholung),
+      'triggerTyp': serializer.toJson<String?>(triggerTyp),
+      'triggerQuellId': serializer.toJson<int?>(triggerQuellId),
+      'checklisteJson': serializer.toJson<String?>(checklisteJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -20057,6 +20369,10 @@ class WiedervorlagenData extends DataClass
     String? prioritaet,
     bool? erledigt,
     Value<String?> extras = const Value.absent(),
+    Value<String?> wiederholung = const Value.absent(),
+    Value<String?> triggerTyp = const Value.absent(),
+    Value<int?> triggerQuellId = const Value.absent(),
+    Value<String?> checklisteJson = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => WiedervorlagenData(
@@ -20071,6 +20387,14 @@ class WiedervorlagenData extends DataClass
     prioritaet: prioritaet ?? this.prioritaet,
     erledigt: erledigt ?? this.erledigt,
     extras: extras.present ? extras.value : this.extras,
+    wiederholung: wiederholung.present ? wiederholung.value : this.wiederholung,
+    triggerTyp: triggerTyp.present ? triggerTyp.value : this.triggerTyp,
+    triggerQuellId: triggerQuellId.present
+        ? triggerQuellId.value
+        : this.triggerQuellId,
+    checklisteJson: checklisteJson.present
+        ? checklisteJson.value
+        : this.checklisteJson,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -20093,6 +20417,18 @@ class WiedervorlagenData extends DataClass
           : this.prioritaet,
       erledigt: data.erledigt.present ? data.erledigt.value : this.erledigt,
       extras: data.extras.present ? data.extras.value : this.extras,
+      wiederholung: data.wiederholung.present
+          ? data.wiederholung.value
+          : this.wiederholung,
+      triggerTyp: data.triggerTyp.present
+          ? data.triggerTyp.value
+          : this.triggerTyp,
+      triggerQuellId: data.triggerQuellId.present
+          ? data.triggerQuellId.value
+          : this.triggerQuellId,
+      checklisteJson: data.checklisteJson.present
+          ? data.checklisteJson.value
+          : this.checklisteJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -20112,6 +20448,10 @@ class WiedervorlagenData extends DataClass
           ..write('prioritaet: $prioritaet, ')
           ..write('erledigt: $erledigt, ')
           ..write('extras: $extras, ')
+          ..write('wiederholung: $wiederholung, ')
+          ..write('triggerTyp: $triggerTyp, ')
+          ..write('triggerQuellId: $triggerQuellId, ')
+          ..write('checklisteJson: $checklisteJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -20131,6 +20471,10 @@ class WiedervorlagenData extends DataClass
     prioritaet,
     erledigt,
     extras,
+    wiederholung,
+    triggerTyp,
+    triggerQuellId,
+    checklisteJson,
     createdAt,
     updatedAt,
   );
@@ -20149,6 +20493,10 @@ class WiedervorlagenData extends DataClass
           other.prioritaet == this.prioritaet &&
           other.erledigt == this.erledigt &&
           other.extras == this.extras &&
+          other.wiederholung == this.wiederholung &&
+          other.triggerTyp == this.triggerTyp &&
+          other.triggerQuellId == this.triggerQuellId &&
+          other.checklisteJson == this.checklisteJson &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -20165,6 +20513,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
   final Value<String> prioritaet;
   final Value<bool> erledigt;
   final Value<String?> extras;
+  final Value<String?> wiederholung;
+  final Value<String?> triggerTyp;
+  final Value<int?> triggerQuellId;
+  final Value<String?> checklisteJson;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const WiedervorlagenCompanion({
@@ -20179,6 +20531,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
     this.prioritaet = const Value.absent(),
     this.erledigt = const Value.absent(),
     this.extras = const Value.absent(),
+    this.wiederholung = const Value.absent(),
+    this.triggerTyp = const Value.absent(),
+    this.triggerQuellId = const Value.absent(),
+    this.checklisteJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -20194,6 +20550,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
     this.prioritaet = const Value.absent(),
     this.erledigt = const Value.absent(),
     this.extras = const Value.absent(),
+    this.wiederholung = const Value.absent(),
+    this.triggerTyp = const Value.absent(),
+    this.triggerQuellId = const Value.absent(),
+    this.checklisteJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : titel = Value(titel);
@@ -20209,6 +20569,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
     Expression<String>? prioritaet,
     Expression<bool>? erledigt,
     Expression<String>? extras,
+    Expression<String>? wiederholung,
+    Expression<String>? triggerTyp,
+    Expression<int>? triggerQuellId,
+    Expression<String>? checklisteJson,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -20224,6 +20588,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
       if (prioritaet != null) 'prioritaet': prioritaet,
       if (erledigt != null) 'erledigt': erledigt,
       if (extras != null) 'extras': extras,
+      if (wiederholung != null) 'wiederholung': wiederholung,
+      if (triggerTyp != null) 'trigger_typ': triggerTyp,
+      if (triggerQuellId != null) 'trigger_quell_id': triggerQuellId,
+      if (checklisteJson != null) 'checkliste_json': checklisteJson,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -20241,6 +20609,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
     Value<String>? prioritaet,
     Value<bool>? erledigt,
     Value<String?>? extras,
+    Value<String?>? wiederholung,
+    Value<String?>? triggerTyp,
+    Value<int?>? triggerQuellId,
+    Value<String?>? checklisteJson,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -20256,6 +20628,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
       prioritaet: prioritaet ?? this.prioritaet,
       erledigt: erledigt ?? this.erledigt,
       extras: extras ?? this.extras,
+      wiederholung: wiederholung ?? this.wiederholung,
+      triggerTyp: triggerTyp ?? this.triggerTyp,
+      triggerQuellId: triggerQuellId ?? this.triggerQuellId,
+      checklisteJson: checklisteJson ?? this.checklisteJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -20297,6 +20673,18 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
     if (extras.present) {
       map['extras'] = Variable<String>(extras.value);
     }
+    if (wiederholung.present) {
+      map['wiederholung'] = Variable<String>(wiederholung.value);
+    }
+    if (triggerTyp.present) {
+      map['trigger_typ'] = Variable<String>(triggerTyp.value);
+    }
+    if (triggerQuellId.present) {
+      map['trigger_quell_id'] = Variable<int>(triggerQuellId.value);
+    }
+    if (checklisteJson.present) {
+      map['checkliste_json'] = Variable<String>(checklisteJson.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -20320,6 +20708,10 @@ class WiedervorlagenCompanion extends UpdateCompanion<WiedervorlagenData> {
           ..write('prioritaet: $prioritaet, ')
           ..write('erledigt: $erledigt, ')
           ..write('extras: $extras, ')
+          ..write('wiederholung: $wiederholung, ')
+          ..write('triggerTyp: $triggerTyp, ')
+          ..write('triggerQuellId: $triggerQuellId, ')
+          ..write('checklisteJson: $checklisteJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -24894,6 +25286,15 @@ class $NormenTable extends Normen with TableInfo<$NormenTable, NormenData> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gewerkMeta = const VerificationMeta('gewerk');
+  @override
+  late final GeneratedColumn<String> gewerk = GeneratedColumn<String>(
+    'gewerk',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _pdfPfadMeta = const VerificationMeta(
     'pdfPfad',
   );
@@ -25071,6 +25472,7 @@ class $NormenTable extends Normen with TableInfo<$NormenTable, NormenData> {
     zitat,
     beschreibung,
     notiz,
+    gewerk,
     pdfPfad,
     pdfStorageUrl,
     pdfMimeType,
@@ -25182,6 +25584,12 @@ class $NormenTable extends Normen with TableInfo<$NormenTable, NormenData> {
       context.handle(
         _notizMeta,
         notiz.isAcceptableOrUnknown(data['notiz']!, _notizMeta),
+      );
+    }
+    if (data.containsKey('gewerk')) {
+      context.handle(
+        _gewerkMeta,
+        gewerk.isAcceptableOrUnknown(data['gewerk']!, _gewerkMeta),
       );
     }
     if (data.containsKey('pdf_pfad')) {
@@ -25350,6 +25758,10 @@ class $NormenTable extends Normen with TableInfo<$NormenTable, NormenData> {
         DriftSqlType.string,
         data['${effectivePrefix}notiz'],
       ),
+      gewerk: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gewerk'],
+      ),
       pdfPfad: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}pdf_pfad'],
@@ -25436,6 +25848,10 @@ class NormenData extends DataClass implements Insertable<NormenData> {
   final String? beschreibung;
   final String? notiz;
 
+  /// Primäres Gewerk zur Gruppierung / Filterung — z. B.
+  /// „Fenster/Türen", „Schallschutz/Akustik", „Brandschutz", „Abdichtung".
+  final String? gewerk;
+
   /// Optional: eingebundenes PDF (Volltext, Merkblatt, Zitat).
   final String? pdfPfad;
   final String? pdfStorageUrl;
@@ -25469,6 +25885,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
     this.zitat,
     this.beschreibung,
     this.notiz,
+    this.gewerk,
     this.pdfPfad,
     this.pdfStorageUrl,
     this.pdfMimeType,
@@ -25521,6 +25938,9 @@ class NormenData extends DataClass implements Insertable<NormenData> {
     }
     if (!nullToAbsent || notiz != null) {
       map['notiz'] = Variable<String>(notiz);
+    }
+    if (!nullToAbsent || gewerk != null) {
+      map['gewerk'] = Variable<String>(gewerk);
     }
     if (!nullToAbsent || pdfPfad != null) {
       map['pdf_pfad'] = Variable<String>(pdfPfad);
@@ -25596,6 +26016,9 @@ class NormenData extends DataClass implements Insertable<NormenData> {
       notiz: notiz == null && nullToAbsent
           ? const Value.absent()
           : Value(notiz),
+      gewerk: gewerk == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gewerk),
       pdfPfad: pdfPfad == null && nullToAbsent
           ? const Value.absent()
           : Value(pdfPfad),
@@ -25652,6 +26075,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
       zitat: serializer.fromJson<String?>(json['zitat']),
       beschreibung: serializer.fromJson<String?>(json['beschreibung']),
       notiz: serializer.fromJson<String?>(json['notiz']),
+      gewerk: serializer.fromJson<String?>(json['gewerk']),
       pdfPfad: serializer.fromJson<String?>(json['pdfPfad']),
       pdfStorageUrl: serializer.fromJson<String?>(json['pdfStorageUrl']),
       pdfMimeType: serializer.fromJson<String?>(json['pdfMimeType']),
@@ -25691,6 +26115,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
       'zitat': serializer.toJson<String?>(zitat),
       'beschreibung': serializer.toJson<String?>(beschreibung),
       'notiz': serializer.toJson<String?>(notiz),
+      'gewerk': serializer.toJson<String?>(gewerk),
       'pdfPfad': serializer.toJson<String?>(pdfPfad),
       'pdfStorageUrl': serializer.toJson<String?>(pdfStorageUrl),
       'pdfMimeType': serializer.toJson<String?>(pdfMimeType),
@@ -25724,6 +26149,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
     Value<String?> zitat = const Value.absent(),
     Value<String?> beschreibung = const Value.absent(),
     Value<String?> notiz = const Value.absent(),
+    Value<String?> gewerk = const Value.absent(),
     Value<String?> pdfPfad = const Value.absent(),
     Value<String?> pdfStorageUrl = const Value.absent(),
     Value<String?> pdfMimeType = const Value.absent(),
@@ -25754,6 +26180,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
     zitat: zitat.present ? zitat.value : this.zitat,
     beschreibung: beschreibung.present ? beschreibung.value : this.beschreibung,
     notiz: notiz.present ? notiz.value : this.notiz,
+    gewerk: gewerk.present ? gewerk.value : this.gewerk,
     pdfPfad: pdfPfad.present ? pdfPfad.value : this.pdfPfad,
     pdfStorageUrl: pdfStorageUrl.present
         ? pdfStorageUrl.value
@@ -25800,6 +26227,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
           ? data.beschreibung.value
           : this.beschreibung,
       notiz: data.notiz.present ? data.notiz.value : this.notiz,
+      gewerk: data.gewerk.present ? data.gewerk.value : this.gewerk,
       pdfPfad: data.pdfPfad.present ? data.pdfPfad.value : this.pdfPfad,
       pdfStorageUrl: data.pdfStorageUrl.present
           ? data.pdfStorageUrl.value
@@ -25849,6 +26277,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
           ..write('zitat: $zitat, ')
           ..write('beschreibung: $beschreibung, ')
           ..write('notiz: $notiz, ')
+          ..write('gewerk: $gewerk, ')
           ..write('pdfPfad: $pdfPfad, ')
           ..write('pdfStorageUrl: $pdfStorageUrl, ')
           ..write('pdfMimeType: $pdfMimeType, ')
@@ -25882,6 +26311,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
     zitat,
     beschreibung,
     notiz,
+    gewerk,
     pdfPfad,
     pdfStorageUrl,
     pdfMimeType,
@@ -25914,6 +26344,7 @@ class NormenData extends DataClass implements Insertable<NormenData> {
           other.zitat == this.zitat &&
           other.beschreibung == this.beschreibung &&
           other.notiz == this.notiz &&
+          other.gewerk == this.gewerk &&
           other.pdfPfad == this.pdfPfad &&
           other.pdfStorageUrl == this.pdfStorageUrl &&
           other.pdfMimeType == this.pdfMimeType &&
@@ -25944,6 +26375,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
   final Value<String?> zitat;
   final Value<String?> beschreibung;
   final Value<String?> notiz;
+  final Value<String?> gewerk;
   final Value<String?> pdfPfad;
   final Value<String?> pdfStorageUrl;
   final Value<String?> pdfMimeType;
@@ -25972,6 +26404,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
     this.zitat = const Value.absent(),
     this.beschreibung = const Value.absent(),
     this.notiz = const Value.absent(),
+    this.gewerk = const Value.absent(),
     this.pdfPfad = const Value.absent(),
     this.pdfStorageUrl = const Value.absent(),
     this.pdfMimeType = const Value.absent(),
@@ -26001,6 +26434,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
     this.zitat = const Value.absent(),
     this.beschreibung = const Value.absent(),
     this.notiz = const Value.absent(),
+    this.gewerk = const Value.absent(),
     this.pdfPfad = const Value.absent(),
     this.pdfStorageUrl = const Value.absent(),
     this.pdfMimeType = const Value.absent(),
@@ -26030,6 +26464,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
     Expression<String>? zitat,
     Expression<String>? beschreibung,
     Expression<String>? notiz,
+    Expression<String>? gewerk,
     Expression<String>? pdfPfad,
     Expression<String>? pdfStorageUrl,
     Expression<String>? pdfMimeType,
@@ -26059,6 +26494,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
       if (zitat != null) 'zitat': zitat,
       if (beschreibung != null) 'beschreibung': beschreibung,
       if (notiz != null) 'notiz': notiz,
+      if (gewerk != null) 'gewerk': gewerk,
       if (pdfPfad != null) 'pdf_pfad': pdfPfad,
       if (pdfStorageUrl != null) 'pdf_storage_url': pdfStorageUrl,
       if (pdfMimeType != null) 'pdf_mime_type': pdfMimeType,
@@ -26091,6 +26527,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
     Value<String?>? zitat,
     Value<String?>? beschreibung,
     Value<String?>? notiz,
+    Value<String?>? gewerk,
     Value<String?>? pdfPfad,
     Value<String?>? pdfStorageUrl,
     Value<String?>? pdfMimeType,
@@ -26120,6 +26557,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
       zitat: zitat ?? this.zitat,
       beschreibung: beschreibung ?? this.beschreibung,
       notiz: notiz ?? this.notiz,
+      gewerk: gewerk ?? this.gewerk,
       pdfPfad: pdfPfad ?? this.pdfPfad,
       pdfStorageUrl: pdfStorageUrl ?? this.pdfStorageUrl,
       pdfMimeType: pdfMimeType ?? this.pdfMimeType,
@@ -26179,6 +26617,9 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
     }
     if (notiz.present) {
       map['notiz'] = Variable<String>(notiz.value);
+    }
+    if (gewerk.present) {
+      map['gewerk'] = Variable<String>(gewerk.value);
     }
     if (pdfPfad.present) {
       map['pdf_pfad'] = Variable<String>(pdfPfad.value);
@@ -26243,6 +26684,7 @@ class NormenCompanion extends UpdateCompanion<NormenData> {
           ..write('zitat: $zitat, ')
           ..write('beschreibung: $beschreibung, ')
           ..write('notiz: $notiz, ')
+          ..write('gewerk: $gewerk, ')
           ..write('pdfPfad: $pdfPfad, ')
           ..write('pdfStorageUrl: $pdfStorageUrl, ')
           ..write('pdfMimeType: $pdfMimeType, ')
@@ -26588,6 +27030,21 @@ class $EingangsrechnungenTable extends Eingangsrechnungen
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _geprueftMeta = const VerificationMeta(
+    'geprueft',
+  );
+  @override
+  late final GeneratedColumn<bool> geprueft = GeneratedColumn<bool>(
+    'geprueft',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("geprueft" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _belegeJsonMeta = const VerificationMeta(
     'belegeJson',
   );
@@ -26682,6 +27139,7 @@ class $EingangsrechnungenTable extends Eingangsrechnungen
     ustBetrag,
     brutto,
     bezahlt,
+    geprueft,
     belegeJson,
     belegPfad,
     notiz,
@@ -26911,6 +27369,12 @@ class $EingangsrechnungenTable extends Eingangsrechnungen
         bezahlt.isAcceptableOrUnknown(data['bezahlt']!, _bezahltMeta),
       );
     }
+    if (data.containsKey('geprueft')) {
+      context.handle(
+        _geprueftMeta,
+        geprueft.isAcceptableOrUnknown(data['geprueft']!, _geprueftMeta),
+      );
+    }
     if (data.containsKey('belege_json')) {
       context.handle(
         _belegeJsonMeta,
@@ -27068,6 +27532,10 @@ class $EingangsrechnungenTable extends Eingangsrechnungen
         DriftSqlType.double,
         data['${effectivePrefix}bezahlt'],
       )!,
+      geprueft: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}geprueft'],
+      )!,
       belegeJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}belege_json'],
@@ -27143,6 +27611,11 @@ class EingangsrechnungenData extends DataClass
   final double brutto;
   final double bezahlt;
 
+  /// Vom Nutzer geprüft? Wird `false` bei KI-Massenerfassung gesetzt,
+  /// sodass der SV die extrahierten Werte noch einmal durchgehen kann.
+  /// Manuell angelegte Rechnungen gelten direkt als geprüft.
+  final bool geprueft;
+
   /// JSON-Array mit mehreren Belegen: `[{filename, storageUrl, mimeType}]`.
   final String? belegeJson;
   final String? belegPfad;
@@ -27179,6 +27652,7 @@ class EingangsrechnungenData extends DataClass
     required this.ustBetrag,
     required this.brutto,
     required this.bezahlt,
+    required this.geprueft,
     this.belegeJson,
     this.belegPfad,
     this.notiz,
@@ -27251,6 +27725,7 @@ class EingangsrechnungenData extends DataClass
     map['ust_betrag'] = Variable<double>(ustBetrag);
     map['brutto'] = Variable<double>(brutto);
     map['bezahlt'] = Variable<double>(bezahlt);
+    map['geprueft'] = Variable<bool>(geprueft);
     if (!nullToAbsent || belegeJson != null) {
       map['belege_json'] = Variable<String>(belegeJson);
     }
@@ -27332,6 +27807,7 @@ class EingangsrechnungenData extends DataClass
       ustBetrag: Value(ustBetrag),
       brutto: Value(brutto),
       bezahlt: Value(bezahlt),
+      geprueft: Value(geprueft),
       belegeJson: belegeJson == null && nullToAbsent
           ? const Value.absent()
           : Value(belegeJson),
@@ -27385,6 +27861,7 @@ class EingangsrechnungenData extends DataClass
       ustBetrag: serializer.fromJson<double>(json['ustBetrag']),
       brutto: serializer.fromJson<double>(json['brutto']),
       bezahlt: serializer.fromJson<double>(json['bezahlt']),
+      geprueft: serializer.fromJson<bool>(json['geprueft']),
       belegeJson: serializer.fromJson<String?>(json['belegeJson']),
       belegPfad: serializer.fromJson<String?>(json['belegPfad']),
       notiz: serializer.fromJson<String?>(json['notiz']),
@@ -27425,6 +27902,7 @@ class EingangsrechnungenData extends DataClass
       'ustBetrag': serializer.toJson<double>(ustBetrag),
       'brutto': serializer.toJson<double>(brutto),
       'bezahlt': serializer.toJson<double>(bezahlt),
+      'geprueft': serializer.toJson<bool>(geprueft),
       'belegeJson': serializer.toJson<String?>(belegeJson),
       'belegPfad': serializer.toJson<String?>(belegPfad),
       'notiz': serializer.toJson<String?>(notiz),
@@ -27463,6 +27941,7 @@ class EingangsrechnungenData extends DataClass
     double? ustBetrag,
     double? brutto,
     double? bezahlt,
+    bool? geprueft,
     Value<String?> belegeJson = const Value.absent(),
     Value<String?> belegPfad = const Value.absent(),
     Value<String?> notiz = const Value.absent(),
@@ -27512,6 +27991,7 @@ class EingangsrechnungenData extends DataClass
     ustBetrag: ustBetrag ?? this.ustBetrag,
     brutto: brutto ?? this.brutto,
     bezahlt: bezahlt ?? this.bezahlt,
+    geprueft: geprueft ?? this.geprueft,
     belegeJson: belegeJson.present ? belegeJson.value : this.belegeJson,
     belegPfad: belegPfad.present ? belegPfad.value : this.belegPfad,
     notiz: notiz.present ? notiz.value : this.notiz,
@@ -27581,6 +28061,7 @@ class EingangsrechnungenData extends DataClass
       ustBetrag: data.ustBetrag.present ? data.ustBetrag.value : this.ustBetrag,
       brutto: data.brutto.present ? data.brutto.value : this.brutto,
       bezahlt: data.bezahlt.present ? data.bezahlt.value : this.bezahlt,
+      geprueft: data.geprueft.present ? data.geprueft.value : this.geprueft,
       belegeJson: data.belegeJson.present
           ? data.belegeJson.value
           : this.belegeJson,
@@ -27623,6 +28104,7 @@ class EingangsrechnungenData extends DataClass
           ..write('ustBetrag: $ustBetrag, ')
           ..write('brutto: $brutto, ')
           ..write('bezahlt: $bezahlt, ')
+          ..write('geprueft: $geprueft, ')
           ..write('belegeJson: $belegeJson, ')
           ..write('belegPfad: $belegPfad, ')
           ..write('notiz: $notiz, ')
@@ -27663,6 +28145,7 @@ class EingangsrechnungenData extends DataClass
     ustBetrag,
     brutto,
     bezahlt,
+    geprueft,
     belegeJson,
     belegPfad,
     notiz,
@@ -27702,6 +28185,7 @@ class EingangsrechnungenData extends DataClass
           other.ustBetrag == this.ustBetrag &&
           other.brutto == this.brutto &&
           other.bezahlt == this.bezahlt &&
+          other.geprueft == this.geprueft &&
           other.belegeJson == this.belegeJson &&
           other.belegPfad == this.belegPfad &&
           other.notiz == this.notiz &&
@@ -27740,6 +28224,7 @@ class EingangsrechnungenCompanion
   final Value<double> ustBetrag;
   final Value<double> brutto;
   final Value<double> bezahlt;
+  final Value<bool> geprueft;
   final Value<String?> belegeJson;
   final Value<String?> belegPfad;
   final Value<String?> notiz;
@@ -27775,6 +28260,7 @@ class EingangsrechnungenCompanion
     this.ustBetrag = const Value.absent(),
     this.brutto = const Value.absent(),
     this.bezahlt = const Value.absent(),
+    this.geprueft = const Value.absent(),
     this.belegeJson = const Value.absent(),
     this.belegPfad = const Value.absent(),
     this.notiz = const Value.absent(),
@@ -27811,6 +28297,7 @@ class EingangsrechnungenCompanion
     this.ustBetrag = const Value.absent(),
     this.brutto = const Value.absent(),
     this.bezahlt = const Value.absent(),
+    this.geprueft = const Value.absent(),
     this.belegeJson = const Value.absent(),
     this.belegPfad = const Value.absent(),
     this.notiz = const Value.absent(),
@@ -27847,6 +28334,7 @@ class EingangsrechnungenCompanion
     Expression<double>? ustBetrag,
     Expression<double>? brutto,
     Expression<double>? bezahlt,
+    Expression<bool>? geprueft,
     Expression<String>? belegeJson,
     Expression<String>? belegPfad,
     Expression<String>? notiz,
@@ -27883,6 +28371,7 @@ class EingangsrechnungenCompanion
       if (ustBetrag != null) 'ust_betrag': ustBetrag,
       if (brutto != null) 'brutto': brutto,
       if (bezahlt != null) 'bezahlt': bezahlt,
+      if (geprueft != null) 'geprueft': geprueft,
       if (belegeJson != null) 'belege_json': belegeJson,
       if (belegPfad != null) 'beleg_pfad': belegPfad,
       if (notiz != null) 'notiz': notiz,
@@ -27921,6 +28410,7 @@ class EingangsrechnungenCompanion
     Value<double>? ustBetrag,
     Value<double>? brutto,
     Value<double>? bezahlt,
+    Value<bool>? geprueft,
     Value<String?>? belegeJson,
     Value<String?>? belegPfad,
     Value<String?>? notiz,
@@ -27957,6 +28447,7 @@ class EingangsrechnungenCompanion
       ustBetrag: ustBetrag ?? this.ustBetrag,
       brutto: brutto ?? this.brutto,
       bezahlt: bezahlt ?? this.bezahlt,
+      geprueft: geprueft ?? this.geprueft,
       belegeJson: belegeJson ?? this.belegeJson,
       belegPfad: belegPfad ?? this.belegPfad,
       notiz: notiz ?? this.notiz,
@@ -28053,6 +28544,9 @@ class EingangsrechnungenCompanion
     if (bezahlt.present) {
       map['bezahlt'] = Variable<double>(bezahlt.value);
     }
+    if (geprueft.present) {
+      map['geprueft'] = Variable<bool>(geprueft.value);
+    }
     if (belegeJson.present) {
       map['belege_json'] = Variable<String>(belegeJson.value);
     }
@@ -28105,6 +28599,7 @@ class EingangsrechnungenCompanion
           ..write('ustBetrag: $ustBetrag, ')
           ..write('brutto: $brutto, ')
           ..write('bezahlt: $bezahlt, ')
+          ..write('geprueft: $geprueft, ')
           ..write('belegeJson: $belegeJson, ')
           ..write('belegPfad: $belegPfad, ')
           ..write('notiz: $notiz, ')
@@ -32612,6 +33107,6539 @@ class ProtokolleCompanion extends UpdateCompanion<ProtokolleData> {
   }
 }
 
+class $JournaleintraegeTable extends Journaleintraege
+    with TableInfo<$JournaleintraegeTable, JournaleintraegeData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $JournaleintraegeTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _zeitpunktMeta = const VerificationMeta(
+    'zeitpunkt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> zeitpunkt = GeneratedColumn<DateTime>(
+    'zeitpunkt',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _kategorieMeta = const VerificationMeta(
+    'kategorie',
+  );
+  @override
+  late final GeneratedColumn<String> kategorie = GeneratedColumn<String>(
+    'kategorie',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kontaktMeta = const VerificationMeta(
+    'kontakt',
+  );
+  @override
+  late final GeneratedColumn<String> kontakt = GeneratedColumn<String>(
+    'kontakt',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notizMeta = const VerificationMeta('notiz');
+  @override
+  late final GeneratedColumn<String> notiz = GeneratedColumn<String>(
+    'notiz',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
+  @override
+  late final GeneratedColumn<String> extras = GeneratedColumn<String>(
+    'extras',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    zeitpunkt,
+    kategorie,
+    kontakt,
+    notiz,
+    extras,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'journaleintraege';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<JournaleintraegeData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_auftragIdMeta);
+    }
+    if (data.containsKey('zeitpunkt')) {
+      context.handle(
+        _zeitpunktMeta,
+        zeitpunkt.isAcceptableOrUnknown(data['zeitpunkt']!, _zeitpunktMeta),
+      );
+    }
+    if (data.containsKey('kategorie')) {
+      context.handle(
+        _kategorieMeta,
+        kategorie.isAcceptableOrUnknown(data['kategorie']!, _kategorieMeta),
+      );
+    }
+    if (data.containsKey('kontakt')) {
+      context.handle(
+        _kontaktMeta,
+        kontakt.isAcceptableOrUnknown(data['kontakt']!, _kontaktMeta),
+      );
+    }
+    if (data.containsKey('notiz')) {
+      context.handle(
+        _notizMeta,
+        notiz.isAcceptableOrUnknown(data['notiz']!, _notizMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_notizMeta);
+    }
+    if (data.containsKey('extras')) {
+      context.handle(
+        _extrasMeta,
+        extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  JournaleintraegeData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return JournaleintraegeData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      )!,
+      zeitpunkt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}zeitpunkt'],
+      )!,
+      kategorie: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kategorie'],
+      ),
+      kontakt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kontakt'],
+      ),
+      notiz: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notiz'],
+      )!,
+      extras: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extras'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $JournaleintraegeTable createAlias(String alias) {
+    return $JournaleintraegeTable(attachedDatabase, alias);
+  }
+}
+
+class JournaleintraegeData extends DataClass
+    implements Insertable<JournaleintraegeData> {
+  final int id;
+  final int auftragId;
+  final DateTime zeitpunkt;
+
+  /// Freie Kategorie (z.B. "Telefonat", "Mail", "Notiz", "Rückfrage").
+  final String? kategorie;
+
+  /// Gesprächspartner/Kontakt (z.B. Name + Firma).
+  final String? kontakt;
+  final String notiz;
+  final String? extras;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const JournaleintraegeData({
+    required this.id,
+    required this.auftragId,
+    required this.zeitpunkt,
+    this.kategorie,
+    this.kontakt,
+    required this.notiz,
+    this.extras,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['auftrag_id'] = Variable<int>(auftragId);
+    map['zeitpunkt'] = Variable<DateTime>(zeitpunkt);
+    if (!nullToAbsent || kategorie != null) {
+      map['kategorie'] = Variable<String>(kategorie);
+    }
+    if (!nullToAbsent || kontakt != null) {
+      map['kontakt'] = Variable<String>(kontakt);
+    }
+    map['notiz'] = Variable<String>(notiz);
+    if (!nullToAbsent || extras != null) {
+      map['extras'] = Variable<String>(extras);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  JournaleintraegeCompanion toCompanion(bool nullToAbsent) {
+    return JournaleintraegeCompanion(
+      id: Value(id),
+      auftragId: Value(auftragId),
+      zeitpunkt: Value(zeitpunkt),
+      kategorie: kategorie == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kategorie),
+      kontakt: kontakt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kontakt),
+      notiz: Value(notiz),
+      extras: extras == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extras),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory JournaleintraegeData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return JournaleintraegeData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int>(json['auftragId']),
+      zeitpunkt: serializer.fromJson<DateTime>(json['zeitpunkt']),
+      kategorie: serializer.fromJson<String?>(json['kategorie']),
+      kontakt: serializer.fromJson<String?>(json['kontakt']),
+      notiz: serializer.fromJson<String>(json['notiz']),
+      extras: serializer.fromJson<String?>(json['extras']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int>(auftragId),
+      'zeitpunkt': serializer.toJson<DateTime>(zeitpunkt),
+      'kategorie': serializer.toJson<String?>(kategorie),
+      'kontakt': serializer.toJson<String?>(kontakt),
+      'notiz': serializer.toJson<String>(notiz),
+      'extras': serializer.toJson<String?>(extras),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  JournaleintraegeData copyWith({
+    int? id,
+    int? auftragId,
+    DateTime? zeitpunkt,
+    Value<String?> kategorie = const Value.absent(),
+    Value<String?> kontakt = const Value.absent(),
+    String? notiz,
+    Value<String?> extras = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => JournaleintraegeData(
+    id: id ?? this.id,
+    auftragId: auftragId ?? this.auftragId,
+    zeitpunkt: zeitpunkt ?? this.zeitpunkt,
+    kategorie: kategorie.present ? kategorie.value : this.kategorie,
+    kontakt: kontakt.present ? kontakt.value : this.kontakt,
+    notiz: notiz ?? this.notiz,
+    extras: extras.present ? extras.value : this.extras,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  JournaleintraegeData copyWithCompanion(JournaleintraegeCompanion data) {
+    return JournaleintraegeData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      zeitpunkt: data.zeitpunkt.present ? data.zeitpunkt.value : this.zeitpunkt,
+      kategorie: data.kategorie.present ? data.kategorie.value : this.kategorie,
+      kontakt: data.kontakt.present ? data.kontakt.value : this.kontakt,
+      notiz: data.notiz.present ? data.notiz.value : this.notiz,
+      extras: data.extras.present ? data.extras.value : this.extras,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournaleintraegeData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('zeitpunkt: $zeitpunkt, ')
+          ..write('kategorie: $kategorie, ')
+          ..write('kontakt: $kontakt, ')
+          ..write('notiz: $notiz, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    zeitpunkt,
+    kategorie,
+    kontakt,
+    notiz,
+    extras,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is JournaleintraegeData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.zeitpunkt == this.zeitpunkt &&
+          other.kategorie == this.kategorie &&
+          other.kontakt == this.kontakt &&
+          other.notiz == this.notiz &&
+          other.extras == this.extras &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class JournaleintraegeCompanion extends UpdateCompanion<JournaleintraegeData> {
+  final Value<int> id;
+  final Value<int> auftragId;
+  final Value<DateTime> zeitpunkt;
+  final Value<String?> kategorie;
+  final Value<String?> kontakt;
+  final Value<String> notiz;
+  final Value<String?> extras;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const JournaleintraegeCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.zeitpunkt = const Value.absent(),
+    this.kategorie = const Value.absent(),
+    this.kontakt = const Value.absent(),
+    this.notiz = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  JournaleintraegeCompanion.insert({
+    this.id = const Value.absent(),
+    required int auftragId,
+    this.zeitpunkt = const Value.absent(),
+    this.kategorie = const Value.absent(),
+    this.kontakt = const Value.absent(),
+    required String notiz,
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : auftragId = Value(auftragId),
+       notiz = Value(notiz);
+  static Insertable<JournaleintraegeData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<DateTime>? zeitpunkt,
+    Expression<String>? kategorie,
+    Expression<String>? kontakt,
+    Expression<String>? notiz,
+    Expression<String>? extras,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (zeitpunkt != null) 'zeitpunkt': zeitpunkt,
+      if (kategorie != null) 'kategorie': kategorie,
+      if (kontakt != null) 'kontakt': kontakt,
+      if (notiz != null) 'notiz': notiz,
+      if (extras != null) 'extras': extras,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  JournaleintraegeCompanion copyWith({
+    Value<int>? id,
+    Value<int>? auftragId,
+    Value<DateTime>? zeitpunkt,
+    Value<String?>? kategorie,
+    Value<String?>? kontakt,
+    Value<String>? notiz,
+    Value<String?>? extras,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return JournaleintraegeCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      zeitpunkt: zeitpunkt ?? this.zeitpunkt,
+      kategorie: kategorie ?? this.kategorie,
+      kontakt: kontakt ?? this.kontakt,
+      notiz: notiz ?? this.notiz,
+      extras: extras ?? this.extras,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (zeitpunkt.present) {
+      map['zeitpunkt'] = Variable<DateTime>(zeitpunkt.value);
+    }
+    if (kategorie.present) {
+      map['kategorie'] = Variable<String>(kategorie.value);
+    }
+    if (kontakt.present) {
+      map['kontakt'] = Variable<String>(kontakt.value);
+    }
+    if (notiz.present) {
+      map['notiz'] = Variable<String>(notiz.value);
+    }
+    if (extras.present) {
+      map['extras'] = Variable<String>(extras.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournaleintraegeCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('zeitpunkt: $zeitpunkt, ')
+          ..write('kategorie: $kategorie, ')
+          ..write('kontakt: $kontakt, ')
+          ..write('notiz: $notiz, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MaengelTable extends Maengel with TableInfo<$MaengelTable, MaengelData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MaengelTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _nummerMeta = const VerificationMeta('nummer');
+  @override
+  late final GeneratedColumn<String> nummer = GeneratedColumn<String>(
+    'nummer',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bauteilMeta = const VerificationMeta(
+    'bauteil',
+  );
+  @override
+  late final GeneratedColumn<String> bauteil = GeneratedColumn<String>(
+    'bauteil',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _beschreibungMeta = const VerificationMeta(
+    'beschreibung',
+  );
+  @override
+  late final GeneratedColumn<String> beschreibung = GeneratedColumn<String>(
+    'beschreibung',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ursacheMeta = const VerificationMeta(
+    'ursache',
+  );
+  @override
+  late final GeneratedColumn<String> ursache = GeneratedColumn<String>(
+    'ursache',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _folgeMeta = const VerificationMeta('folge');
+  @override
+  late final GeneratedColumn<String> folge = GeneratedColumn<String>(
+    'folge',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prioritaetMeta = const VerificationMeta(
+    'prioritaet',
+  );
+  @override
+  late final GeneratedColumn<String> prioritaet = GeneratedColumn<String>(
+    'prioritaet',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('B'),
+  );
+  static const VerificationMeta _aufwandMeta = const VerificationMeta(
+    'aufwand',
+  );
+  @override
+  late final GeneratedColumn<double> aufwand = GeneratedColumn<double>(
+    'aufwand',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
+  @override
+  late final GeneratedColumn<String> extras = GeneratedColumn<String>(
+    'extras',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    nummer,
+    bauteil,
+    beschreibung,
+    ursache,
+    folge,
+    prioritaet,
+    aufwand,
+    extras,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'maengel';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MaengelData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_auftragIdMeta);
+    }
+    if (data.containsKey('nummer')) {
+      context.handle(
+        _nummerMeta,
+        nummer.isAcceptableOrUnknown(data['nummer']!, _nummerMeta),
+      );
+    }
+    if (data.containsKey('bauteil')) {
+      context.handle(
+        _bauteilMeta,
+        bauteil.isAcceptableOrUnknown(data['bauteil']!, _bauteilMeta),
+      );
+    }
+    if (data.containsKey('beschreibung')) {
+      context.handle(
+        _beschreibungMeta,
+        beschreibung.isAcceptableOrUnknown(
+          data['beschreibung']!,
+          _beschreibungMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_beschreibungMeta);
+    }
+    if (data.containsKey('ursache')) {
+      context.handle(
+        _ursacheMeta,
+        ursache.isAcceptableOrUnknown(data['ursache']!, _ursacheMeta),
+      );
+    }
+    if (data.containsKey('folge')) {
+      context.handle(
+        _folgeMeta,
+        folge.isAcceptableOrUnknown(data['folge']!, _folgeMeta),
+      );
+    }
+    if (data.containsKey('prioritaet')) {
+      context.handle(
+        _prioritaetMeta,
+        prioritaet.isAcceptableOrUnknown(data['prioritaet']!, _prioritaetMeta),
+      );
+    }
+    if (data.containsKey('aufwand')) {
+      context.handle(
+        _aufwandMeta,
+        aufwand.isAcceptableOrUnknown(data['aufwand']!, _aufwandMeta),
+      );
+    }
+    if (data.containsKey('extras')) {
+      context.handle(
+        _extrasMeta,
+        extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MaengelData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MaengelData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      )!,
+      nummer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nummer'],
+      ),
+      bauteil: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bauteil'],
+      ),
+      beschreibung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}beschreibung'],
+      )!,
+      ursache: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ursache'],
+      ),
+      folge: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}folge'],
+      ),
+      prioritaet: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prioritaet'],
+      )!,
+      aufwand: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}aufwand'],
+      ),
+      extras: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extras'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MaengelTable createAlias(String alias) {
+    return $MaengelTable(attachedDatabase, alias);
+  }
+}
+
+class MaengelData extends DataClass implements Insertable<MaengelData> {
+  final int id;
+  final int auftragId;
+
+  /// Laufende Mangel-Nummer innerhalb der Akte (z.B. "M-01").
+  final String? nummer;
+
+  /// Betroffenes Bauteil (z.B. "Dach", "Fassade Nord").
+  final String? bauteil;
+  final String beschreibung;
+
+  /// Vermutete Ursache des Mangels.
+  final String? ursache;
+
+  /// Folgen bei Nicht-Beseitigung.
+  final String? folge;
+
+  /// Priorität nach DIN 4426 — 'A' (unverzüglich), 'B' (mittelfristig),
+  /// 'C' (langfristig). Wir speichern den rohen Buchstaben.
+  final String prioritaet;
+
+  /// Geschätzter Beseitigungsaufwand in Euro (netto).
+  final double? aufwand;
+
+  /// Zusatzinfos (z.B. Foto-IDs, Messwerte) als JSON.
+  final String? extras;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MaengelData({
+    required this.id,
+    required this.auftragId,
+    this.nummer,
+    this.bauteil,
+    required this.beschreibung,
+    this.ursache,
+    this.folge,
+    required this.prioritaet,
+    this.aufwand,
+    this.extras,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['auftrag_id'] = Variable<int>(auftragId);
+    if (!nullToAbsent || nummer != null) {
+      map['nummer'] = Variable<String>(nummer);
+    }
+    if (!nullToAbsent || bauteil != null) {
+      map['bauteil'] = Variable<String>(bauteil);
+    }
+    map['beschreibung'] = Variable<String>(beschreibung);
+    if (!nullToAbsent || ursache != null) {
+      map['ursache'] = Variable<String>(ursache);
+    }
+    if (!nullToAbsent || folge != null) {
+      map['folge'] = Variable<String>(folge);
+    }
+    map['prioritaet'] = Variable<String>(prioritaet);
+    if (!nullToAbsent || aufwand != null) {
+      map['aufwand'] = Variable<double>(aufwand);
+    }
+    if (!nullToAbsent || extras != null) {
+      map['extras'] = Variable<String>(extras);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MaengelCompanion toCompanion(bool nullToAbsent) {
+    return MaengelCompanion(
+      id: Value(id),
+      auftragId: Value(auftragId),
+      nummer: nummer == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nummer),
+      bauteil: bauteil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bauteil),
+      beschreibung: Value(beschreibung),
+      ursache: ursache == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ursache),
+      folge: folge == null && nullToAbsent
+          ? const Value.absent()
+          : Value(folge),
+      prioritaet: Value(prioritaet),
+      aufwand: aufwand == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aufwand),
+      extras: extras == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extras),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MaengelData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MaengelData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int>(json['auftragId']),
+      nummer: serializer.fromJson<String?>(json['nummer']),
+      bauteil: serializer.fromJson<String?>(json['bauteil']),
+      beschreibung: serializer.fromJson<String>(json['beschreibung']),
+      ursache: serializer.fromJson<String?>(json['ursache']),
+      folge: serializer.fromJson<String?>(json['folge']),
+      prioritaet: serializer.fromJson<String>(json['prioritaet']),
+      aufwand: serializer.fromJson<double?>(json['aufwand']),
+      extras: serializer.fromJson<String?>(json['extras']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int>(auftragId),
+      'nummer': serializer.toJson<String?>(nummer),
+      'bauteil': serializer.toJson<String?>(bauteil),
+      'beschreibung': serializer.toJson<String>(beschreibung),
+      'ursache': serializer.toJson<String?>(ursache),
+      'folge': serializer.toJson<String?>(folge),
+      'prioritaet': serializer.toJson<String>(prioritaet),
+      'aufwand': serializer.toJson<double?>(aufwand),
+      'extras': serializer.toJson<String?>(extras),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MaengelData copyWith({
+    int? id,
+    int? auftragId,
+    Value<String?> nummer = const Value.absent(),
+    Value<String?> bauteil = const Value.absent(),
+    String? beschreibung,
+    Value<String?> ursache = const Value.absent(),
+    Value<String?> folge = const Value.absent(),
+    String? prioritaet,
+    Value<double?> aufwand = const Value.absent(),
+    Value<String?> extras = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => MaengelData(
+    id: id ?? this.id,
+    auftragId: auftragId ?? this.auftragId,
+    nummer: nummer.present ? nummer.value : this.nummer,
+    bauteil: bauteil.present ? bauteil.value : this.bauteil,
+    beschreibung: beschreibung ?? this.beschreibung,
+    ursache: ursache.present ? ursache.value : this.ursache,
+    folge: folge.present ? folge.value : this.folge,
+    prioritaet: prioritaet ?? this.prioritaet,
+    aufwand: aufwand.present ? aufwand.value : this.aufwand,
+    extras: extras.present ? extras.value : this.extras,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MaengelData copyWithCompanion(MaengelCompanion data) {
+    return MaengelData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      nummer: data.nummer.present ? data.nummer.value : this.nummer,
+      bauteil: data.bauteil.present ? data.bauteil.value : this.bauteil,
+      beschreibung: data.beschreibung.present
+          ? data.beschreibung.value
+          : this.beschreibung,
+      ursache: data.ursache.present ? data.ursache.value : this.ursache,
+      folge: data.folge.present ? data.folge.value : this.folge,
+      prioritaet: data.prioritaet.present
+          ? data.prioritaet.value
+          : this.prioritaet,
+      aufwand: data.aufwand.present ? data.aufwand.value : this.aufwand,
+      extras: data.extras.present ? data.extras.value : this.extras,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaengelData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('nummer: $nummer, ')
+          ..write('bauteil: $bauteil, ')
+          ..write('beschreibung: $beschreibung, ')
+          ..write('ursache: $ursache, ')
+          ..write('folge: $folge, ')
+          ..write('prioritaet: $prioritaet, ')
+          ..write('aufwand: $aufwand, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    nummer,
+    bauteil,
+    beschreibung,
+    ursache,
+    folge,
+    prioritaet,
+    aufwand,
+    extras,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MaengelData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.nummer == this.nummer &&
+          other.bauteil == this.bauteil &&
+          other.beschreibung == this.beschreibung &&
+          other.ursache == this.ursache &&
+          other.folge == this.folge &&
+          other.prioritaet == this.prioritaet &&
+          other.aufwand == this.aufwand &&
+          other.extras == this.extras &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MaengelCompanion extends UpdateCompanion<MaengelData> {
+  final Value<int> id;
+  final Value<int> auftragId;
+  final Value<String?> nummer;
+  final Value<String?> bauteil;
+  final Value<String> beschreibung;
+  final Value<String?> ursache;
+  final Value<String?> folge;
+  final Value<String> prioritaet;
+  final Value<double?> aufwand;
+  final Value<String?> extras;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const MaengelCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.nummer = const Value.absent(),
+    this.bauteil = const Value.absent(),
+    this.beschreibung = const Value.absent(),
+    this.ursache = const Value.absent(),
+    this.folge = const Value.absent(),
+    this.prioritaet = const Value.absent(),
+    this.aufwand = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  MaengelCompanion.insert({
+    this.id = const Value.absent(),
+    required int auftragId,
+    this.nummer = const Value.absent(),
+    this.bauteil = const Value.absent(),
+    required String beschreibung,
+    this.ursache = const Value.absent(),
+    this.folge = const Value.absent(),
+    this.prioritaet = const Value.absent(),
+    this.aufwand = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : auftragId = Value(auftragId),
+       beschreibung = Value(beschreibung);
+  static Insertable<MaengelData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<String>? nummer,
+    Expression<String>? bauteil,
+    Expression<String>? beschreibung,
+    Expression<String>? ursache,
+    Expression<String>? folge,
+    Expression<String>? prioritaet,
+    Expression<double>? aufwand,
+    Expression<String>? extras,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (nummer != null) 'nummer': nummer,
+      if (bauteil != null) 'bauteil': bauteil,
+      if (beschreibung != null) 'beschreibung': beschreibung,
+      if (ursache != null) 'ursache': ursache,
+      if (folge != null) 'folge': folge,
+      if (prioritaet != null) 'prioritaet': prioritaet,
+      if (aufwand != null) 'aufwand': aufwand,
+      if (extras != null) 'extras': extras,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  MaengelCompanion copyWith({
+    Value<int>? id,
+    Value<int>? auftragId,
+    Value<String?>? nummer,
+    Value<String?>? bauteil,
+    Value<String>? beschreibung,
+    Value<String?>? ursache,
+    Value<String?>? folge,
+    Value<String>? prioritaet,
+    Value<double?>? aufwand,
+    Value<String?>? extras,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return MaengelCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      nummer: nummer ?? this.nummer,
+      bauteil: bauteil ?? this.bauteil,
+      beschreibung: beschreibung ?? this.beschreibung,
+      ursache: ursache ?? this.ursache,
+      folge: folge ?? this.folge,
+      prioritaet: prioritaet ?? this.prioritaet,
+      aufwand: aufwand ?? this.aufwand,
+      extras: extras ?? this.extras,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (nummer.present) {
+      map['nummer'] = Variable<String>(nummer.value);
+    }
+    if (bauteil.present) {
+      map['bauteil'] = Variable<String>(bauteil.value);
+    }
+    if (beschreibung.present) {
+      map['beschreibung'] = Variable<String>(beschreibung.value);
+    }
+    if (ursache.present) {
+      map['ursache'] = Variable<String>(ursache.value);
+    }
+    if (folge.present) {
+      map['folge'] = Variable<String>(folge.value);
+    }
+    if (prioritaet.present) {
+      map['prioritaet'] = Variable<String>(prioritaet.value);
+    }
+    if (aufwand.present) {
+      map['aufwand'] = Variable<double>(aufwand.value);
+    }
+    if (extras.present) {
+      map['extras'] = Variable<String>(extras.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaengelCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('nummer: $nummer, ')
+          ..write('bauteil: $bauteil, ')
+          ..write('beschreibung: $beschreibung, ')
+          ..write('ursache: $ursache, ')
+          ..write('folge: $folge, ')
+          ..write('prioritaet: $prioritaet, ')
+          ..write('aufwand: $aufwand, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $UebergabenTable extends Uebergaben
+    with TableInfo<$UebergabenTable, UebergabenData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UebergabenTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _datumMeta = const VerificationMeta('datum');
+  @override
+  late final GeneratedColumn<DateTime> datum = GeneratedColumn<DateTime>(
+    'datum',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _vonMeta = const VerificationMeta('von');
+  @override
+  late final GeneratedColumn<String> von = GeneratedColumn<String>(
+    'von',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _anMeta = const VerificationMeta('an');
+  @override
+  late final GeneratedColumn<String> an = GeneratedColumn<String>(
+    'an',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _umfangMeta = const VerificationMeta('umfang');
+  @override
+  late final GeneratedColumn<String> umfang = GeneratedColumn<String>(
+    'umfang',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unterlagenMeta = const VerificationMeta(
+    'unterlagen',
+  );
+  @override
+  late final GeneratedColumn<String> unterlagen = GeneratedColumn<String>(
+    'unterlagen',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bemerkungMeta = const VerificationMeta(
+    'bemerkung',
+  );
+  @override
+  late final GeneratedColumn<String> bemerkung = GeneratedColumn<String>(
+    'bemerkung',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unterschriftBase64Meta =
+      const VerificationMeta('unterschriftBase64');
+  @override
+  late final GeneratedColumn<String> unterschriftBase64 =
+      GeneratedColumn<String>(
+        'unterschrift_base64',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    datum,
+    von,
+    an,
+    umfang,
+    unterlagen,
+    bemerkung,
+    unterschriftBase64,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'uebergaben';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UebergabenData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_auftragIdMeta);
+    }
+    if (data.containsKey('datum')) {
+      context.handle(
+        _datumMeta,
+        datum.isAcceptableOrUnknown(data['datum']!, _datumMeta),
+      );
+    }
+    if (data.containsKey('von')) {
+      context.handle(
+        _vonMeta,
+        von.isAcceptableOrUnknown(data['von']!, _vonMeta),
+      );
+    }
+    if (data.containsKey('an')) {
+      context.handle(_anMeta, an.isAcceptableOrUnknown(data['an']!, _anMeta));
+    }
+    if (data.containsKey('umfang')) {
+      context.handle(
+        _umfangMeta,
+        umfang.isAcceptableOrUnknown(data['umfang']!, _umfangMeta),
+      );
+    }
+    if (data.containsKey('unterlagen')) {
+      context.handle(
+        _unterlagenMeta,
+        unterlagen.isAcceptableOrUnknown(data['unterlagen']!, _unterlagenMeta),
+      );
+    }
+    if (data.containsKey('bemerkung')) {
+      context.handle(
+        _bemerkungMeta,
+        bemerkung.isAcceptableOrUnknown(data['bemerkung']!, _bemerkungMeta),
+      );
+    }
+    if (data.containsKey('unterschrift_base64')) {
+      context.handle(
+        _unterschriftBase64Meta,
+        unterschriftBase64.isAcceptableOrUnknown(
+          data['unterschrift_base64']!,
+          _unterschriftBase64Meta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UebergabenData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UebergabenData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      )!,
+      datum: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}datum'],
+      )!,
+      von: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}von'],
+      ),
+      an: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}an'],
+      ),
+      umfang: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}umfang'],
+      ),
+      unterlagen: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unterlagen'],
+      ),
+      bemerkung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bemerkung'],
+      ),
+      unterschriftBase64: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unterschrift_base64'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $UebergabenTable createAlias(String alias) {
+    return $UebergabenTable(attachedDatabase, alias);
+  }
+}
+
+class UebergabenData extends DataClass implements Insertable<UebergabenData> {
+  final int id;
+  final int auftragId;
+  final DateTime datum;
+
+  /// Übergebender Sachverständiger (Name).
+  final String? von;
+
+  /// Übernehmender Sachverständiger (Name).
+  final String? an;
+
+  /// Was wird übergeben (Freitext, z.B. "komplette Akte" / "nur Ortstermin").
+  final String? umfang;
+
+  /// Mitgegebene Unterlagen / Dateien (eine pro Zeile).
+  final String? unterlagen;
+  final String? bemerkung;
+
+  /// Unterschrift-URL oder -Status (z.B. Base64 PNG).
+  final String? unterschriftBase64;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const UebergabenData({
+    required this.id,
+    required this.auftragId,
+    required this.datum,
+    this.von,
+    this.an,
+    this.umfang,
+    this.unterlagen,
+    this.bemerkung,
+    this.unterschriftBase64,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['auftrag_id'] = Variable<int>(auftragId);
+    map['datum'] = Variable<DateTime>(datum);
+    if (!nullToAbsent || von != null) {
+      map['von'] = Variable<String>(von);
+    }
+    if (!nullToAbsent || an != null) {
+      map['an'] = Variable<String>(an);
+    }
+    if (!nullToAbsent || umfang != null) {
+      map['umfang'] = Variable<String>(umfang);
+    }
+    if (!nullToAbsent || unterlagen != null) {
+      map['unterlagen'] = Variable<String>(unterlagen);
+    }
+    if (!nullToAbsent || bemerkung != null) {
+      map['bemerkung'] = Variable<String>(bemerkung);
+    }
+    if (!nullToAbsent || unterschriftBase64 != null) {
+      map['unterschrift_base64'] = Variable<String>(unterschriftBase64);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  UebergabenCompanion toCompanion(bool nullToAbsent) {
+    return UebergabenCompanion(
+      id: Value(id),
+      auftragId: Value(auftragId),
+      datum: Value(datum),
+      von: von == null && nullToAbsent ? const Value.absent() : Value(von),
+      an: an == null && nullToAbsent ? const Value.absent() : Value(an),
+      umfang: umfang == null && nullToAbsent
+          ? const Value.absent()
+          : Value(umfang),
+      unterlagen: unterlagen == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unterlagen),
+      bemerkung: bemerkung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bemerkung),
+      unterschriftBase64: unterschriftBase64 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unterschriftBase64),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory UebergabenData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UebergabenData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int>(json['auftragId']),
+      datum: serializer.fromJson<DateTime>(json['datum']),
+      von: serializer.fromJson<String?>(json['von']),
+      an: serializer.fromJson<String?>(json['an']),
+      umfang: serializer.fromJson<String?>(json['umfang']),
+      unterlagen: serializer.fromJson<String?>(json['unterlagen']),
+      bemerkung: serializer.fromJson<String?>(json['bemerkung']),
+      unterschriftBase64: serializer.fromJson<String?>(
+        json['unterschriftBase64'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int>(auftragId),
+      'datum': serializer.toJson<DateTime>(datum),
+      'von': serializer.toJson<String?>(von),
+      'an': serializer.toJson<String?>(an),
+      'umfang': serializer.toJson<String?>(umfang),
+      'unterlagen': serializer.toJson<String?>(unterlagen),
+      'bemerkung': serializer.toJson<String?>(bemerkung),
+      'unterschriftBase64': serializer.toJson<String?>(unterschriftBase64),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  UebergabenData copyWith({
+    int? id,
+    int? auftragId,
+    DateTime? datum,
+    Value<String?> von = const Value.absent(),
+    Value<String?> an = const Value.absent(),
+    Value<String?> umfang = const Value.absent(),
+    Value<String?> unterlagen = const Value.absent(),
+    Value<String?> bemerkung = const Value.absent(),
+    Value<String?> unterschriftBase64 = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => UebergabenData(
+    id: id ?? this.id,
+    auftragId: auftragId ?? this.auftragId,
+    datum: datum ?? this.datum,
+    von: von.present ? von.value : this.von,
+    an: an.present ? an.value : this.an,
+    umfang: umfang.present ? umfang.value : this.umfang,
+    unterlagen: unterlagen.present ? unterlagen.value : this.unterlagen,
+    bemerkung: bemerkung.present ? bemerkung.value : this.bemerkung,
+    unterschriftBase64: unterschriftBase64.present
+        ? unterschriftBase64.value
+        : this.unterschriftBase64,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  UebergabenData copyWithCompanion(UebergabenCompanion data) {
+    return UebergabenData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      datum: data.datum.present ? data.datum.value : this.datum,
+      von: data.von.present ? data.von.value : this.von,
+      an: data.an.present ? data.an.value : this.an,
+      umfang: data.umfang.present ? data.umfang.value : this.umfang,
+      unterlagen: data.unterlagen.present
+          ? data.unterlagen.value
+          : this.unterlagen,
+      bemerkung: data.bemerkung.present ? data.bemerkung.value : this.bemerkung,
+      unterschriftBase64: data.unterschriftBase64.present
+          ? data.unterschriftBase64.value
+          : this.unterschriftBase64,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UebergabenData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('datum: $datum, ')
+          ..write('von: $von, ')
+          ..write('an: $an, ')
+          ..write('umfang: $umfang, ')
+          ..write('unterlagen: $unterlagen, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('unterschriftBase64: $unterschriftBase64, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    datum,
+    von,
+    an,
+    umfang,
+    unterlagen,
+    bemerkung,
+    unterschriftBase64,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UebergabenData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.datum == this.datum &&
+          other.von == this.von &&
+          other.an == this.an &&
+          other.umfang == this.umfang &&
+          other.unterlagen == this.unterlagen &&
+          other.bemerkung == this.bemerkung &&
+          other.unterschriftBase64 == this.unterschriftBase64 &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class UebergabenCompanion extends UpdateCompanion<UebergabenData> {
+  final Value<int> id;
+  final Value<int> auftragId;
+  final Value<DateTime> datum;
+  final Value<String?> von;
+  final Value<String?> an;
+  final Value<String?> umfang;
+  final Value<String?> unterlagen;
+  final Value<String?> bemerkung;
+  final Value<String?> unterschriftBase64;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const UebergabenCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.datum = const Value.absent(),
+    this.von = const Value.absent(),
+    this.an = const Value.absent(),
+    this.umfang = const Value.absent(),
+    this.unterlagen = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.unterschriftBase64 = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  UebergabenCompanion.insert({
+    this.id = const Value.absent(),
+    required int auftragId,
+    this.datum = const Value.absent(),
+    this.von = const Value.absent(),
+    this.an = const Value.absent(),
+    this.umfang = const Value.absent(),
+    this.unterlagen = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.unterschriftBase64 = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : auftragId = Value(auftragId);
+  static Insertable<UebergabenData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<DateTime>? datum,
+    Expression<String>? von,
+    Expression<String>? an,
+    Expression<String>? umfang,
+    Expression<String>? unterlagen,
+    Expression<String>? bemerkung,
+    Expression<String>? unterschriftBase64,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (datum != null) 'datum': datum,
+      if (von != null) 'von': von,
+      if (an != null) 'an': an,
+      if (umfang != null) 'umfang': umfang,
+      if (unterlagen != null) 'unterlagen': unterlagen,
+      if (bemerkung != null) 'bemerkung': bemerkung,
+      if (unterschriftBase64 != null) 'unterschrift_base64': unterschriftBase64,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  UebergabenCompanion copyWith({
+    Value<int>? id,
+    Value<int>? auftragId,
+    Value<DateTime>? datum,
+    Value<String?>? von,
+    Value<String?>? an,
+    Value<String?>? umfang,
+    Value<String?>? unterlagen,
+    Value<String?>? bemerkung,
+    Value<String?>? unterschriftBase64,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return UebergabenCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      datum: datum ?? this.datum,
+      von: von ?? this.von,
+      an: an ?? this.an,
+      umfang: umfang ?? this.umfang,
+      unterlagen: unterlagen ?? this.unterlagen,
+      bemerkung: bemerkung ?? this.bemerkung,
+      unterschriftBase64: unterschriftBase64 ?? this.unterschriftBase64,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (datum.present) {
+      map['datum'] = Variable<DateTime>(datum.value);
+    }
+    if (von.present) {
+      map['von'] = Variable<String>(von.value);
+    }
+    if (an.present) {
+      map['an'] = Variable<String>(an.value);
+    }
+    if (umfang.present) {
+      map['umfang'] = Variable<String>(umfang.value);
+    }
+    if (unterlagen.present) {
+      map['unterlagen'] = Variable<String>(unterlagen.value);
+    }
+    if (bemerkung.present) {
+      map['bemerkung'] = Variable<String>(bemerkung.value);
+    }
+    if (unterschriftBase64.present) {
+      map['unterschrift_base64'] = Variable<String>(unterschriftBase64.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UebergabenCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('datum: $datum, ')
+          ..write('von: $von, ')
+          ..write('an: $an, ')
+          ..write('umfang: $umfang, ')
+          ..write('unterlagen: $unterlagen, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('unterschriftBase64: $unterschriftBase64, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $QualifikationenTable extends Qualifikationen
+    with TableInfo<$QualifikationenTable, QualifikationenData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QualifikationenTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _titelMeta = const VerificationMeta('titel');
+  @override
+  late final GeneratedColumn<String> titel = GeneratedColumn<String>(
+    'titel',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ausstellerMeta = const VerificationMeta(
+    'aussteller',
+  );
+  @override
+  late final GeneratedColumn<String> aussteller = GeneratedColumn<String>(
+    'aussteller',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ausgestelltAmMeta = const VerificationMeta(
+    'ausgestelltAm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> ausgestelltAm =
+      GeneratedColumn<DateTime>(
+        'ausgestellt_am',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _gueltigBisMeta = const VerificationMeta(
+    'gueltigBis',
+  );
+  @override
+  late final GeneratedColumn<DateTime> gueltigBis = GeneratedColumn<DateTime>(
+    'gueltig_bis',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typMeta = const VerificationMeta('typ');
+  @override
+  late final GeneratedColumn<String> typ = GeneratedColumn<String>(
+    'typ',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('zertifikat'),
+  );
+  static const VerificationMeta _beschreibungMeta = const VerificationMeta(
+    'beschreibung',
+  );
+  @override
+  late final GeneratedColumn<String> beschreibung = GeneratedColumn<String>(
+    'beschreibung',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nachweisStorageUrlMeta =
+      const VerificationMeta('nachweisStorageUrl');
+  @override
+  late final GeneratedColumn<String> nachweisStorageUrl =
+      GeneratedColumn<String>(
+        'nachweis_storage_url',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nachweisDateinameMeta = const VerificationMeta(
+    'nachweisDateiname',
+  );
+  @override
+  late final GeneratedColumn<String> nachweisDateiname =
+      GeneratedColumn<String>(
+        'nachweis_dateiname',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _nachweisMimeTypeMeta = const VerificationMeta(
+    'nachweisMimeType',
+  );
+  @override
+  late final GeneratedColumn<String> nachweisMimeType = GeneratedColumn<String>(
+    'nachweis_mime_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nachweisGroesseMeta = const VerificationMeta(
+    'nachweisGroesse',
+  );
+  @override
+  late final GeneratedColumn<int> nachweisGroesse = GeneratedColumn<int>(
+    'nachweis_groesse',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _standardAnhangMeta = const VerificationMeta(
+    'standardAnhang',
+  );
+  @override
+  late final GeneratedColumn<bool> standardAnhang = GeneratedColumn<bool>(
+    'standard_anhang',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("standard_anhang" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
+  @override
+  late final GeneratedColumn<String> extras = GeneratedColumn<String>(
+    'extras',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    titel,
+    aussteller,
+    ausgestelltAm,
+    gueltigBis,
+    typ,
+    beschreibung,
+    nachweisStorageUrl,
+    nachweisDateiname,
+    nachweisMimeType,
+    nachweisGroesse,
+    standardAnhang,
+    extras,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'qualifikationen';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QualifikationenData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('titel')) {
+      context.handle(
+        _titelMeta,
+        titel.isAcceptableOrUnknown(data['titel']!, _titelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titelMeta);
+    }
+    if (data.containsKey('aussteller')) {
+      context.handle(
+        _ausstellerMeta,
+        aussteller.isAcceptableOrUnknown(data['aussteller']!, _ausstellerMeta),
+      );
+    }
+    if (data.containsKey('ausgestellt_am')) {
+      context.handle(
+        _ausgestelltAmMeta,
+        ausgestelltAm.isAcceptableOrUnknown(
+          data['ausgestellt_am']!,
+          _ausgestelltAmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('gueltig_bis')) {
+      context.handle(
+        _gueltigBisMeta,
+        gueltigBis.isAcceptableOrUnknown(data['gueltig_bis']!, _gueltigBisMeta),
+      );
+    }
+    if (data.containsKey('typ')) {
+      context.handle(
+        _typMeta,
+        typ.isAcceptableOrUnknown(data['typ']!, _typMeta),
+      );
+    }
+    if (data.containsKey('beschreibung')) {
+      context.handle(
+        _beschreibungMeta,
+        beschreibung.isAcceptableOrUnknown(
+          data['beschreibung']!,
+          _beschreibungMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nachweis_storage_url')) {
+      context.handle(
+        _nachweisStorageUrlMeta,
+        nachweisStorageUrl.isAcceptableOrUnknown(
+          data['nachweis_storage_url']!,
+          _nachweisStorageUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nachweis_dateiname')) {
+      context.handle(
+        _nachweisDateinameMeta,
+        nachweisDateiname.isAcceptableOrUnknown(
+          data['nachweis_dateiname']!,
+          _nachweisDateinameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nachweis_mime_type')) {
+      context.handle(
+        _nachweisMimeTypeMeta,
+        nachweisMimeType.isAcceptableOrUnknown(
+          data['nachweis_mime_type']!,
+          _nachweisMimeTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nachweis_groesse')) {
+      context.handle(
+        _nachweisGroesseMeta,
+        nachweisGroesse.isAcceptableOrUnknown(
+          data['nachweis_groesse']!,
+          _nachweisGroesseMeta,
+        ),
+      );
+    }
+    if (data.containsKey('standard_anhang')) {
+      context.handle(
+        _standardAnhangMeta,
+        standardAnhang.isAcceptableOrUnknown(
+          data['standard_anhang']!,
+          _standardAnhangMeta,
+        ),
+      );
+    }
+    if (data.containsKey('extras')) {
+      context.handle(
+        _extrasMeta,
+        extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QualifikationenData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QualifikationenData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      titel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}titel'],
+      )!,
+      aussteller: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}aussteller'],
+      ),
+      ausgestelltAm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ausgestellt_am'],
+      ),
+      gueltigBis: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}gueltig_bis'],
+      ),
+      typ: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}typ'],
+      )!,
+      beschreibung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}beschreibung'],
+      ),
+      nachweisStorageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nachweis_storage_url'],
+      ),
+      nachweisDateiname: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nachweis_dateiname'],
+      ),
+      nachweisMimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nachweis_mime_type'],
+      ),
+      nachweisGroesse: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nachweis_groesse'],
+      ),
+      standardAnhang: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}standard_anhang'],
+      )!,
+      extras: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extras'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $QualifikationenTable createAlias(String alias) {
+    return $QualifikationenTable(attachedDatabase, alias);
+  }
+}
+
+class QualifikationenData extends DataClass
+    implements Insertable<QualifikationenData> {
+  final int id;
+  final String titel;
+  final String? aussteller;
+  final DateTime? ausgestelltAm;
+  final DateTime? gueltigBis;
+
+  /// 'diplom', 'zertifikat', 'pruefung', 'sonstiges'.
+  final String typ;
+  final String? beschreibung;
+  final String? nachweisStorageUrl;
+  final String? nachweisDateiname;
+  final String? nachweisMimeType;
+  final int? nachweisGroesse;
+
+  /// Flag: im PDF-Anhang standardmäßig mit anhängen.
+  final bool standardAnhang;
+  final String? extras;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const QualifikationenData({
+    required this.id,
+    required this.titel,
+    this.aussteller,
+    this.ausgestelltAm,
+    this.gueltigBis,
+    required this.typ,
+    this.beschreibung,
+    this.nachweisStorageUrl,
+    this.nachweisDateiname,
+    this.nachweisMimeType,
+    this.nachweisGroesse,
+    required this.standardAnhang,
+    this.extras,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['titel'] = Variable<String>(titel);
+    if (!nullToAbsent || aussteller != null) {
+      map['aussteller'] = Variable<String>(aussteller);
+    }
+    if (!nullToAbsent || ausgestelltAm != null) {
+      map['ausgestellt_am'] = Variable<DateTime>(ausgestelltAm);
+    }
+    if (!nullToAbsent || gueltigBis != null) {
+      map['gueltig_bis'] = Variable<DateTime>(gueltigBis);
+    }
+    map['typ'] = Variable<String>(typ);
+    if (!nullToAbsent || beschreibung != null) {
+      map['beschreibung'] = Variable<String>(beschreibung);
+    }
+    if (!nullToAbsent || nachweisStorageUrl != null) {
+      map['nachweis_storage_url'] = Variable<String>(nachweisStorageUrl);
+    }
+    if (!nullToAbsent || nachweisDateiname != null) {
+      map['nachweis_dateiname'] = Variable<String>(nachweisDateiname);
+    }
+    if (!nullToAbsent || nachweisMimeType != null) {
+      map['nachweis_mime_type'] = Variable<String>(nachweisMimeType);
+    }
+    if (!nullToAbsent || nachweisGroesse != null) {
+      map['nachweis_groesse'] = Variable<int>(nachweisGroesse);
+    }
+    map['standard_anhang'] = Variable<bool>(standardAnhang);
+    if (!nullToAbsent || extras != null) {
+      map['extras'] = Variable<String>(extras);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  QualifikationenCompanion toCompanion(bool nullToAbsent) {
+    return QualifikationenCompanion(
+      id: Value(id),
+      titel: Value(titel),
+      aussteller: aussteller == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aussteller),
+      ausgestelltAm: ausgestelltAm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ausgestelltAm),
+      gueltigBis: gueltigBis == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gueltigBis),
+      typ: Value(typ),
+      beschreibung: beschreibung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(beschreibung),
+      nachweisStorageUrl: nachweisStorageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nachweisStorageUrl),
+      nachweisDateiname: nachweisDateiname == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nachweisDateiname),
+      nachweisMimeType: nachweisMimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nachweisMimeType),
+      nachweisGroesse: nachweisGroesse == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nachweisGroesse),
+      standardAnhang: Value(standardAnhang),
+      extras: extras == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extras),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory QualifikationenData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QualifikationenData(
+      id: serializer.fromJson<int>(json['id']),
+      titel: serializer.fromJson<String>(json['titel']),
+      aussteller: serializer.fromJson<String?>(json['aussteller']),
+      ausgestelltAm: serializer.fromJson<DateTime?>(json['ausgestelltAm']),
+      gueltigBis: serializer.fromJson<DateTime?>(json['gueltigBis']),
+      typ: serializer.fromJson<String>(json['typ']),
+      beschreibung: serializer.fromJson<String?>(json['beschreibung']),
+      nachweisStorageUrl: serializer.fromJson<String?>(
+        json['nachweisStorageUrl'],
+      ),
+      nachweisDateiname: serializer.fromJson<String?>(
+        json['nachweisDateiname'],
+      ),
+      nachweisMimeType: serializer.fromJson<String?>(json['nachweisMimeType']),
+      nachweisGroesse: serializer.fromJson<int?>(json['nachweisGroesse']),
+      standardAnhang: serializer.fromJson<bool>(json['standardAnhang']),
+      extras: serializer.fromJson<String?>(json['extras']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'titel': serializer.toJson<String>(titel),
+      'aussteller': serializer.toJson<String?>(aussteller),
+      'ausgestelltAm': serializer.toJson<DateTime?>(ausgestelltAm),
+      'gueltigBis': serializer.toJson<DateTime?>(gueltigBis),
+      'typ': serializer.toJson<String>(typ),
+      'beschreibung': serializer.toJson<String?>(beschreibung),
+      'nachweisStorageUrl': serializer.toJson<String?>(nachweisStorageUrl),
+      'nachweisDateiname': serializer.toJson<String?>(nachweisDateiname),
+      'nachweisMimeType': serializer.toJson<String?>(nachweisMimeType),
+      'nachweisGroesse': serializer.toJson<int?>(nachweisGroesse),
+      'standardAnhang': serializer.toJson<bool>(standardAnhang),
+      'extras': serializer.toJson<String?>(extras),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  QualifikationenData copyWith({
+    int? id,
+    String? titel,
+    Value<String?> aussteller = const Value.absent(),
+    Value<DateTime?> ausgestelltAm = const Value.absent(),
+    Value<DateTime?> gueltigBis = const Value.absent(),
+    String? typ,
+    Value<String?> beschreibung = const Value.absent(),
+    Value<String?> nachweisStorageUrl = const Value.absent(),
+    Value<String?> nachweisDateiname = const Value.absent(),
+    Value<String?> nachweisMimeType = const Value.absent(),
+    Value<int?> nachweisGroesse = const Value.absent(),
+    bool? standardAnhang,
+    Value<String?> extras = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => QualifikationenData(
+    id: id ?? this.id,
+    titel: titel ?? this.titel,
+    aussteller: aussteller.present ? aussteller.value : this.aussteller,
+    ausgestelltAm: ausgestelltAm.present
+        ? ausgestelltAm.value
+        : this.ausgestelltAm,
+    gueltigBis: gueltigBis.present ? gueltigBis.value : this.gueltigBis,
+    typ: typ ?? this.typ,
+    beschreibung: beschreibung.present ? beschreibung.value : this.beschreibung,
+    nachweisStorageUrl: nachweisStorageUrl.present
+        ? nachweisStorageUrl.value
+        : this.nachweisStorageUrl,
+    nachweisDateiname: nachweisDateiname.present
+        ? nachweisDateiname.value
+        : this.nachweisDateiname,
+    nachweisMimeType: nachweisMimeType.present
+        ? nachweisMimeType.value
+        : this.nachweisMimeType,
+    nachweisGroesse: nachweisGroesse.present
+        ? nachweisGroesse.value
+        : this.nachweisGroesse,
+    standardAnhang: standardAnhang ?? this.standardAnhang,
+    extras: extras.present ? extras.value : this.extras,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  QualifikationenData copyWithCompanion(QualifikationenCompanion data) {
+    return QualifikationenData(
+      id: data.id.present ? data.id.value : this.id,
+      titel: data.titel.present ? data.titel.value : this.titel,
+      aussteller: data.aussteller.present
+          ? data.aussteller.value
+          : this.aussteller,
+      ausgestelltAm: data.ausgestelltAm.present
+          ? data.ausgestelltAm.value
+          : this.ausgestelltAm,
+      gueltigBis: data.gueltigBis.present
+          ? data.gueltigBis.value
+          : this.gueltigBis,
+      typ: data.typ.present ? data.typ.value : this.typ,
+      beschreibung: data.beschreibung.present
+          ? data.beschreibung.value
+          : this.beschreibung,
+      nachweisStorageUrl: data.nachweisStorageUrl.present
+          ? data.nachweisStorageUrl.value
+          : this.nachweisStorageUrl,
+      nachweisDateiname: data.nachweisDateiname.present
+          ? data.nachweisDateiname.value
+          : this.nachweisDateiname,
+      nachweisMimeType: data.nachweisMimeType.present
+          ? data.nachweisMimeType.value
+          : this.nachweisMimeType,
+      nachweisGroesse: data.nachweisGroesse.present
+          ? data.nachweisGroesse.value
+          : this.nachweisGroesse,
+      standardAnhang: data.standardAnhang.present
+          ? data.standardAnhang.value
+          : this.standardAnhang,
+      extras: data.extras.present ? data.extras.value : this.extras,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QualifikationenData(')
+          ..write('id: $id, ')
+          ..write('titel: $titel, ')
+          ..write('aussteller: $aussteller, ')
+          ..write('ausgestelltAm: $ausgestelltAm, ')
+          ..write('gueltigBis: $gueltigBis, ')
+          ..write('typ: $typ, ')
+          ..write('beschreibung: $beschreibung, ')
+          ..write('nachweisStorageUrl: $nachweisStorageUrl, ')
+          ..write('nachweisDateiname: $nachweisDateiname, ')
+          ..write('nachweisMimeType: $nachweisMimeType, ')
+          ..write('nachweisGroesse: $nachweisGroesse, ')
+          ..write('standardAnhang: $standardAnhang, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    titel,
+    aussteller,
+    ausgestelltAm,
+    gueltigBis,
+    typ,
+    beschreibung,
+    nachweisStorageUrl,
+    nachweisDateiname,
+    nachweisMimeType,
+    nachweisGroesse,
+    standardAnhang,
+    extras,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QualifikationenData &&
+          other.id == this.id &&
+          other.titel == this.titel &&
+          other.aussteller == this.aussteller &&
+          other.ausgestelltAm == this.ausgestelltAm &&
+          other.gueltigBis == this.gueltigBis &&
+          other.typ == this.typ &&
+          other.beschreibung == this.beschreibung &&
+          other.nachweisStorageUrl == this.nachweisStorageUrl &&
+          other.nachweisDateiname == this.nachweisDateiname &&
+          other.nachweisMimeType == this.nachweisMimeType &&
+          other.nachweisGroesse == this.nachweisGroesse &&
+          other.standardAnhang == this.standardAnhang &&
+          other.extras == this.extras &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class QualifikationenCompanion extends UpdateCompanion<QualifikationenData> {
+  final Value<int> id;
+  final Value<String> titel;
+  final Value<String?> aussteller;
+  final Value<DateTime?> ausgestelltAm;
+  final Value<DateTime?> gueltigBis;
+  final Value<String> typ;
+  final Value<String?> beschreibung;
+  final Value<String?> nachweisStorageUrl;
+  final Value<String?> nachweisDateiname;
+  final Value<String?> nachweisMimeType;
+  final Value<int?> nachweisGroesse;
+  final Value<bool> standardAnhang;
+  final Value<String?> extras;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const QualifikationenCompanion({
+    this.id = const Value.absent(),
+    this.titel = const Value.absent(),
+    this.aussteller = const Value.absent(),
+    this.ausgestelltAm = const Value.absent(),
+    this.gueltigBis = const Value.absent(),
+    this.typ = const Value.absent(),
+    this.beschreibung = const Value.absent(),
+    this.nachweisStorageUrl = const Value.absent(),
+    this.nachweisDateiname = const Value.absent(),
+    this.nachweisMimeType = const Value.absent(),
+    this.nachweisGroesse = const Value.absent(),
+    this.standardAnhang = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  QualifikationenCompanion.insert({
+    this.id = const Value.absent(),
+    required String titel,
+    this.aussteller = const Value.absent(),
+    this.ausgestelltAm = const Value.absent(),
+    this.gueltigBis = const Value.absent(),
+    this.typ = const Value.absent(),
+    this.beschreibung = const Value.absent(),
+    this.nachweisStorageUrl = const Value.absent(),
+    this.nachweisDateiname = const Value.absent(),
+    this.nachweisMimeType = const Value.absent(),
+    this.nachweisGroesse = const Value.absent(),
+    this.standardAnhang = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : titel = Value(titel);
+  static Insertable<QualifikationenData> custom({
+    Expression<int>? id,
+    Expression<String>? titel,
+    Expression<String>? aussteller,
+    Expression<DateTime>? ausgestelltAm,
+    Expression<DateTime>? gueltigBis,
+    Expression<String>? typ,
+    Expression<String>? beschreibung,
+    Expression<String>? nachweisStorageUrl,
+    Expression<String>? nachweisDateiname,
+    Expression<String>? nachweisMimeType,
+    Expression<int>? nachweisGroesse,
+    Expression<bool>? standardAnhang,
+    Expression<String>? extras,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (titel != null) 'titel': titel,
+      if (aussteller != null) 'aussteller': aussteller,
+      if (ausgestelltAm != null) 'ausgestellt_am': ausgestelltAm,
+      if (gueltigBis != null) 'gueltig_bis': gueltigBis,
+      if (typ != null) 'typ': typ,
+      if (beschreibung != null) 'beschreibung': beschreibung,
+      if (nachweisStorageUrl != null)
+        'nachweis_storage_url': nachweisStorageUrl,
+      if (nachweisDateiname != null) 'nachweis_dateiname': nachweisDateiname,
+      if (nachweisMimeType != null) 'nachweis_mime_type': nachweisMimeType,
+      if (nachweisGroesse != null) 'nachweis_groesse': nachweisGroesse,
+      if (standardAnhang != null) 'standard_anhang': standardAnhang,
+      if (extras != null) 'extras': extras,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  QualifikationenCompanion copyWith({
+    Value<int>? id,
+    Value<String>? titel,
+    Value<String?>? aussteller,
+    Value<DateTime?>? ausgestelltAm,
+    Value<DateTime?>? gueltigBis,
+    Value<String>? typ,
+    Value<String?>? beschreibung,
+    Value<String?>? nachweisStorageUrl,
+    Value<String?>? nachweisDateiname,
+    Value<String?>? nachweisMimeType,
+    Value<int?>? nachweisGroesse,
+    Value<bool>? standardAnhang,
+    Value<String?>? extras,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return QualifikationenCompanion(
+      id: id ?? this.id,
+      titel: titel ?? this.titel,
+      aussteller: aussteller ?? this.aussteller,
+      ausgestelltAm: ausgestelltAm ?? this.ausgestelltAm,
+      gueltigBis: gueltigBis ?? this.gueltigBis,
+      typ: typ ?? this.typ,
+      beschreibung: beschreibung ?? this.beschreibung,
+      nachweisStorageUrl: nachweisStorageUrl ?? this.nachweisStorageUrl,
+      nachweisDateiname: nachweisDateiname ?? this.nachweisDateiname,
+      nachweisMimeType: nachweisMimeType ?? this.nachweisMimeType,
+      nachweisGroesse: nachweisGroesse ?? this.nachweisGroesse,
+      standardAnhang: standardAnhang ?? this.standardAnhang,
+      extras: extras ?? this.extras,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (titel.present) {
+      map['titel'] = Variable<String>(titel.value);
+    }
+    if (aussteller.present) {
+      map['aussteller'] = Variable<String>(aussteller.value);
+    }
+    if (ausgestelltAm.present) {
+      map['ausgestellt_am'] = Variable<DateTime>(ausgestelltAm.value);
+    }
+    if (gueltigBis.present) {
+      map['gueltig_bis'] = Variable<DateTime>(gueltigBis.value);
+    }
+    if (typ.present) {
+      map['typ'] = Variable<String>(typ.value);
+    }
+    if (beschreibung.present) {
+      map['beschreibung'] = Variable<String>(beschreibung.value);
+    }
+    if (nachweisStorageUrl.present) {
+      map['nachweis_storage_url'] = Variable<String>(nachweisStorageUrl.value);
+    }
+    if (nachweisDateiname.present) {
+      map['nachweis_dateiname'] = Variable<String>(nachweisDateiname.value);
+    }
+    if (nachweisMimeType.present) {
+      map['nachweis_mime_type'] = Variable<String>(nachweisMimeType.value);
+    }
+    if (nachweisGroesse.present) {
+      map['nachweis_groesse'] = Variable<int>(nachweisGroesse.value);
+    }
+    if (standardAnhang.present) {
+      map['standard_anhang'] = Variable<bool>(standardAnhang.value);
+    }
+    if (extras.present) {
+      map['extras'] = Variable<String>(extras.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QualifikationenCompanion(')
+          ..write('id: $id, ')
+          ..write('titel: $titel, ')
+          ..write('aussteller: $aussteller, ')
+          ..write('ausgestelltAm: $ausgestelltAm, ')
+          ..write('gueltigBis: $gueltigBis, ')
+          ..write('typ: $typ, ')
+          ..write('beschreibung: $beschreibung, ')
+          ..write('nachweisStorageUrl: $nachweisStorageUrl, ')
+          ..write('nachweisDateiname: $nachweisDateiname, ')
+          ..write('nachweisMimeType: $nachweisMimeType, ')
+          ..write('nachweisGroesse: $nachweisGroesse, ')
+          ..write('standardAnhang: $standardAnhang, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BauteiloeffnungenTable extends Bauteiloeffnungen
+    with TableInfo<$BauteiloeffnungenTable, BauteiloeffnungenData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BauteiloeffnungenTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _datumMeta = const VerificationMeta('datum');
+  @override
+  late final GeneratedColumn<DateTime> datum = GeneratedColumn<DateTime>(
+    'datum',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _lageMeta = const VerificationMeta('lage');
+  @override
+  late final GeneratedColumn<String> lage = GeneratedColumn<String>(
+    'lage',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _methodeMeta = const VerificationMeta(
+    'methode',
+  );
+  @override
+  late final GeneratedColumn<String> methode = GeneratedColumn<String>(
+    'methode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _anwesendMeta = const VerificationMeta(
+    'anwesend',
+  );
+  @override
+  late final GeneratedColumn<String> anwesend = GeneratedColumn<String>(
+    'anwesend',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _befundMeta = const VerificationMeta('befund');
+  @override
+  late final GeneratedColumn<String> befund = GeneratedColumn<String>(
+    'befund',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _messwerteJsonMeta = const VerificationMeta(
+    'messwerteJson',
+  );
+  @override
+  late final GeneratedColumn<String> messwerteJson = GeneratedColumn<String>(
+    'messwerte_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fotoVorStorageUrlMeta = const VerificationMeta(
+    'fotoVorStorageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> fotoVorStorageUrl =
+      GeneratedColumn<String>(
+        'foto_vor_storage_url',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _fotoNachStorageUrlMeta =
+      const VerificationMeta('fotoNachStorageUrl');
+  @override
+  late final GeneratedColumn<String> fotoNachStorageUrl =
+      GeneratedColumn<String>(
+        'foto_nach_storage_url',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _bemerkungMeta = const VerificationMeta(
+    'bemerkung',
+  );
+  @override
+  late final GeneratedColumn<String> bemerkung = GeneratedColumn<String>(
+    'bemerkung',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
+  @override
+  late final GeneratedColumn<String> extras = GeneratedColumn<String>(
+    'extras',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    datum,
+    lage,
+    methode,
+    anwesend,
+    befund,
+    messwerteJson,
+    fotoVorStorageUrl,
+    fotoNachStorageUrl,
+    bemerkung,
+    extras,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bauteiloeffnungen';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BauteiloeffnungenData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_auftragIdMeta);
+    }
+    if (data.containsKey('datum')) {
+      context.handle(
+        _datumMeta,
+        datum.isAcceptableOrUnknown(data['datum']!, _datumMeta),
+      );
+    }
+    if (data.containsKey('lage')) {
+      context.handle(
+        _lageMeta,
+        lage.isAcceptableOrUnknown(data['lage']!, _lageMeta),
+      );
+    }
+    if (data.containsKey('methode')) {
+      context.handle(
+        _methodeMeta,
+        methode.isAcceptableOrUnknown(data['methode']!, _methodeMeta),
+      );
+    }
+    if (data.containsKey('anwesend')) {
+      context.handle(
+        _anwesendMeta,
+        anwesend.isAcceptableOrUnknown(data['anwesend']!, _anwesendMeta),
+      );
+    }
+    if (data.containsKey('befund')) {
+      context.handle(
+        _befundMeta,
+        befund.isAcceptableOrUnknown(data['befund']!, _befundMeta),
+      );
+    }
+    if (data.containsKey('messwerte_json')) {
+      context.handle(
+        _messwerteJsonMeta,
+        messwerteJson.isAcceptableOrUnknown(
+          data['messwerte_json']!,
+          _messwerteJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('foto_vor_storage_url')) {
+      context.handle(
+        _fotoVorStorageUrlMeta,
+        fotoVorStorageUrl.isAcceptableOrUnknown(
+          data['foto_vor_storage_url']!,
+          _fotoVorStorageUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('foto_nach_storage_url')) {
+      context.handle(
+        _fotoNachStorageUrlMeta,
+        fotoNachStorageUrl.isAcceptableOrUnknown(
+          data['foto_nach_storage_url']!,
+          _fotoNachStorageUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bemerkung')) {
+      context.handle(
+        _bemerkungMeta,
+        bemerkung.isAcceptableOrUnknown(data['bemerkung']!, _bemerkungMeta),
+      );
+    }
+    if (data.containsKey('extras')) {
+      context.handle(
+        _extrasMeta,
+        extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BauteiloeffnungenData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BauteiloeffnungenData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      )!,
+      datum: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}datum'],
+      )!,
+      lage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lage'],
+      ),
+      methode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}methode'],
+      ),
+      anwesend: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anwesend'],
+      ),
+      befund: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}befund'],
+      ),
+      messwerteJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}messwerte_json'],
+      ),
+      fotoVorStorageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}foto_vor_storage_url'],
+      ),
+      fotoNachStorageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}foto_nach_storage_url'],
+      ),
+      bemerkung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bemerkung'],
+      ),
+      extras: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extras'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $BauteiloeffnungenTable createAlias(String alias) {
+    return $BauteiloeffnungenTable(attachedDatabase, alias);
+  }
+}
+
+class BauteiloeffnungenData extends DataClass
+    implements Insertable<BauteiloeffnungenData> {
+  final int id;
+  final int auftragId;
+  final DateTime datum;
+
+  /// Bauteil/Ort innerhalb des Objekts (z.B. "Nordfassade, 1.OG").
+  final String? lage;
+
+  /// Öffnungsmethode (z.B. "manuell, Brechstange" oder "Bohrung DN 20").
+  final String? methode;
+
+  /// Personen die beim Öffnen anwesend waren (eine pro Zeile).
+  final String? anwesend;
+
+  /// Festgestellter Zustand (z.B. Dämmung feucht, Abdichtung fehlt).
+  final String? befund;
+
+  /// Messwerte zur Öffnung als JSON (Feuchte, Schichtdicke etc.).
+  final String? messwerteJson;
+
+  /// Foto vor der Öffnung.
+  final String? fotoVorStorageUrl;
+
+  /// Foto nach der Öffnung.
+  final String? fotoNachStorageUrl;
+  final String? bemerkung;
+  final String? extras;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const BauteiloeffnungenData({
+    required this.id,
+    required this.auftragId,
+    required this.datum,
+    this.lage,
+    this.methode,
+    this.anwesend,
+    this.befund,
+    this.messwerteJson,
+    this.fotoVorStorageUrl,
+    this.fotoNachStorageUrl,
+    this.bemerkung,
+    this.extras,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['auftrag_id'] = Variable<int>(auftragId);
+    map['datum'] = Variable<DateTime>(datum);
+    if (!nullToAbsent || lage != null) {
+      map['lage'] = Variable<String>(lage);
+    }
+    if (!nullToAbsent || methode != null) {
+      map['methode'] = Variable<String>(methode);
+    }
+    if (!nullToAbsent || anwesend != null) {
+      map['anwesend'] = Variable<String>(anwesend);
+    }
+    if (!nullToAbsent || befund != null) {
+      map['befund'] = Variable<String>(befund);
+    }
+    if (!nullToAbsent || messwerteJson != null) {
+      map['messwerte_json'] = Variable<String>(messwerteJson);
+    }
+    if (!nullToAbsent || fotoVorStorageUrl != null) {
+      map['foto_vor_storage_url'] = Variable<String>(fotoVorStorageUrl);
+    }
+    if (!nullToAbsent || fotoNachStorageUrl != null) {
+      map['foto_nach_storage_url'] = Variable<String>(fotoNachStorageUrl);
+    }
+    if (!nullToAbsent || bemerkung != null) {
+      map['bemerkung'] = Variable<String>(bemerkung);
+    }
+    if (!nullToAbsent || extras != null) {
+      map['extras'] = Variable<String>(extras);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  BauteiloeffnungenCompanion toCompanion(bool nullToAbsent) {
+    return BauteiloeffnungenCompanion(
+      id: Value(id),
+      auftragId: Value(auftragId),
+      datum: Value(datum),
+      lage: lage == null && nullToAbsent ? const Value.absent() : Value(lage),
+      methode: methode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(methode),
+      anwesend: anwesend == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anwesend),
+      befund: befund == null && nullToAbsent
+          ? const Value.absent()
+          : Value(befund),
+      messwerteJson: messwerteJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(messwerteJson),
+      fotoVorStorageUrl: fotoVorStorageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fotoVorStorageUrl),
+      fotoNachStorageUrl: fotoNachStorageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fotoNachStorageUrl),
+      bemerkung: bemerkung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bemerkung),
+      extras: extras == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extras),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory BauteiloeffnungenData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BauteiloeffnungenData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int>(json['auftragId']),
+      datum: serializer.fromJson<DateTime>(json['datum']),
+      lage: serializer.fromJson<String?>(json['lage']),
+      methode: serializer.fromJson<String?>(json['methode']),
+      anwesend: serializer.fromJson<String?>(json['anwesend']),
+      befund: serializer.fromJson<String?>(json['befund']),
+      messwerteJson: serializer.fromJson<String?>(json['messwerteJson']),
+      fotoVorStorageUrl: serializer.fromJson<String?>(
+        json['fotoVorStorageUrl'],
+      ),
+      fotoNachStorageUrl: serializer.fromJson<String?>(
+        json['fotoNachStorageUrl'],
+      ),
+      bemerkung: serializer.fromJson<String?>(json['bemerkung']),
+      extras: serializer.fromJson<String?>(json['extras']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int>(auftragId),
+      'datum': serializer.toJson<DateTime>(datum),
+      'lage': serializer.toJson<String?>(lage),
+      'methode': serializer.toJson<String?>(methode),
+      'anwesend': serializer.toJson<String?>(anwesend),
+      'befund': serializer.toJson<String?>(befund),
+      'messwerteJson': serializer.toJson<String?>(messwerteJson),
+      'fotoVorStorageUrl': serializer.toJson<String?>(fotoVorStorageUrl),
+      'fotoNachStorageUrl': serializer.toJson<String?>(fotoNachStorageUrl),
+      'bemerkung': serializer.toJson<String?>(bemerkung),
+      'extras': serializer.toJson<String?>(extras),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  BauteiloeffnungenData copyWith({
+    int? id,
+    int? auftragId,
+    DateTime? datum,
+    Value<String?> lage = const Value.absent(),
+    Value<String?> methode = const Value.absent(),
+    Value<String?> anwesend = const Value.absent(),
+    Value<String?> befund = const Value.absent(),
+    Value<String?> messwerteJson = const Value.absent(),
+    Value<String?> fotoVorStorageUrl = const Value.absent(),
+    Value<String?> fotoNachStorageUrl = const Value.absent(),
+    Value<String?> bemerkung = const Value.absent(),
+    Value<String?> extras = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => BauteiloeffnungenData(
+    id: id ?? this.id,
+    auftragId: auftragId ?? this.auftragId,
+    datum: datum ?? this.datum,
+    lage: lage.present ? lage.value : this.lage,
+    methode: methode.present ? methode.value : this.methode,
+    anwesend: anwesend.present ? anwesend.value : this.anwesend,
+    befund: befund.present ? befund.value : this.befund,
+    messwerteJson: messwerteJson.present
+        ? messwerteJson.value
+        : this.messwerteJson,
+    fotoVorStorageUrl: fotoVorStorageUrl.present
+        ? fotoVorStorageUrl.value
+        : this.fotoVorStorageUrl,
+    fotoNachStorageUrl: fotoNachStorageUrl.present
+        ? fotoNachStorageUrl.value
+        : this.fotoNachStorageUrl,
+    bemerkung: bemerkung.present ? bemerkung.value : this.bemerkung,
+    extras: extras.present ? extras.value : this.extras,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  BauteiloeffnungenData copyWithCompanion(BauteiloeffnungenCompanion data) {
+    return BauteiloeffnungenData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      datum: data.datum.present ? data.datum.value : this.datum,
+      lage: data.lage.present ? data.lage.value : this.lage,
+      methode: data.methode.present ? data.methode.value : this.methode,
+      anwesend: data.anwesend.present ? data.anwesend.value : this.anwesend,
+      befund: data.befund.present ? data.befund.value : this.befund,
+      messwerteJson: data.messwerteJson.present
+          ? data.messwerteJson.value
+          : this.messwerteJson,
+      fotoVorStorageUrl: data.fotoVorStorageUrl.present
+          ? data.fotoVorStorageUrl.value
+          : this.fotoVorStorageUrl,
+      fotoNachStorageUrl: data.fotoNachStorageUrl.present
+          ? data.fotoNachStorageUrl.value
+          : this.fotoNachStorageUrl,
+      bemerkung: data.bemerkung.present ? data.bemerkung.value : this.bemerkung,
+      extras: data.extras.present ? data.extras.value : this.extras,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BauteiloeffnungenData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('datum: $datum, ')
+          ..write('lage: $lage, ')
+          ..write('methode: $methode, ')
+          ..write('anwesend: $anwesend, ')
+          ..write('befund: $befund, ')
+          ..write('messwerteJson: $messwerteJson, ')
+          ..write('fotoVorStorageUrl: $fotoVorStorageUrl, ')
+          ..write('fotoNachStorageUrl: $fotoNachStorageUrl, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    datum,
+    lage,
+    methode,
+    anwesend,
+    befund,
+    messwerteJson,
+    fotoVorStorageUrl,
+    fotoNachStorageUrl,
+    bemerkung,
+    extras,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BauteiloeffnungenData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.datum == this.datum &&
+          other.lage == this.lage &&
+          other.methode == this.methode &&
+          other.anwesend == this.anwesend &&
+          other.befund == this.befund &&
+          other.messwerteJson == this.messwerteJson &&
+          other.fotoVorStorageUrl == this.fotoVorStorageUrl &&
+          other.fotoNachStorageUrl == this.fotoNachStorageUrl &&
+          other.bemerkung == this.bemerkung &&
+          other.extras == this.extras &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BauteiloeffnungenCompanion
+    extends UpdateCompanion<BauteiloeffnungenData> {
+  final Value<int> id;
+  final Value<int> auftragId;
+  final Value<DateTime> datum;
+  final Value<String?> lage;
+  final Value<String?> methode;
+  final Value<String?> anwesend;
+  final Value<String?> befund;
+  final Value<String?> messwerteJson;
+  final Value<String?> fotoVorStorageUrl;
+  final Value<String?> fotoNachStorageUrl;
+  final Value<String?> bemerkung;
+  final Value<String?> extras;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const BauteiloeffnungenCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.datum = const Value.absent(),
+    this.lage = const Value.absent(),
+    this.methode = const Value.absent(),
+    this.anwesend = const Value.absent(),
+    this.befund = const Value.absent(),
+    this.messwerteJson = const Value.absent(),
+    this.fotoVorStorageUrl = const Value.absent(),
+    this.fotoNachStorageUrl = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  BauteiloeffnungenCompanion.insert({
+    this.id = const Value.absent(),
+    required int auftragId,
+    this.datum = const Value.absent(),
+    this.lage = const Value.absent(),
+    this.methode = const Value.absent(),
+    this.anwesend = const Value.absent(),
+    this.befund = const Value.absent(),
+    this.messwerteJson = const Value.absent(),
+    this.fotoVorStorageUrl = const Value.absent(),
+    this.fotoNachStorageUrl = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : auftragId = Value(auftragId);
+  static Insertable<BauteiloeffnungenData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<DateTime>? datum,
+    Expression<String>? lage,
+    Expression<String>? methode,
+    Expression<String>? anwesend,
+    Expression<String>? befund,
+    Expression<String>? messwerteJson,
+    Expression<String>? fotoVorStorageUrl,
+    Expression<String>? fotoNachStorageUrl,
+    Expression<String>? bemerkung,
+    Expression<String>? extras,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (datum != null) 'datum': datum,
+      if (lage != null) 'lage': lage,
+      if (methode != null) 'methode': methode,
+      if (anwesend != null) 'anwesend': anwesend,
+      if (befund != null) 'befund': befund,
+      if (messwerteJson != null) 'messwerte_json': messwerteJson,
+      if (fotoVorStorageUrl != null) 'foto_vor_storage_url': fotoVorStorageUrl,
+      if (fotoNachStorageUrl != null)
+        'foto_nach_storage_url': fotoNachStorageUrl,
+      if (bemerkung != null) 'bemerkung': bemerkung,
+      if (extras != null) 'extras': extras,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  BauteiloeffnungenCompanion copyWith({
+    Value<int>? id,
+    Value<int>? auftragId,
+    Value<DateTime>? datum,
+    Value<String?>? lage,
+    Value<String?>? methode,
+    Value<String?>? anwesend,
+    Value<String?>? befund,
+    Value<String?>? messwerteJson,
+    Value<String?>? fotoVorStorageUrl,
+    Value<String?>? fotoNachStorageUrl,
+    Value<String?>? bemerkung,
+    Value<String?>? extras,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return BauteiloeffnungenCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      datum: datum ?? this.datum,
+      lage: lage ?? this.lage,
+      methode: methode ?? this.methode,
+      anwesend: anwesend ?? this.anwesend,
+      befund: befund ?? this.befund,
+      messwerteJson: messwerteJson ?? this.messwerteJson,
+      fotoVorStorageUrl: fotoVorStorageUrl ?? this.fotoVorStorageUrl,
+      fotoNachStorageUrl: fotoNachStorageUrl ?? this.fotoNachStorageUrl,
+      bemerkung: bemerkung ?? this.bemerkung,
+      extras: extras ?? this.extras,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (datum.present) {
+      map['datum'] = Variable<DateTime>(datum.value);
+    }
+    if (lage.present) {
+      map['lage'] = Variable<String>(lage.value);
+    }
+    if (methode.present) {
+      map['methode'] = Variable<String>(methode.value);
+    }
+    if (anwesend.present) {
+      map['anwesend'] = Variable<String>(anwesend.value);
+    }
+    if (befund.present) {
+      map['befund'] = Variable<String>(befund.value);
+    }
+    if (messwerteJson.present) {
+      map['messwerte_json'] = Variable<String>(messwerteJson.value);
+    }
+    if (fotoVorStorageUrl.present) {
+      map['foto_vor_storage_url'] = Variable<String>(fotoVorStorageUrl.value);
+    }
+    if (fotoNachStorageUrl.present) {
+      map['foto_nach_storage_url'] = Variable<String>(fotoNachStorageUrl.value);
+    }
+    if (bemerkung.present) {
+      map['bemerkung'] = Variable<String>(bemerkung.value);
+    }
+    if (extras.present) {
+      map['extras'] = Variable<String>(extras.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BauteiloeffnungenCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('datum: $datum, ')
+          ..write('lage: $lage, ')
+          ..write('methode: $methode, ')
+          ..write('anwesend: $anwesend, ')
+          ..write('befund: $befund, ')
+          ..write('messwerteJson: $messwerteJson, ')
+          ..write('fotoVorStorageUrl: $fotoVorStorageUrl, ')
+          ..write('fotoNachStorageUrl: $fotoNachStorageUrl, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MesswerteTable extends Messwerte
+    with TableInfo<$MesswerteTable, MesswerteData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MesswerteTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _geraetIdMeta = const VerificationMeta(
+    'geraetId',
+  );
+  @override
+  late final GeneratedColumn<int> geraetId = GeneratedColumn<int>(
+    'geraet_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES geraete (id)',
+    ),
+  );
+  static const VerificationMeta _zeitpunktMeta = const VerificationMeta(
+    'zeitpunkt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> zeitpunkt = GeneratedColumn<DateTime>(
+    'zeitpunkt',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _groesseMeta = const VerificationMeta(
+    'groesse',
+  );
+  @override
+  late final GeneratedColumn<String> groesse = GeneratedColumn<String>(
+    'groesse',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _einheitMeta = const VerificationMeta(
+    'einheit',
+  );
+  @override
+  late final GeneratedColumn<String> einheit = GeneratedColumn<String>(
+    'einheit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _wertMeta = const VerificationMeta('wert');
+  @override
+  late final GeneratedColumn<double> wert = GeneratedColumn<double>(
+    'wert',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serieMeta = const VerificationMeta('serie');
+  @override
+  late final GeneratedColumn<String> serie = GeneratedColumn<String>(
+    'serie',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ortMeta = const VerificationMeta('ort');
+  @override
+  late final GeneratedColumn<String> ort = GeneratedColumn<String>(
+    'ort',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bemerkungMeta = const VerificationMeta(
+    'bemerkung',
+  );
+  @override
+  late final GeneratedColumn<String> bemerkung = GeneratedColumn<String>(
+    'bemerkung',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    geraetId,
+    zeitpunkt,
+    groesse,
+    einheit,
+    wert,
+    serie,
+    ort,
+    bemerkung,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'messwerte';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MesswerteData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_auftragIdMeta);
+    }
+    if (data.containsKey('geraet_id')) {
+      context.handle(
+        _geraetIdMeta,
+        geraetId.isAcceptableOrUnknown(data['geraet_id']!, _geraetIdMeta),
+      );
+    }
+    if (data.containsKey('zeitpunkt')) {
+      context.handle(
+        _zeitpunktMeta,
+        zeitpunkt.isAcceptableOrUnknown(data['zeitpunkt']!, _zeitpunktMeta),
+      );
+    }
+    if (data.containsKey('groesse')) {
+      context.handle(
+        _groesseMeta,
+        groesse.isAcceptableOrUnknown(data['groesse']!, _groesseMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groesseMeta);
+    }
+    if (data.containsKey('einheit')) {
+      context.handle(
+        _einheitMeta,
+        einheit.isAcceptableOrUnknown(data['einheit']!, _einheitMeta),
+      );
+    }
+    if (data.containsKey('wert')) {
+      context.handle(
+        _wertMeta,
+        wert.isAcceptableOrUnknown(data['wert']!, _wertMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_wertMeta);
+    }
+    if (data.containsKey('serie')) {
+      context.handle(
+        _serieMeta,
+        serie.isAcceptableOrUnknown(data['serie']!, _serieMeta),
+      );
+    }
+    if (data.containsKey('ort')) {
+      context.handle(
+        _ortMeta,
+        ort.isAcceptableOrUnknown(data['ort']!, _ortMeta),
+      );
+    }
+    if (data.containsKey('bemerkung')) {
+      context.handle(
+        _bemerkungMeta,
+        bemerkung.isAcceptableOrUnknown(data['bemerkung']!, _bemerkungMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MesswerteData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MesswerteData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      )!,
+      geraetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}geraet_id'],
+      ),
+      zeitpunkt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}zeitpunkt'],
+      )!,
+      groesse: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}groesse'],
+      )!,
+      einheit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}einheit'],
+      ),
+      wert: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}wert'],
+      )!,
+      serie: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}serie'],
+      ),
+      ort: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ort'],
+      ),
+      bemerkung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bemerkung'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MesswerteTable createAlias(String alias) {
+    return $MesswerteTable(attachedDatabase, alias);
+  }
+}
+
+class MesswerteData extends DataClass implements Insertable<MesswerteData> {
+  final int id;
+  final int auftragId;
+  final int? geraetId;
+  final DateTime zeitpunkt;
+
+  /// Art der Messung (z.B. "Temperatur", "rel. Feuchte", "Schalldruck").
+  final String groesse;
+
+  /// Einheit der Messung (z.B. "°C", "% r.F.", "dB").
+  final String? einheit;
+  final double wert;
+
+  /// Mess-Serie/Kanal (z.B. Raum A / Raum B oder Kanal 1/2), damit
+  /// mehrere Reihen parallel geloggt werden können.
+  final String? serie;
+
+  /// Ort innerhalb des Objekts (z.B. "Schlafzimmer OG").
+  final String? ort;
+  final String? bemerkung;
+  final DateTime createdAt;
+  const MesswerteData({
+    required this.id,
+    required this.auftragId,
+    this.geraetId,
+    required this.zeitpunkt,
+    required this.groesse,
+    this.einheit,
+    required this.wert,
+    this.serie,
+    this.ort,
+    this.bemerkung,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['auftrag_id'] = Variable<int>(auftragId);
+    if (!nullToAbsent || geraetId != null) {
+      map['geraet_id'] = Variable<int>(geraetId);
+    }
+    map['zeitpunkt'] = Variable<DateTime>(zeitpunkt);
+    map['groesse'] = Variable<String>(groesse);
+    if (!nullToAbsent || einheit != null) {
+      map['einheit'] = Variable<String>(einheit);
+    }
+    map['wert'] = Variable<double>(wert);
+    if (!nullToAbsent || serie != null) {
+      map['serie'] = Variable<String>(serie);
+    }
+    if (!nullToAbsent || ort != null) {
+      map['ort'] = Variable<String>(ort);
+    }
+    if (!nullToAbsent || bemerkung != null) {
+      map['bemerkung'] = Variable<String>(bemerkung);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  MesswerteCompanion toCompanion(bool nullToAbsent) {
+    return MesswerteCompanion(
+      id: Value(id),
+      auftragId: Value(auftragId),
+      geraetId: geraetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(geraetId),
+      zeitpunkt: Value(zeitpunkt),
+      groesse: Value(groesse),
+      einheit: einheit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(einheit),
+      wert: Value(wert),
+      serie: serie == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serie),
+      ort: ort == null && nullToAbsent ? const Value.absent() : Value(ort),
+      bemerkung: bemerkung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bemerkung),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory MesswerteData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MesswerteData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int>(json['auftragId']),
+      geraetId: serializer.fromJson<int?>(json['geraetId']),
+      zeitpunkt: serializer.fromJson<DateTime>(json['zeitpunkt']),
+      groesse: serializer.fromJson<String>(json['groesse']),
+      einheit: serializer.fromJson<String?>(json['einheit']),
+      wert: serializer.fromJson<double>(json['wert']),
+      serie: serializer.fromJson<String?>(json['serie']),
+      ort: serializer.fromJson<String?>(json['ort']),
+      bemerkung: serializer.fromJson<String?>(json['bemerkung']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int>(auftragId),
+      'geraetId': serializer.toJson<int?>(geraetId),
+      'zeitpunkt': serializer.toJson<DateTime>(zeitpunkt),
+      'groesse': serializer.toJson<String>(groesse),
+      'einheit': serializer.toJson<String?>(einheit),
+      'wert': serializer.toJson<double>(wert),
+      'serie': serializer.toJson<String?>(serie),
+      'ort': serializer.toJson<String?>(ort),
+      'bemerkung': serializer.toJson<String?>(bemerkung),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  MesswerteData copyWith({
+    int? id,
+    int? auftragId,
+    Value<int?> geraetId = const Value.absent(),
+    DateTime? zeitpunkt,
+    String? groesse,
+    Value<String?> einheit = const Value.absent(),
+    double? wert,
+    Value<String?> serie = const Value.absent(),
+    Value<String?> ort = const Value.absent(),
+    Value<String?> bemerkung = const Value.absent(),
+    DateTime? createdAt,
+  }) => MesswerteData(
+    id: id ?? this.id,
+    auftragId: auftragId ?? this.auftragId,
+    geraetId: geraetId.present ? geraetId.value : this.geraetId,
+    zeitpunkt: zeitpunkt ?? this.zeitpunkt,
+    groesse: groesse ?? this.groesse,
+    einheit: einheit.present ? einheit.value : this.einheit,
+    wert: wert ?? this.wert,
+    serie: serie.present ? serie.value : this.serie,
+    ort: ort.present ? ort.value : this.ort,
+    bemerkung: bemerkung.present ? bemerkung.value : this.bemerkung,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  MesswerteData copyWithCompanion(MesswerteCompanion data) {
+    return MesswerteData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      geraetId: data.geraetId.present ? data.geraetId.value : this.geraetId,
+      zeitpunkt: data.zeitpunkt.present ? data.zeitpunkt.value : this.zeitpunkt,
+      groesse: data.groesse.present ? data.groesse.value : this.groesse,
+      einheit: data.einheit.present ? data.einheit.value : this.einheit,
+      wert: data.wert.present ? data.wert.value : this.wert,
+      serie: data.serie.present ? data.serie.value : this.serie,
+      ort: data.ort.present ? data.ort.value : this.ort,
+      bemerkung: data.bemerkung.present ? data.bemerkung.value : this.bemerkung,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MesswerteData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('geraetId: $geraetId, ')
+          ..write('zeitpunkt: $zeitpunkt, ')
+          ..write('groesse: $groesse, ')
+          ..write('einheit: $einheit, ')
+          ..write('wert: $wert, ')
+          ..write('serie: $serie, ')
+          ..write('ort: $ort, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    geraetId,
+    zeitpunkt,
+    groesse,
+    einheit,
+    wert,
+    serie,
+    ort,
+    bemerkung,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MesswerteData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.geraetId == this.geraetId &&
+          other.zeitpunkt == this.zeitpunkt &&
+          other.groesse == this.groesse &&
+          other.einheit == this.einheit &&
+          other.wert == this.wert &&
+          other.serie == this.serie &&
+          other.ort == this.ort &&
+          other.bemerkung == this.bemerkung &&
+          other.createdAt == this.createdAt);
+}
+
+class MesswerteCompanion extends UpdateCompanion<MesswerteData> {
+  final Value<int> id;
+  final Value<int> auftragId;
+  final Value<int?> geraetId;
+  final Value<DateTime> zeitpunkt;
+  final Value<String> groesse;
+  final Value<String?> einheit;
+  final Value<double> wert;
+  final Value<String?> serie;
+  final Value<String?> ort;
+  final Value<String?> bemerkung;
+  final Value<DateTime> createdAt;
+  const MesswerteCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.geraetId = const Value.absent(),
+    this.zeitpunkt = const Value.absent(),
+    this.groesse = const Value.absent(),
+    this.einheit = const Value.absent(),
+    this.wert = const Value.absent(),
+    this.serie = const Value.absent(),
+    this.ort = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  MesswerteCompanion.insert({
+    this.id = const Value.absent(),
+    required int auftragId,
+    this.geraetId = const Value.absent(),
+    this.zeitpunkt = const Value.absent(),
+    required String groesse,
+    this.einheit = const Value.absent(),
+    required double wert,
+    this.serie = const Value.absent(),
+    this.ort = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : auftragId = Value(auftragId),
+       groesse = Value(groesse),
+       wert = Value(wert);
+  static Insertable<MesswerteData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<int>? geraetId,
+    Expression<DateTime>? zeitpunkt,
+    Expression<String>? groesse,
+    Expression<String>? einheit,
+    Expression<double>? wert,
+    Expression<String>? serie,
+    Expression<String>? ort,
+    Expression<String>? bemerkung,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (geraetId != null) 'geraet_id': geraetId,
+      if (zeitpunkt != null) 'zeitpunkt': zeitpunkt,
+      if (groesse != null) 'groesse': groesse,
+      if (einheit != null) 'einheit': einheit,
+      if (wert != null) 'wert': wert,
+      if (serie != null) 'serie': serie,
+      if (ort != null) 'ort': ort,
+      if (bemerkung != null) 'bemerkung': bemerkung,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  MesswerteCompanion copyWith({
+    Value<int>? id,
+    Value<int>? auftragId,
+    Value<int?>? geraetId,
+    Value<DateTime>? zeitpunkt,
+    Value<String>? groesse,
+    Value<String?>? einheit,
+    Value<double>? wert,
+    Value<String?>? serie,
+    Value<String?>? ort,
+    Value<String?>? bemerkung,
+    Value<DateTime>? createdAt,
+  }) {
+    return MesswerteCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      geraetId: geraetId ?? this.geraetId,
+      zeitpunkt: zeitpunkt ?? this.zeitpunkt,
+      groesse: groesse ?? this.groesse,
+      einheit: einheit ?? this.einheit,
+      wert: wert ?? this.wert,
+      serie: serie ?? this.serie,
+      ort: ort ?? this.ort,
+      bemerkung: bemerkung ?? this.bemerkung,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (geraetId.present) {
+      map['geraet_id'] = Variable<int>(geraetId.value);
+    }
+    if (zeitpunkt.present) {
+      map['zeitpunkt'] = Variable<DateTime>(zeitpunkt.value);
+    }
+    if (groesse.present) {
+      map['groesse'] = Variable<String>(groesse.value);
+    }
+    if (einheit.present) {
+      map['einheit'] = Variable<String>(einheit.value);
+    }
+    if (wert.present) {
+      map['wert'] = Variable<double>(wert.value);
+    }
+    if (serie.present) {
+      map['serie'] = Variable<String>(serie.value);
+    }
+    if (ort.present) {
+      map['ort'] = Variable<String>(ort.value);
+    }
+    if (bemerkung.present) {
+      map['bemerkung'] = Variable<String>(bemerkung.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MesswerteCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('geraetId: $geraetId, ')
+          ..write('zeitpunkt: $zeitpunkt, ')
+          ..write('groesse: $groesse, ')
+          ..write('einheit: $einheit, ')
+          ..write('wert: $wert, ')
+          ..write('serie: $serie, ')
+          ..write('ort: $ort, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WertermittlungenTable extends Wertermittlungen
+    with TableInfo<$WertermittlungenTable, WertermittlungenData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WertermittlungenTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _stichtagMeta = const VerificationMeta(
+    'stichtag',
+  );
+  @override
+  late final GeneratedColumn<DateTime> stichtag = GeneratedColumn<DateTime>(
+    'stichtag',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _bodenrichtwertMeta = const VerificationMeta(
+    'bodenrichtwert',
+  );
+  @override
+  late final GeneratedColumn<double> bodenrichtwert = GeneratedColumn<double>(
+    'bodenrichtwert',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _grundstueckFlaecheMeta =
+      const VerificationMeta('grundstueckFlaeche');
+  @override
+  late final GeneratedColumn<double> grundstueckFlaeche =
+      GeneratedColumn<double>(
+        'grundstueck_flaeche',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _bgfMeta = const VerificationMeta('bgf');
+  @override
+  late final GeneratedColumn<double> bgf = GeneratedColumn<double>(
+    'bgf',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nhkMeta = const VerificationMeta('nhk');
+  @override
+  late final GeneratedColumn<double> nhk = GeneratedColumn<double>(
+    'nhk',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _altersminderungFaktorMeta =
+      const VerificationMeta('altersminderungFaktor');
+  @override
+  late final GeneratedColumn<double> altersminderungFaktor =
+      GeneratedColumn<double>(
+        'altersminderung_faktor',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _marktanpassungFaktorMeta =
+      const VerificationMeta('marktanpassungFaktor');
+  @override
+  late final GeneratedColumn<double> marktanpassungFaktor =
+      GeneratedColumn<double>(
+        'marktanpassung_faktor',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _vergleichswertMeta = const VerificationMeta(
+    'vergleichswert',
+  );
+  @override
+  late final GeneratedColumn<double> vergleichswert = GeneratedColumn<double>(
+    'vergleichswert',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sachwertMeta = const VerificationMeta(
+    'sachwert',
+  );
+  @override
+  late final GeneratedColumn<double> sachwert = GeneratedColumn<double>(
+    'sachwert',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _marktwertMeta = const VerificationMeta(
+    'marktwert',
+  );
+  @override
+  late final GeneratedColumn<double> marktwert = GeneratedColumn<double>(
+    'marktwert',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _berechnungJsonMeta = const VerificationMeta(
+    'berechnungJson',
+  );
+  @override
+  late final GeneratedColumn<String> berechnungJson = GeneratedColumn<String>(
+    'berechnung_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bemerkungMeta = const VerificationMeta(
+    'bemerkung',
+  );
+  @override
+  late final GeneratedColumn<String> bemerkung = GeneratedColumn<String>(
+    'bemerkung',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    stichtag,
+    bodenrichtwert,
+    grundstueckFlaeche,
+    bgf,
+    nhk,
+    altersminderungFaktor,
+    marktanpassungFaktor,
+    vergleichswert,
+    sachwert,
+    marktwert,
+    berechnungJson,
+    bemerkung,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wertermittlungen';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WertermittlungenData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_auftragIdMeta);
+    }
+    if (data.containsKey('stichtag')) {
+      context.handle(
+        _stichtagMeta,
+        stichtag.isAcceptableOrUnknown(data['stichtag']!, _stichtagMeta),
+      );
+    }
+    if (data.containsKey('bodenrichtwert')) {
+      context.handle(
+        _bodenrichtwertMeta,
+        bodenrichtwert.isAcceptableOrUnknown(
+          data['bodenrichtwert']!,
+          _bodenrichtwertMeta,
+        ),
+      );
+    }
+    if (data.containsKey('grundstueck_flaeche')) {
+      context.handle(
+        _grundstueckFlaecheMeta,
+        grundstueckFlaeche.isAcceptableOrUnknown(
+          data['grundstueck_flaeche']!,
+          _grundstueckFlaecheMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bgf')) {
+      context.handle(
+        _bgfMeta,
+        bgf.isAcceptableOrUnknown(data['bgf']!, _bgfMeta),
+      );
+    }
+    if (data.containsKey('nhk')) {
+      context.handle(
+        _nhkMeta,
+        nhk.isAcceptableOrUnknown(data['nhk']!, _nhkMeta),
+      );
+    }
+    if (data.containsKey('altersminderung_faktor')) {
+      context.handle(
+        _altersminderungFaktorMeta,
+        altersminderungFaktor.isAcceptableOrUnknown(
+          data['altersminderung_faktor']!,
+          _altersminderungFaktorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('marktanpassung_faktor')) {
+      context.handle(
+        _marktanpassungFaktorMeta,
+        marktanpassungFaktor.isAcceptableOrUnknown(
+          data['marktanpassung_faktor']!,
+          _marktanpassungFaktorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('vergleichswert')) {
+      context.handle(
+        _vergleichswertMeta,
+        vergleichswert.isAcceptableOrUnknown(
+          data['vergleichswert']!,
+          _vergleichswertMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sachwert')) {
+      context.handle(
+        _sachwertMeta,
+        sachwert.isAcceptableOrUnknown(data['sachwert']!, _sachwertMeta),
+      );
+    }
+    if (data.containsKey('marktwert')) {
+      context.handle(
+        _marktwertMeta,
+        marktwert.isAcceptableOrUnknown(data['marktwert']!, _marktwertMeta),
+      );
+    }
+    if (data.containsKey('berechnung_json')) {
+      context.handle(
+        _berechnungJsonMeta,
+        berechnungJson.isAcceptableOrUnknown(
+          data['berechnung_json']!,
+          _berechnungJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bemerkung')) {
+      context.handle(
+        _bemerkungMeta,
+        bemerkung.isAcceptableOrUnknown(data['bemerkung']!, _bemerkungMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WertermittlungenData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WertermittlungenData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      )!,
+      stichtag: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}stichtag'],
+      )!,
+      bodenrichtwert: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}bodenrichtwert'],
+      ),
+      grundstueckFlaeche: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}grundstueck_flaeche'],
+      ),
+      bgf: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}bgf'],
+      ),
+      nhk: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}nhk'],
+      ),
+      altersminderungFaktor: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}altersminderung_faktor'],
+      ),
+      marktanpassungFaktor: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}marktanpassung_faktor'],
+      ),
+      vergleichswert: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}vergleichswert'],
+      ),
+      sachwert: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sachwert'],
+      ),
+      marktwert: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}marktwert'],
+      ),
+      berechnungJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}berechnung_json'],
+      ),
+      bemerkung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bemerkung'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WertermittlungenTable createAlias(String alias) {
+    return $WertermittlungenTable(attachedDatabase, alias);
+  }
+}
+
+class WertermittlungenData extends DataClass
+    implements Insertable<WertermittlungenData> {
+  final int id;
+  final int auftragId;
+  final DateTime stichtag;
+  final double? bodenrichtwert;
+  final double? grundstueckFlaeche;
+
+  /// Bruttogrundfläche in m².
+  final double? bgf;
+
+  /// Normalherstellungskosten (€/m² BGF) inkl. Baunebenkosten.
+  final double? nhk;
+
+  /// Alterswertminderung (0..1).
+  final double? altersminderungFaktor;
+
+  /// Marktanpassung (0..n, z.B. 0.9 für -10%).
+  final double? marktanpassungFaktor;
+  final double? vergleichswert;
+  final double? sachwert;
+  final double? marktwert;
+  final String? berechnungJson;
+  final String? bemerkung;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const WertermittlungenData({
+    required this.id,
+    required this.auftragId,
+    required this.stichtag,
+    this.bodenrichtwert,
+    this.grundstueckFlaeche,
+    this.bgf,
+    this.nhk,
+    this.altersminderungFaktor,
+    this.marktanpassungFaktor,
+    this.vergleichswert,
+    this.sachwert,
+    this.marktwert,
+    this.berechnungJson,
+    this.bemerkung,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['auftrag_id'] = Variable<int>(auftragId);
+    map['stichtag'] = Variable<DateTime>(stichtag);
+    if (!nullToAbsent || bodenrichtwert != null) {
+      map['bodenrichtwert'] = Variable<double>(bodenrichtwert);
+    }
+    if (!nullToAbsent || grundstueckFlaeche != null) {
+      map['grundstueck_flaeche'] = Variable<double>(grundstueckFlaeche);
+    }
+    if (!nullToAbsent || bgf != null) {
+      map['bgf'] = Variable<double>(bgf);
+    }
+    if (!nullToAbsent || nhk != null) {
+      map['nhk'] = Variable<double>(nhk);
+    }
+    if (!nullToAbsent || altersminderungFaktor != null) {
+      map['altersminderung_faktor'] = Variable<double>(altersminderungFaktor);
+    }
+    if (!nullToAbsent || marktanpassungFaktor != null) {
+      map['marktanpassung_faktor'] = Variable<double>(marktanpassungFaktor);
+    }
+    if (!nullToAbsent || vergleichswert != null) {
+      map['vergleichswert'] = Variable<double>(vergleichswert);
+    }
+    if (!nullToAbsent || sachwert != null) {
+      map['sachwert'] = Variable<double>(sachwert);
+    }
+    if (!nullToAbsent || marktwert != null) {
+      map['marktwert'] = Variable<double>(marktwert);
+    }
+    if (!nullToAbsent || berechnungJson != null) {
+      map['berechnung_json'] = Variable<String>(berechnungJson);
+    }
+    if (!nullToAbsent || bemerkung != null) {
+      map['bemerkung'] = Variable<String>(bemerkung);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  WertermittlungenCompanion toCompanion(bool nullToAbsent) {
+    return WertermittlungenCompanion(
+      id: Value(id),
+      auftragId: Value(auftragId),
+      stichtag: Value(stichtag),
+      bodenrichtwert: bodenrichtwert == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bodenrichtwert),
+      grundstueckFlaeche: grundstueckFlaeche == null && nullToAbsent
+          ? const Value.absent()
+          : Value(grundstueckFlaeche),
+      bgf: bgf == null && nullToAbsent ? const Value.absent() : Value(bgf),
+      nhk: nhk == null && nullToAbsent ? const Value.absent() : Value(nhk),
+      altersminderungFaktor: altersminderungFaktor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(altersminderungFaktor),
+      marktanpassungFaktor: marktanpassungFaktor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(marktanpassungFaktor),
+      vergleichswert: vergleichswert == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vergleichswert),
+      sachwert: sachwert == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sachwert),
+      marktwert: marktwert == null && nullToAbsent
+          ? const Value.absent()
+          : Value(marktwert),
+      berechnungJson: berechnungJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(berechnungJson),
+      bemerkung: bemerkung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bemerkung),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WertermittlungenData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WertermittlungenData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int>(json['auftragId']),
+      stichtag: serializer.fromJson<DateTime>(json['stichtag']),
+      bodenrichtwert: serializer.fromJson<double?>(json['bodenrichtwert']),
+      grundstueckFlaeche: serializer.fromJson<double?>(
+        json['grundstueckFlaeche'],
+      ),
+      bgf: serializer.fromJson<double?>(json['bgf']),
+      nhk: serializer.fromJson<double?>(json['nhk']),
+      altersminderungFaktor: serializer.fromJson<double?>(
+        json['altersminderungFaktor'],
+      ),
+      marktanpassungFaktor: serializer.fromJson<double?>(
+        json['marktanpassungFaktor'],
+      ),
+      vergleichswert: serializer.fromJson<double?>(json['vergleichswert']),
+      sachwert: serializer.fromJson<double?>(json['sachwert']),
+      marktwert: serializer.fromJson<double?>(json['marktwert']),
+      berechnungJson: serializer.fromJson<String?>(json['berechnungJson']),
+      bemerkung: serializer.fromJson<String?>(json['bemerkung']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int>(auftragId),
+      'stichtag': serializer.toJson<DateTime>(stichtag),
+      'bodenrichtwert': serializer.toJson<double?>(bodenrichtwert),
+      'grundstueckFlaeche': serializer.toJson<double?>(grundstueckFlaeche),
+      'bgf': serializer.toJson<double?>(bgf),
+      'nhk': serializer.toJson<double?>(nhk),
+      'altersminderungFaktor': serializer.toJson<double?>(
+        altersminderungFaktor,
+      ),
+      'marktanpassungFaktor': serializer.toJson<double?>(marktanpassungFaktor),
+      'vergleichswert': serializer.toJson<double?>(vergleichswert),
+      'sachwert': serializer.toJson<double?>(sachwert),
+      'marktwert': serializer.toJson<double?>(marktwert),
+      'berechnungJson': serializer.toJson<String?>(berechnungJson),
+      'bemerkung': serializer.toJson<String?>(bemerkung),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WertermittlungenData copyWith({
+    int? id,
+    int? auftragId,
+    DateTime? stichtag,
+    Value<double?> bodenrichtwert = const Value.absent(),
+    Value<double?> grundstueckFlaeche = const Value.absent(),
+    Value<double?> bgf = const Value.absent(),
+    Value<double?> nhk = const Value.absent(),
+    Value<double?> altersminderungFaktor = const Value.absent(),
+    Value<double?> marktanpassungFaktor = const Value.absent(),
+    Value<double?> vergleichswert = const Value.absent(),
+    Value<double?> sachwert = const Value.absent(),
+    Value<double?> marktwert = const Value.absent(),
+    Value<String?> berechnungJson = const Value.absent(),
+    Value<String?> bemerkung = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => WertermittlungenData(
+    id: id ?? this.id,
+    auftragId: auftragId ?? this.auftragId,
+    stichtag: stichtag ?? this.stichtag,
+    bodenrichtwert: bodenrichtwert.present
+        ? bodenrichtwert.value
+        : this.bodenrichtwert,
+    grundstueckFlaeche: grundstueckFlaeche.present
+        ? grundstueckFlaeche.value
+        : this.grundstueckFlaeche,
+    bgf: bgf.present ? bgf.value : this.bgf,
+    nhk: nhk.present ? nhk.value : this.nhk,
+    altersminderungFaktor: altersminderungFaktor.present
+        ? altersminderungFaktor.value
+        : this.altersminderungFaktor,
+    marktanpassungFaktor: marktanpassungFaktor.present
+        ? marktanpassungFaktor.value
+        : this.marktanpassungFaktor,
+    vergleichswert: vergleichswert.present
+        ? vergleichswert.value
+        : this.vergleichswert,
+    sachwert: sachwert.present ? sachwert.value : this.sachwert,
+    marktwert: marktwert.present ? marktwert.value : this.marktwert,
+    berechnungJson: berechnungJson.present
+        ? berechnungJson.value
+        : this.berechnungJson,
+    bemerkung: bemerkung.present ? bemerkung.value : this.bemerkung,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WertermittlungenData copyWithCompanion(WertermittlungenCompanion data) {
+    return WertermittlungenData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      stichtag: data.stichtag.present ? data.stichtag.value : this.stichtag,
+      bodenrichtwert: data.bodenrichtwert.present
+          ? data.bodenrichtwert.value
+          : this.bodenrichtwert,
+      grundstueckFlaeche: data.grundstueckFlaeche.present
+          ? data.grundstueckFlaeche.value
+          : this.grundstueckFlaeche,
+      bgf: data.bgf.present ? data.bgf.value : this.bgf,
+      nhk: data.nhk.present ? data.nhk.value : this.nhk,
+      altersminderungFaktor: data.altersminderungFaktor.present
+          ? data.altersminderungFaktor.value
+          : this.altersminderungFaktor,
+      marktanpassungFaktor: data.marktanpassungFaktor.present
+          ? data.marktanpassungFaktor.value
+          : this.marktanpassungFaktor,
+      vergleichswert: data.vergleichswert.present
+          ? data.vergleichswert.value
+          : this.vergleichswert,
+      sachwert: data.sachwert.present ? data.sachwert.value : this.sachwert,
+      marktwert: data.marktwert.present ? data.marktwert.value : this.marktwert,
+      berechnungJson: data.berechnungJson.present
+          ? data.berechnungJson.value
+          : this.berechnungJson,
+      bemerkung: data.bemerkung.present ? data.bemerkung.value : this.bemerkung,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WertermittlungenData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('stichtag: $stichtag, ')
+          ..write('bodenrichtwert: $bodenrichtwert, ')
+          ..write('grundstueckFlaeche: $grundstueckFlaeche, ')
+          ..write('bgf: $bgf, ')
+          ..write('nhk: $nhk, ')
+          ..write('altersminderungFaktor: $altersminderungFaktor, ')
+          ..write('marktanpassungFaktor: $marktanpassungFaktor, ')
+          ..write('vergleichswert: $vergleichswert, ')
+          ..write('sachwert: $sachwert, ')
+          ..write('marktwert: $marktwert, ')
+          ..write('berechnungJson: $berechnungJson, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    stichtag,
+    bodenrichtwert,
+    grundstueckFlaeche,
+    bgf,
+    nhk,
+    altersminderungFaktor,
+    marktanpassungFaktor,
+    vergleichswert,
+    sachwert,
+    marktwert,
+    berechnungJson,
+    bemerkung,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WertermittlungenData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.stichtag == this.stichtag &&
+          other.bodenrichtwert == this.bodenrichtwert &&
+          other.grundstueckFlaeche == this.grundstueckFlaeche &&
+          other.bgf == this.bgf &&
+          other.nhk == this.nhk &&
+          other.altersminderungFaktor == this.altersminderungFaktor &&
+          other.marktanpassungFaktor == this.marktanpassungFaktor &&
+          other.vergleichswert == this.vergleichswert &&
+          other.sachwert == this.sachwert &&
+          other.marktwert == this.marktwert &&
+          other.berechnungJson == this.berechnungJson &&
+          other.bemerkung == this.bemerkung &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WertermittlungenCompanion extends UpdateCompanion<WertermittlungenData> {
+  final Value<int> id;
+  final Value<int> auftragId;
+  final Value<DateTime> stichtag;
+  final Value<double?> bodenrichtwert;
+  final Value<double?> grundstueckFlaeche;
+  final Value<double?> bgf;
+  final Value<double?> nhk;
+  final Value<double?> altersminderungFaktor;
+  final Value<double?> marktanpassungFaktor;
+  final Value<double?> vergleichswert;
+  final Value<double?> sachwert;
+  final Value<double?> marktwert;
+  final Value<String?> berechnungJson;
+  final Value<String?> bemerkung;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const WertermittlungenCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.stichtag = const Value.absent(),
+    this.bodenrichtwert = const Value.absent(),
+    this.grundstueckFlaeche = const Value.absent(),
+    this.bgf = const Value.absent(),
+    this.nhk = const Value.absent(),
+    this.altersminderungFaktor = const Value.absent(),
+    this.marktanpassungFaktor = const Value.absent(),
+    this.vergleichswert = const Value.absent(),
+    this.sachwert = const Value.absent(),
+    this.marktwert = const Value.absent(),
+    this.berechnungJson = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  WertermittlungenCompanion.insert({
+    this.id = const Value.absent(),
+    required int auftragId,
+    this.stichtag = const Value.absent(),
+    this.bodenrichtwert = const Value.absent(),
+    this.grundstueckFlaeche = const Value.absent(),
+    this.bgf = const Value.absent(),
+    this.nhk = const Value.absent(),
+    this.altersminderungFaktor = const Value.absent(),
+    this.marktanpassungFaktor = const Value.absent(),
+    this.vergleichswert = const Value.absent(),
+    this.sachwert = const Value.absent(),
+    this.marktwert = const Value.absent(),
+    this.berechnungJson = const Value.absent(),
+    this.bemerkung = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : auftragId = Value(auftragId);
+  static Insertable<WertermittlungenData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<DateTime>? stichtag,
+    Expression<double>? bodenrichtwert,
+    Expression<double>? grundstueckFlaeche,
+    Expression<double>? bgf,
+    Expression<double>? nhk,
+    Expression<double>? altersminderungFaktor,
+    Expression<double>? marktanpassungFaktor,
+    Expression<double>? vergleichswert,
+    Expression<double>? sachwert,
+    Expression<double>? marktwert,
+    Expression<String>? berechnungJson,
+    Expression<String>? bemerkung,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (stichtag != null) 'stichtag': stichtag,
+      if (bodenrichtwert != null) 'bodenrichtwert': bodenrichtwert,
+      if (grundstueckFlaeche != null) 'grundstueck_flaeche': grundstueckFlaeche,
+      if (bgf != null) 'bgf': bgf,
+      if (nhk != null) 'nhk': nhk,
+      if (altersminderungFaktor != null)
+        'altersminderung_faktor': altersminderungFaktor,
+      if (marktanpassungFaktor != null)
+        'marktanpassung_faktor': marktanpassungFaktor,
+      if (vergleichswert != null) 'vergleichswert': vergleichswert,
+      if (sachwert != null) 'sachwert': sachwert,
+      if (marktwert != null) 'marktwert': marktwert,
+      if (berechnungJson != null) 'berechnung_json': berechnungJson,
+      if (bemerkung != null) 'bemerkung': bemerkung,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  WertermittlungenCompanion copyWith({
+    Value<int>? id,
+    Value<int>? auftragId,
+    Value<DateTime>? stichtag,
+    Value<double?>? bodenrichtwert,
+    Value<double?>? grundstueckFlaeche,
+    Value<double?>? bgf,
+    Value<double?>? nhk,
+    Value<double?>? altersminderungFaktor,
+    Value<double?>? marktanpassungFaktor,
+    Value<double?>? vergleichswert,
+    Value<double?>? sachwert,
+    Value<double?>? marktwert,
+    Value<String?>? berechnungJson,
+    Value<String?>? bemerkung,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return WertermittlungenCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      stichtag: stichtag ?? this.stichtag,
+      bodenrichtwert: bodenrichtwert ?? this.bodenrichtwert,
+      grundstueckFlaeche: grundstueckFlaeche ?? this.grundstueckFlaeche,
+      bgf: bgf ?? this.bgf,
+      nhk: nhk ?? this.nhk,
+      altersminderungFaktor:
+          altersminderungFaktor ?? this.altersminderungFaktor,
+      marktanpassungFaktor: marktanpassungFaktor ?? this.marktanpassungFaktor,
+      vergleichswert: vergleichswert ?? this.vergleichswert,
+      sachwert: sachwert ?? this.sachwert,
+      marktwert: marktwert ?? this.marktwert,
+      berechnungJson: berechnungJson ?? this.berechnungJson,
+      bemerkung: bemerkung ?? this.bemerkung,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (stichtag.present) {
+      map['stichtag'] = Variable<DateTime>(stichtag.value);
+    }
+    if (bodenrichtwert.present) {
+      map['bodenrichtwert'] = Variable<double>(bodenrichtwert.value);
+    }
+    if (grundstueckFlaeche.present) {
+      map['grundstueck_flaeche'] = Variable<double>(grundstueckFlaeche.value);
+    }
+    if (bgf.present) {
+      map['bgf'] = Variable<double>(bgf.value);
+    }
+    if (nhk.present) {
+      map['nhk'] = Variable<double>(nhk.value);
+    }
+    if (altersminderungFaktor.present) {
+      map['altersminderung_faktor'] = Variable<double>(
+        altersminderungFaktor.value,
+      );
+    }
+    if (marktanpassungFaktor.present) {
+      map['marktanpassung_faktor'] = Variable<double>(
+        marktanpassungFaktor.value,
+      );
+    }
+    if (vergleichswert.present) {
+      map['vergleichswert'] = Variable<double>(vergleichswert.value);
+    }
+    if (sachwert.present) {
+      map['sachwert'] = Variable<double>(sachwert.value);
+    }
+    if (marktwert.present) {
+      map['marktwert'] = Variable<double>(marktwert.value);
+    }
+    if (berechnungJson.present) {
+      map['berechnung_json'] = Variable<String>(berechnungJson.value);
+    }
+    if (bemerkung.present) {
+      map['bemerkung'] = Variable<String>(bemerkung.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WertermittlungenCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('stichtag: $stichtag, ')
+          ..write('bodenrichtwert: $bodenrichtwert, ')
+          ..write('grundstueckFlaeche: $grundstueckFlaeche, ')
+          ..write('bgf: $bgf, ')
+          ..write('nhk: $nhk, ')
+          ..write('altersminderungFaktor: $altersminderungFaktor, ')
+          ..write('marktanpassungFaktor: $marktanpassungFaktor, ')
+          ..write('vergleichswert: $vergleichswert, ')
+          ..write('sachwert: $sachwert, ')
+          ..write('marktwert: $marktwert, ')
+          ..write('berechnungJson: $berechnungJson, ')
+          ..write('bemerkung: $bemerkung, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SerienbriefeTable extends Serienbriefe
+    with TableInfo<$SerienbriefeTable, SerienbriefeData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SerienbriefeTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _datumMeta = const VerificationMeta('datum');
+  @override
+  late final GeneratedColumn<DateTime> datum = GeneratedColumn<DateTime>(
+    'datum',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _betreffMeta = const VerificationMeta(
+    'betreff',
+  );
+  @override
+  late final GeneratedColumn<String> betreff = GeneratedColumn<String>(
+    'betreff',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _anredeMeta = const VerificationMeta('anrede');
+  @override
+  late final GeneratedColumn<String> anrede = GeneratedColumn<String>(
+    'anrede',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _grussMeta = const VerificationMeta('gruss');
+  @override
+  late final GeneratedColumn<String> gruss = GeneratedColumn<String>(
+    'gruss',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inhaltJsonMeta = const VerificationMeta(
+    'inhaltJson',
+  );
+  @override
+  late final GeneratedColumn<String> inhaltJson = GeneratedColumn<String>(
+    'inhalt_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _versandartMeta = const VerificationMeta(
+    'versandart',
+  );
+  @override
+  late final GeneratedColumn<String> versandart = GeneratedColumn<String>(
+    'versandart',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('brief'),
+  );
+  static const VerificationMeta _empfaengerIdsJsonMeta = const VerificationMeta(
+    'empfaengerIdsJson',
+  );
+  @override
+  late final GeneratedColumn<String> empfaengerIdsJson =
+      GeneratedColumn<String>(
+        'empfaenger_ids_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _anzahlMeta = const VerificationMeta('anzahl');
+  @override
+  late final GeneratedColumn<int> anzahl = GeneratedColumn<int>(
+    'anzahl',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    datum,
+    betreff,
+    anrede,
+    gruss,
+    inhaltJson,
+    versandart,
+    empfaengerIdsJson,
+    anzahl,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'serienbriefe';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SerienbriefeData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('datum')) {
+      context.handle(
+        _datumMeta,
+        datum.isAcceptableOrUnknown(data['datum']!, _datumMeta),
+      );
+    }
+    if (data.containsKey('betreff')) {
+      context.handle(
+        _betreffMeta,
+        betreff.isAcceptableOrUnknown(data['betreff']!, _betreffMeta),
+      );
+    }
+    if (data.containsKey('anrede')) {
+      context.handle(
+        _anredeMeta,
+        anrede.isAcceptableOrUnknown(data['anrede']!, _anredeMeta),
+      );
+    }
+    if (data.containsKey('gruss')) {
+      context.handle(
+        _grussMeta,
+        gruss.isAcceptableOrUnknown(data['gruss']!, _grussMeta),
+      );
+    }
+    if (data.containsKey('inhalt_json')) {
+      context.handle(
+        _inhaltJsonMeta,
+        inhaltJson.isAcceptableOrUnknown(data['inhalt_json']!, _inhaltJsonMeta),
+      );
+    }
+    if (data.containsKey('versandart')) {
+      context.handle(
+        _versandartMeta,
+        versandart.isAcceptableOrUnknown(data['versandart']!, _versandartMeta),
+      );
+    }
+    if (data.containsKey('empfaenger_ids_json')) {
+      context.handle(
+        _empfaengerIdsJsonMeta,
+        empfaengerIdsJson.isAcceptableOrUnknown(
+          data['empfaenger_ids_json']!,
+          _empfaengerIdsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('anzahl')) {
+      context.handle(
+        _anzahlMeta,
+        anzahl.isAcceptableOrUnknown(data['anzahl']!, _anzahlMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SerienbriefeData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SerienbriefeData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      datum: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}datum'],
+      )!,
+      betreff: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}betreff'],
+      ),
+      anrede: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}anrede'],
+      ),
+      gruss: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gruss'],
+      ),
+      inhaltJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inhalt_json'],
+      ),
+      versandart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}versandart'],
+      )!,
+      empfaengerIdsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}empfaenger_ids_json'],
+      ),
+      anzahl: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anzahl'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SerienbriefeTable createAlias(String alias) {
+    return $SerienbriefeTable(attachedDatabase, alias);
+  }
+}
+
+class SerienbriefeData extends DataClass
+    implements Insertable<SerienbriefeData> {
+  final int id;
+
+  /// Versand-/Erstellungsdatum.
+  final DateTime datum;
+  final String? betreff;
+  final String? anrede;
+  final String? gruss;
+
+  /// Rich-Text-Delta-JSON des Brieftexts.
+  final String? inhaltJson;
+
+  /// 'brief' oder 'mail'.
+  final String versandart;
+
+  /// Kundennummern als JSON-Array, damit später „nochmal an dieselben
+  /// Empfänger senden" möglich ist.
+  final String? empfaengerIdsJson;
+
+  /// Gesamtanzahl Empfänger bei Versand.
+  final int anzahl;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SerienbriefeData({
+    required this.id,
+    required this.datum,
+    this.betreff,
+    this.anrede,
+    this.gruss,
+    this.inhaltJson,
+    required this.versandart,
+    this.empfaengerIdsJson,
+    required this.anzahl,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['datum'] = Variable<DateTime>(datum);
+    if (!nullToAbsent || betreff != null) {
+      map['betreff'] = Variable<String>(betreff);
+    }
+    if (!nullToAbsent || anrede != null) {
+      map['anrede'] = Variable<String>(anrede);
+    }
+    if (!nullToAbsent || gruss != null) {
+      map['gruss'] = Variable<String>(gruss);
+    }
+    if (!nullToAbsent || inhaltJson != null) {
+      map['inhalt_json'] = Variable<String>(inhaltJson);
+    }
+    map['versandart'] = Variable<String>(versandart);
+    if (!nullToAbsent || empfaengerIdsJson != null) {
+      map['empfaenger_ids_json'] = Variable<String>(empfaengerIdsJson);
+    }
+    map['anzahl'] = Variable<int>(anzahl);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SerienbriefeCompanion toCompanion(bool nullToAbsent) {
+    return SerienbriefeCompanion(
+      id: Value(id),
+      datum: Value(datum),
+      betreff: betreff == null && nullToAbsent
+          ? const Value.absent()
+          : Value(betreff),
+      anrede: anrede == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anrede),
+      gruss: gruss == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gruss),
+      inhaltJson: inhaltJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inhaltJson),
+      versandart: Value(versandart),
+      empfaengerIdsJson: empfaengerIdsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(empfaengerIdsJson),
+      anzahl: Value(anzahl),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SerienbriefeData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SerienbriefeData(
+      id: serializer.fromJson<int>(json['id']),
+      datum: serializer.fromJson<DateTime>(json['datum']),
+      betreff: serializer.fromJson<String?>(json['betreff']),
+      anrede: serializer.fromJson<String?>(json['anrede']),
+      gruss: serializer.fromJson<String?>(json['gruss']),
+      inhaltJson: serializer.fromJson<String?>(json['inhaltJson']),
+      versandart: serializer.fromJson<String>(json['versandart']),
+      empfaengerIdsJson: serializer.fromJson<String?>(
+        json['empfaengerIdsJson'],
+      ),
+      anzahl: serializer.fromJson<int>(json['anzahl']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'datum': serializer.toJson<DateTime>(datum),
+      'betreff': serializer.toJson<String?>(betreff),
+      'anrede': serializer.toJson<String?>(anrede),
+      'gruss': serializer.toJson<String?>(gruss),
+      'inhaltJson': serializer.toJson<String?>(inhaltJson),
+      'versandart': serializer.toJson<String>(versandart),
+      'empfaengerIdsJson': serializer.toJson<String?>(empfaengerIdsJson),
+      'anzahl': serializer.toJson<int>(anzahl),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SerienbriefeData copyWith({
+    int? id,
+    DateTime? datum,
+    Value<String?> betreff = const Value.absent(),
+    Value<String?> anrede = const Value.absent(),
+    Value<String?> gruss = const Value.absent(),
+    Value<String?> inhaltJson = const Value.absent(),
+    String? versandart,
+    Value<String?> empfaengerIdsJson = const Value.absent(),
+    int? anzahl,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SerienbriefeData(
+    id: id ?? this.id,
+    datum: datum ?? this.datum,
+    betreff: betreff.present ? betreff.value : this.betreff,
+    anrede: anrede.present ? anrede.value : this.anrede,
+    gruss: gruss.present ? gruss.value : this.gruss,
+    inhaltJson: inhaltJson.present ? inhaltJson.value : this.inhaltJson,
+    versandart: versandart ?? this.versandart,
+    empfaengerIdsJson: empfaengerIdsJson.present
+        ? empfaengerIdsJson.value
+        : this.empfaengerIdsJson,
+    anzahl: anzahl ?? this.anzahl,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SerienbriefeData copyWithCompanion(SerienbriefeCompanion data) {
+    return SerienbriefeData(
+      id: data.id.present ? data.id.value : this.id,
+      datum: data.datum.present ? data.datum.value : this.datum,
+      betreff: data.betreff.present ? data.betreff.value : this.betreff,
+      anrede: data.anrede.present ? data.anrede.value : this.anrede,
+      gruss: data.gruss.present ? data.gruss.value : this.gruss,
+      inhaltJson: data.inhaltJson.present
+          ? data.inhaltJson.value
+          : this.inhaltJson,
+      versandart: data.versandart.present
+          ? data.versandart.value
+          : this.versandart,
+      empfaengerIdsJson: data.empfaengerIdsJson.present
+          ? data.empfaengerIdsJson.value
+          : this.empfaengerIdsJson,
+      anzahl: data.anzahl.present ? data.anzahl.value : this.anzahl,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SerienbriefeData(')
+          ..write('id: $id, ')
+          ..write('datum: $datum, ')
+          ..write('betreff: $betreff, ')
+          ..write('anrede: $anrede, ')
+          ..write('gruss: $gruss, ')
+          ..write('inhaltJson: $inhaltJson, ')
+          ..write('versandart: $versandart, ')
+          ..write('empfaengerIdsJson: $empfaengerIdsJson, ')
+          ..write('anzahl: $anzahl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    datum,
+    betreff,
+    anrede,
+    gruss,
+    inhaltJson,
+    versandart,
+    empfaengerIdsJson,
+    anzahl,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SerienbriefeData &&
+          other.id == this.id &&
+          other.datum == this.datum &&
+          other.betreff == this.betreff &&
+          other.anrede == this.anrede &&
+          other.gruss == this.gruss &&
+          other.inhaltJson == this.inhaltJson &&
+          other.versandart == this.versandart &&
+          other.empfaengerIdsJson == this.empfaengerIdsJson &&
+          other.anzahl == this.anzahl &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SerienbriefeCompanion extends UpdateCompanion<SerienbriefeData> {
+  final Value<int> id;
+  final Value<DateTime> datum;
+  final Value<String?> betreff;
+  final Value<String?> anrede;
+  final Value<String?> gruss;
+  final Value<String?> inhaltJson;
+  final Value<String> versandart;
+  final Value<String?> empfaengerIdsJson;
+  final Value<int> anzahl;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const SerienbriefeCompanion({
+    this.id = const Value.absent(),
+    this.datum = const Value.absent(),
+    this.betreff = const Value.absent(),
+    this.anrede = const Value.absent(),
+    this.gruss = const Value.absent(),
+    this.inhaltJson = const Value.absent(),
+    this.versandart = const Value.absent(),
+    this.empfaengerIdsJson = const Value.absent(),
+    this.anzahl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  SerienbriefeCompanion.insert({
+    this.id = const Value.absent(),
+    this.datum = const Value.absent(),
+    this.betreff = const Value.absent(),
+    this.anrede = const Value.absent(),
+    this.gruss = const Value.absent(),
+    this.inhaltJson = const Value.absent(),
+    this.versandart = const Value.absent(),
+    this.empfaengerIdsJson = const Value.absent(),
+    this.anzahl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  static Insertable<SerienbriefeData> custom({
+    Expression<int>? id,
+    Expression<DateTime>? datum,
+    Expression<String>? betreff,
+    Expression<String>? anrede,
+    Expression<String>? gruss,
+    Expression<String>? inhaltJson,
+    Expression<String>? versandart,
+    Expression<String>? empfaengerIdsJson,
+    Expression<int>? anzahl,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (datum != null) 'datum': datum,
+      if (betreff != null) 'betreff': betreff,
+      if (anrede != null) 'anrede': anrede,
+      if (gruss != null) 'gruss': gruss,
+      if (inhaltJson != null) 'inhalt_json': inhaltJson,
+      if (versandart != null) 'versandart': versandart,
+      if (empfaengerIdsJson != null) 'empfaenger_ids_json': empfaengerIdsJson,
+      if (anzahl != null) 'anzahl': anzahl,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  SerienbriefeCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? datum,
+    Value<String?>? betreff,
+    Value<String?>? anrede,
+    Value<String?>? gruss,
+    Value<String?>? inhaltJson,
+    Value<String>? versandart,
+    Value<String?>? empfaengerIdsJson,
+    Value<int>? anzahl,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return SerienbriefeCompanion(
+      id: id ?? this.id,
+      datum: datum ?? this.datum,
+      betreff: betreff ?? this.betreff,
+      anrede: anrede ?? this.anrede,
+      gruss: gruss ?? this.gruss,
+      inhaltJson: inhaltJson ?? this.inhaltJson,
+      versandart: versandart ?? this.versandart,
+      empfaengerIdsJson: empfaengerIdsJson ?? this.empfaengerIdsJson,
+      anzahl: anzahl ?? this.anzahl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (datum.present) {
+      map['datum'] = Variable<DateTime>(datum.value);
+    }
+    if (betreff.present) {
+      map['betreff'] = Variable<String>(betreff.value);
+    }
+    if (anrede.present) {
+      map['anrede'] = Variable<String>(anrede.value);
+    }
+    if (gruss.present) {
+      map['gruss'] = Variable<String>(gruss.value);
+    }
+    if (inhaltJson.present) {
+      map['inhalt_json'] = Variable<String>(inhaltJson.value);
+    }
+    if (versandart.present) {
+      map['versandart'] = Variable<String>(versandart.value);
+    }
+    if (empfaengerIdsJson.present) {
+      map['empfaenger_ids_json'] = Variable<String>(empfaengerIdsJson.value);
+    }
+    if (anzahl.present) {
+      map['anzahl'] = Variable<int>(anzahl.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SerienbriefeCompanion(')
+          ..write('id: $id, ')
+          ..write('datum: $datum, ')
+          ..write('betreff: $betreff, ')
+          ..write('anrede: $anrede, ')
+          ..write('gruss: $gruss, ')
+          ..write('inhaltJson: $inhaltJson, ')
+          ..write('versandart: $versandart, ')
+          ..write('empfaengerIdsJson: $empfaengerIdsJson, ')
+          ..write('anzahl: $anzahl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RechercheNotizenTable extends RechercheNotizen
+    with TableInfo<$RechercheNotizenTable, RechercheNotizenData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RechercheNotizenTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _auftragIdMeta = const VerificationMeta(
+    'auftragId',
+  );
+  @override
+  late final GeneratedColumn<int> auftragId = GeneratedColumn<int>(
+    'auftrag_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES auftraege (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _titelMeta = const VerificationMeta('titel');
+  @override
+  late final GeneratedColumn<String> titel = GeneratedColumn<String>(
+    'titel',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _inhaltMeta = const VerificationMeta('inhalt');
+  @override
+  late final GeneratedColumn<String> inhalt = GeneratedColumn<String>(
+    'inhalt',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quelleMeta = const VerificationMeta('quelle');
+  @override
+  late final GeneratedColumn<String> quelle = GeneratedColumn<String>(
+    'quelle',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _referenzNormenJsonMeta =
+      const VerificationMeta('referenzNormenJson');
+  @override
+  late final GeneratedColumn<String> referenzNormenJson =
+      GeneratedColumn<String>(
+        'referenz_normen_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _verwendetMeta = const VerificationMeta(
+    'verwendet',
+  );
+  @override
+  late final GeneratedColumn<bool> verwendet = GeneratedColumn<bool>(
+    'verwendet',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("verwendet" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
+  @override
+  late final GeneratedColumn<String> extras = GeneratedColumn<String>(
+    'extras',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    auftragId,
+    titel,
+    inhalt,
+    quelle,
+    referenzNormenJson,
+    verwendet,
+    extras,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recherche_notizen';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RechercheNotizenData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auftrag_id')) {
+      context.handle(
+        _auftragIdMeta,
+        auftragId.isAcceptableOrUnknown(data['auftrag_id']!, _auftragIdMeta),
+      );
+    }
+    if (data.containsKey('titel')) {
+      context.handle(
+        _titelMeta,
+        titel.isAcceptableOrUnknown(data['titel']!, _titelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titelMeta);
+    }
+    if (data.containsKey('inhalt')) {
+      context.handle(
+        _inhaltMeta,
+        inhalt.isAcceptableOrUnknown(data['inhalt']!, _inhaltMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_inhaltMeta);
+    }
+    if (data.containsKey('quelle')) {
+      context.handle(
+        _quelleMeta,
+        quelle.isAcceptableOrUnknown(data['quelle']!, _quelleMeta),
+      );
+    }
+    if (data.containsKey('referenz_normen_json')) {
+      context.handle(
+        _referenzNormenJsonMeta,
+        referenzNormenJson.isAcceptableOrUnknown(
+          data['referenz_normen_json']!,
+          _referenzNormenJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verwendet')) {
+      context.handle(
+        _verwendetMeta,
+        verwendet.isAcceptableOrUnknown(data['verwendet']!, _verwendetMeta),
+      );
+    }
+    if (data.containsKey('extras')) {
+      context.handle(
+        _extrasMeta,
+        extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RechercheNotizenData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RechercheNotizenData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      auftragId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}auftrag_id'],
+      ),
+      titel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}titel'],
+      )!,
+      inhalt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inhalt'],
+      )!,
+      quelle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}quelle'],
+      ),
+      referenzNormenJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}referenz_normen_json'],
+      ),
+      verwendet: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}verwendet'],
+      )!,
+      extras: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extras'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RechercheNotizenTable createAlias(String alias) {
+    return $RechercheNotizenTable(attachedDatabase, alias);
+  }
+}
+
+class RechercheNotizenData extends DataClass
+    implements Insertable<RechercheNotizenData> {
+  final int id;
+
+  /// Zuordnung zur Akte. `null` = allgemeine Ablage, sichtbar in jedem
+  /// Gutachten-Editor als globale Notiz.
+  final int? auftragId;
+
+  /// Kurzer Titel zum Wiederfinden (meist auto-generiert aus der ersten
+  /// Satz der Frage).
+  final String titel;
+
+  /// Der eigentliche Notiz-Inhalt. Plaintext, wird beim Einfügen als
+  /// Absatz ans gewählte Abschnitts-Feld angehängt.
+  final String inhalt;
+
+  /// Herkunft der Notiz — z. B. 'Normen-Chat', 'Manuell',
+  /// 'Ortstermin'. Wird in der Liste als kleines Badge angezeigt.
+  final String? quelle;
+
+  /// Referenzierte Norm-IDs als JSON-Array (z. B. `[12, 47]`) — dient
+  /// der Quellenangabe im Gutachten.
+  final String? referenzNormenJson;
+
+  /// Markiert, wenn die Notiz bereits in ein Gutachten eingefügt wurde.
+  /// Dient nur als Status-Indikator (Filterung, Aufräumen).
+  final bool verwendet;
+  final String? extras;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const RechercheNotizenData({
+    required this.id,
+    this.auftragId,
+    required this.titel,
+    required this.inhalt,
+    this.quelle,
+    this.referenzNormenJson,
+    required this.verwendet,
+    this.extras,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || auftragId != null) {
+      map['auftrag_id'] = Variable<int>(auftragId);
+    }
+    map['titel'] = Variable<String>(titel);
+    map['inhalt'] = Variable<String>(inhalt);
+    if (!nullToAbsent || quelle != null) {
+      map['quelle'] = Variable<String>(quelle);
+    }
+    if (!nullToAbsent || referenzNormenJson != null) {
+      map['referenz_normen_json'] = Variable<String>(referenzNormenJson);
+    }
+    map['verwendet'] = Variable<bool>(verwendet);
+    if (!nullToAbsent || extras != null) {
+      map['extras'] = Variable<String>(extras);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  RechercheNotizenCompanion toCompanion(bool nullToAbsent) {
+    return RechercheNotizenCompanion(
+      id: Value(id),
+      auftragId: auftragId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(auftragId),
+      titel: Value(titel),
+      inhalt: Value(inhalt),
+      quelle: quelle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quelle),
+      referenzNormenJson: referenzNormenJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenzNormenJson),
+      verwendet: Value(verwendet),
+      extras: extras == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extras),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory RechercheNotizenData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RechercheNotizenData(
+      id: serializer.fromJson<int>(json['id']),
+      auftragId: serializer.fromJson<int?>(json['auftragId']),
+      titel: serializer.fromJson<String>(json['titel']),
+      inhalt: serializer.fromJson<String>(json['inhalt']),
+      quelle: serializer.fromJson<String?>(json['quelle']),
+      referenzNormenJson: serializer.fromJson<String?>(
+        json['referenzNormenJson'],
+      ),
+      verwendet: serializer.fromJson<bool>(json['verwendet']),
+      extras: serializer.fromJson<String?>(json['extras']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'auftragId': serializer.toJson<int?>(auftragId),
+      'titel': serializer.toJson<String>(titel),
+      'inhalt': serializer.toJson<String>(inhalt),
+      'quelle': serializer.toJson<String?>(quelle),
+      'referenzNormenJson': serializer.toJson<String?>(referenzNormenJson),
+      'verwendet': serializer.toJson<bool>(verwendet),
+      'extras': serializer.toJson<String?>(extras),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  RechercheNotizenData copyWith({
+    int? id,
+    Value<int?> auftragId = const Value.absent(),
+    String? titel,
+    String? inhalt,
+    Value<String?> quelle = const Value.absent(),
+    Value<String?> referenzNormenJson = const Value.absent(),
+    bool? verwendet,
+    Value<String?> extras = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => RechercheNotizenData(
+    id: id ?? this.id,
+    auftragId: auftragId.present ? auftragId.value : this.auftragId,
+    titel: titel ?? this.titel,
+    inhalt: inhalt ?? this.inhalt,
+    quelle: quelle.present ? quelle.value : this.quelle,
+    referenzNormenJson: referenzNormenJson.present
+        ? referenzNormenJson.value
+        : this.referenzNormenJson,
+    verwendet: verwendet ?? this.verwendet,
+    extras: extras.present ? extras.value : this.extras,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  RechercheNotizenData copyWithCompanion(RechercheNotizenCompanion data) {
+    return RechercheNotizenData(
+      id: data.id.present ? data.id.value : this.id,
+      auftragId: data.auftragId.present ? data.auftragId.value : this.auftragId,
+      titel: data.titel.present ? data.titel.value : this.titel,
+      inhalt: data.inhalt.present ? data.inhalt.value : this.inhalt,
+      quelle: data.quelle.present ? data.quelle.value : this.quelle,
+      referenzNormenJson: data.referenzNormenJson.present
+          ? data.referenzNormenJson.value
+          : this.referenzNormenJson,
+      verwendet: data.verwendet.present ? data.verwendet.value : this.verwendet,
+      extras: data.extras.present ? data.extras.value : this.extras,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RechercheNotizenData(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('titel: $titel, ')
+          ..write('inhalt: $inhalt, ')
+          ..write('quelle: $quelle, ')
+          ..write('referenzNormenJson: $referenzNormenJson, ')
+          ..write('verwendet: $verwendet, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    auftragId,
+    titel,
+    inhalt,
+    quelle,
+    referenzNormenJson,
+    verwendet,
+    extras,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RechercheNotizenData &&
+          other.id == this.id &&
+          other.auftragId == this.auftragId &&
+          other.titel == this.titel &&
+          other.inhalt == this.inhalt &&
+          other.quelle == this.quelle &&
+          other.referenzNormenJson == this.referenzNormenJson &&
+          other.verwendet == this.verwendet &&
+          other.extras == this.extras &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RechercheNotizenCompanion extends UpdateCompanion<RechercheNotizenData> {
+  final Value<int> id;
+  final Value<int?> auftragId;
+  final Value<String> titel;
+  final Value<String> inhalt;
+  final Value<String?> quelle;
+  final Value<String?> referenzNormenJson;
+  final Value<bool> verwendet;
+  final Value<String?> extras;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const RechercheNotizenCompanion({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    this.titel = const Value.absent(),
+    this.inhalt = const Value.absent(),
+    this.quelle = const Value.absent(),
+    this.referenzNormenJson = const Value.absent(),
+    this.verwendet = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  RechercheNotizenCompanion.insert({
+    this.id = const Value.absent(),
+    this.auftragId = const Value.absent(),
+    required String titel,
+    required String inhalt,
+    this.quelle = const Value.absent(),
+    this.referenzNormenJson = const Value.absent(),
+    this.verwendet = const Value.absent(),
+    this.extras = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : titel = Value(titel),
+       inhalt = Value(inhalt);
+  static Insertable<RechercheNotizenData> custom({
+    Expression<int>? id,
+    Expression<int>? auftragId,
+    Expression<String>? titel,
+    Expression<String>? inhalt,
+    Expression<String>? quelle,
+    Expression<String>? referenzNormenJson,
+    Expression<bool>? verwendet,
+    Expression<String>? extras,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (auftragId != null) 'auftrag_id': auftragId,
+      if (titel != null) 'titel': titel,
+      if (inhalt != null) 'inhalt': inhalt,
+      if (quelle != null) 'quelle': quelle,
+      if (referenzNormenJson != null)
+        'referenz_normen_json': referenzNormenJson,
+      if (verwendet != null) 'verwendet': verwendet,
+      if (extras != null) 'extras': extras,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  RechercheNotizenCompanion copyWith({
+    Value<int>? id,
+    Value<int?>? auftragId,
+    Value<String>? titel,
+    Value<String>? inhalt,
+    Value<String?>? quelle,
+    Value<String?>? referenzNormenJson,
+    Value<bool>? verwendet,
+    Value<String?>? extras,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return RechercheNotizenCompanion(
+      id: id ?? this.id,
+      auftragId: auftragId ?? this.auftragId,
+      titel: titel ?? this.titel,
+      inhalt: inhalt ?? this.inhalt,
+      quelle: quelle ?? this.quelle,
+      referenzNormenJson: referenzNormenJson ?? this.referenzNormenJson,
+      verwendet: verwendet ?? this.verwendet,
+      extras: extras ?? this.extras,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (auftragId.present) {
+      map['auftrag_id'] = Variable<int>(auftragId.value);
+    }
+    if (titel.present) {
+      map['titel'] = Variable<String>(titel.value);
+    }
+    if (inhalt.present) {
+      map['inhalt'] = Variable<String>(inhalt.value);
+    }
+    if (quelle.present) {
+      map['quelle'] = Variable<String>(quelle.value);
+    }
+    if (referenzNormenJson.present) {
+      map['referenz_normen_json'] = Variable<String>(referenzNormenJson.value);
+    }
+    if (verwendet.present) {
+      map['verwendet'] = Variable<bool>(verwendet.value);
+    }
+    if (extras.present) {
+      map['extras'] = Variable<String>(extras.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RechercheNotizenCompanion(')
+          ..write('id: $id, ')
+          ..write('auftragId: $auftragId, ')
+          ..write('titel: $titel, ')
+          ..write('inhalt: $inhalt, ')
+          ..write('quelle: $quelle, ')
+          ..write('referenzNormenJson: $referenzNormenJson, ')
+          ..write('verwendet: $verwendet, ')
+          ..write('extras: $extras, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -32646,6 +39674,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ErlaeuterungenTable erlaeuterungen = $ErlaeuterungenTable(this);
   late final $KontenTable konten = $KontenTable(this);
   late final $ProtokolleTable protokolle = $ProtokolleTable(this);
+  late final $JournaleintraegeTable journaleintraege = $JournaleintraegeTable(
+    this,
+  );
+  late final $MaengelTable maengel = $MaengelTable(this);
+  late final $UebergabenTable uebergaben = $UebergabenTable(this);
+  late final $QualifikationenTable qualifikationen = $QualifikationenTable(
+    this,
+  );
+  late final $BauteiloeffnungenTable bauteiloeffnungen =
+      $BauteiloeffnungenTable(this);
+  late final $MesswerteTable messwerte = $MesswerteTable(this);
+  late final $WertermittlungenTable wertermittlungen = $WertermittlungenTable(
+    this,
+  );
+  late final $SerienbriefeTable serienbriefe = $SerienbriefeTable(this);
+  late final $RechercheNotizenTable rechercheNotizen = $RechercheNotizenTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -32679,6 +39725,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     erlaeuterungen,
     konten,
     protokolle,
+    journaleintraege,
+    maengel,
+    uebergaben,
+    qualifikationen,
+    bauteiloeffnungen,
+    messwerte,
+    wertermittlungen,
+    serienbriefe,
+    rechercheNotizen,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -32856,6 +39911,55 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('protokolle', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('journaleintraege', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('maengel', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('uebergaben', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('bauteiloeffnungen', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('messwerte', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('wertermittlungen', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'auftraege',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('recherche_notizen', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -33852,6 +40956,8 @@ typedef $$AuftraegeTableCreateCompanionBuilder =
       Value<String?> richter,
       Value<String?> richterAnrede,
       Value<String?> richterBriefanrede,
+      Value<String?> klaeger,
+      Value<String?> beklagter,
       Value<String?> beteiligteJson,
       Value<String?> aufgabenJson,
       Value<String?> schneelastzone,
@@ -33913,6 +41019,8 @@ typedef $$AuftraegeTableUpdateCompanionBuilder =
       Value<String?> richter,
       Value<String?> richterAnrede,
       Value<String?> richterBriefanrede,
+      Value<String?> klaeger,
+      Value<String?> beklagter,
       Value<String?> beteiligteJson,
       Value<String?> aufgabenJson,
       Value<String?> schneelastzone,
@@ -34283,6 +41391,156 @@ final class $$AuftraegeTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$JournaleintraegeTable, List<JournaleintraegeData>>
+  _journaleintraegeRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.journaleintraege,
+    aliasName: $_aliasNameGenerator(
+      db.auftraege.id,
+      db.journaleintraege.auftragId,
+    ),
+  );
+
+  $$JournaleintraegeTableProcessedTableManager get journaleintraegeRefs {
+    final manager = $$JournaleintraegeTableTableManager(
+      $_db,
+      $_db.journaleintraege,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _journaleintraegeRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MaengelTable, List<MaengelData>>
+  _maengelRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.maengel,
+    aliasName: $_aliasNameGenerator(db.auftraege.id, db.maengel.auftragId),
+  );
+
+  $$MaengelTableProcessedTableManager get maengelRefs {
+    final manager = $$MaengelTableTableManager(
+      $_db,
+      $_db.maengel,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_maengelRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$UebergabenTable, List<UebergabenData>>
+  _uebergabenRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.uebergaben,
+    aliasName: $_aliasNameGenerator(db.auftraege.id, db.uebergaben.auftragId),
+  );
+
+  $$UebergabenTableProcessedTableManager get uebergabenRefs {
+    final manager = $$UebergabenTableTableManager(
+      $_db,
+      $_db.uebergaben,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_uebergabenRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $BauteiloeffnungenTable,
+    List<BauteiloeffnungenData>
+  >
+  _bauteiloeffnungenRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.bauteiloeffnungen,
+        aliasName: $_aliasNameGenerator(
+          db.auftraege.id,
+          db.bauteiloeffnungen.auftragId,
+        ),
+      );
+
+  $$BauteiloeffnungenTableProcessedTableManager get bauteiloeffnungenRefs {
+    final manager = $$BauteiloeffnungenTableTableManager(
+      $_db,
+      $_db.bauteiloeffnungen,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _bauteiloeffnungenRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MesswerteTable, List<MesswerteData>>
+  _messwerteRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.messwerte,
+    aliasName: $_aliasNameGenerator(db.auftraege.id, db.messwerte.auftragId),
+  );
+
+  $$MesswerteTableProcessedTableManager get messwerteRefs {
+    final manager = $$MesswerteTableTableManager(
+      $_db,
+      $_db.messwerte,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_messwerteRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$WertermittlungenTable, List<WertermittlungenData>>
+  _wertermittlungenRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.wertermittlungen,
+    aliasName: $_aliasNameGenerator(
+      db.auftraege.id,
+      db.wertermittlungen.auftragId,
+    ),
+  );
+
+  $$WertermittlungenTableProcessedTableManager get wertermittlungenRefs {
+    final manager = $$WertermittlungenTableTableManager(
+      $_db,
+      $_db.wertermittlungen,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _wertermittlungenRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RechercheNotizenTable, List<RechercheNotizenData>>
+  _rechercheNotizenRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.rechercheNotizen,
+    aliasName: $_aliasNameGenerator(
+      db.auftraege.id,
+      db.rechercheNotizen.auftragId,
+    ),
+  );
+
+  $$RechercheNotizenTableProcessedTableManager get rechercheNotizenRefs {
+    final manager = $$RechercheNotizenTableTableManager(
+      $_db,
+      $_db.rechercheNotizen,
+    ).filter((f) => f.auftragId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _rechercheNotizenRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$AuftraegeTableFilterComposer
@@ -34496,6 +41754,16 @@ class $$AuftraegeTableFilterComposer
 
   ColumnFilters<String> get richterBriefanrede => $composableBuilder(
     column: $table.richterBriefanrede,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get klaeger => $composableBuilder(
+    column: $table.klaeger,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get beklagter => $composableBuilder(
+    column: $table.beklagter,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -35026,6 +42294,181 @@ class $$AuftraegeTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> journaleintraegeRefs(
+    Expression<bool> Function($$JournaleintraegeTableFilterComposer f) f,
+  ) {
+    final $$JournaleintraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journaleintraege,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournaleintraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.journaleintraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> maengelRefs(
+    Expression<bool> Function($$MaengelTableFilterComposer f) f,
+  ) {
+    final $$MaengelTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.maengel,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MaengelTableFilterComposer(
+            $db: $db,
+            $table: $db.maengel,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> uebergabenRefs(
+    Expression<bool> Function($$UebergabenTableFilterComposer f) f,
+  ) {
+    final $$UebergabenTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.uebergaben,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UebergabenTableFilterComposer(
+            $db: $db,
+            $table: $db.uebergaben,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> bauteiloeffnungenRefs(
+    Expression<bool> Function($$BauteiloeffnungenTableFilterComposer f) f,
+  ) {
+    final $$BauteiloeffnungenTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.bauteiloeffnungen,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BauteiloeffnungenTableFilterComposer(
+            $db: $db,
+            $table: $db.bauteiloeffnungen,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> messwerteRefs(
+    Expression<bool> Function($$MesswerteTableFilterComposer f) f,
+  ) {
+    final $$MesswerteTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.messwerte,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MesswerteTableFilterComposer(
+            $db: $db,
+            $table: $db.messwerte,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> wertermittlungenRefs(
+    Expression<bool> Function($$WertermittlungenTableFilterComposer f) f,
+  ) {
+    final $$WertermittlungenTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.wertermittlungen,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WertermittlungenTableFilterComposer(
+            $db: $db,
+            $table: $db.wertermittlungen,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> rechercheNotizenRefs(
+    Expression<bool> Function($$RechercheNotizenTableFilterComposer f) f,
+  ) {
+    final $$RechercheNotizenTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.rechercheNotizen,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RechercheNotizenTableFilterComposer(
+            $db: $db,
+            $table: $db.rechercheNotizen,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AuftraegeTableOrderingComposer
@@ -35239,6 +42682,16 @@ class $$AuftraegeTableOrderingComposer
 
   ColumnOrderings<String> get richterBriefanrede => $composableBuilder(
     column: $table.richterBriefanrede,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get klaeger => $composableBuilder(
+    column: $table.klaeger,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get beklagter => $composableBuilder(
+    column: $table.beklagter,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -35525,6 +42978,12 @@ class $$AuftraegeTableAnnotationComposer
     column: $table.richterBriefanrede,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get klaeger =>
+      $composableBuilder(column: $table.klaeger, builder: (column) => column);
+
+  GeneratedColumn<String> get beklagter =>
+      $composableBuilder(column: $table.beklagter, builder: (column) => column);
 
   GeneratedColumn<String> get beteiligteJson => $composableBuilder(
     column: $table.beteiligteJson,
@@ -36046,6 +43505,182 @@ class $$AuftraegeTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> journaleintraegeRefs<T extends Object>(
+    Expression<T> Function($$JournaleintraegeTableAnnotationComposer a) f,
+  ) {
+    final $$JournaleintraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journaleintraege,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournaleintraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.journaleintraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> maengelRefs<T extends Object>(
+    Expression<T> Function($$MaengelTableAnnotationComposer a) f,
+  ) {
+    final $$MaengelTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.maengel,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MaengelTableAnnotationComposer(
+            $db: $db,
+            $table: $db.maengel,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> uebergabenRefs<T extends Object>(
+    Expression<T> Function($$UebergabenTableAnnotationComposer a) f,
+  ) {
+    final $$UebergabenTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.uebergaben,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UebergabenTableAnnotationComposer(
+            $db: $db,
+            $table: $db.uebergaben,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> bauteiloeffnungenRefs<T extends Object>(
+    Expression<T> Function($$BauteiloeffnungenTableAnnotationComposer a) f,
+  ) {
+    final $$BauteiloeffnungenTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.bauteiloeffnungen,
+          getReferencedColumn: (t) => t.auftragId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BauteiloeffnungenTableAnnotationComposer(
+                $db: $db,
+                $table: $db.bauteiloeffnungen,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> messwerteRefs<T extends Object>(
+    Expression<T> Function($$MesswerteTableAnnotationComposer a) f,
+  ) {
+    final $$MesswerteTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.messwerte,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MesswerteTableAnnotationComposer(
+            $db: $db,
+            $table: $db.messwerte,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> wertermittlungenRefs<T extends Object>(
+    Expression<T> Function($$WertermittlungenTableAnnotationComposer a) f,
+  ) {
+    final $$WertermittlungenTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.wertermittlungen,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WertermittlungenTableAnnotationComposer(
+            $db: $db,
+            $table: $db.wertermittlungen,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> rechercheNotizenRefs<T extends Object>(
+    Expression<T> Function($$RechercheNotizenTableAnnotationComposer a) f,
+  ) {
+    final $$RechercheNotizenTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.rechercheNotizen,
+      getReferencedColumn: (t) => t.auftragId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RechercheNotizenTableAnnotationComposer(
+            $db: $db,
+            $table: $db.rechercheNotizen,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AuftraegeTableTableManager
@@ -36080,6 +43715,13 @@ class $$AuftraegeTableTableManager
             bool eingangsrechnungenRefs,
             bool erlaeuterungenRefs,
             bool protokolleRefs,
+            bool journaleintraegeRefs,
+            bool maengelRefs,
+            bool uebergabenRefs,
+            bool bauteiloeffnungenRefs,
+            bool messwerteRefs,
+            bool wertermittlungenRefs,
+            bool rechercheNotizenRefs,
           })
         > {
   $$AuftraegeTableTableManager(_$AppDatabase db, $AuftraegeTable table)
@@ -36137,6 +43779,8 @@ class $$AuftraegeTableTableManager
                 Value<String?> richter = const Value.absent(),
                 Value<String?> richterAnrede = const Value.absent(),
                 Value<String?> richterBriefanrede = const Value.absent(),
+                Value<String?> klaeger = const Value.absent(),
+                Value<String?> beklagter = const Value.absent(),
                 Value<String?> beteiligteJson = const Value.absent(),
                 Value<String?> aufgabenJson = const Value.absent(),
                 Value<String?> schneelastzone = const Value.absent(),
@@ -36196,6 +43840,8 @@ class $$AuftraegeTableTableManager
                 richter: richter,
                 richterAnrede: richterAnrede,
                 richterBriefanrede: richterBriefanrede,
+                klaeger: klaeger,
+                beklagter: beklagter,
                 beteiligteJson: beteiligteJson,
                 aufgabenJson: aufgabenJson,
                 schneelastzone: schneelastzone,
@@ -36257,6 +43903,8 @@ class $$AuftraegeTableTableManager
                 Value<String?> richter = const Value.absent(),
                 Value<String?> richterAnrede = const Value.absent(),
                 Value<String?> richterBriefanrede = const Value.absent(),
+                Value<String?> klaeger = const Value.absent(),
+                Value<String?> beklagter = const Value.absent(),
                 Value<String?> beteiligteJson = const Value.absent(),
                 Value<String?> aufgabenJson = const Value.absent(),
                 Value<String?> schneelastzone = const Value.absent(),
@@ -36316,6 +43964,8 @@ class $$AuftraegeTableTableManager
                 richter: richter,
                 richterAnrede: richterAnrede,
                 richterBriefanrede: richterBriefanrede,
+                klaeger: klaeger,
+                beklagter: beklagter,
                 beteiligteJson: beteiligteJson,
                 aufgabenJson: aufgabenJson,
                 schneelastzone: schneelastzone,
@@ -36361,6 +44011,13 @@ class $$AuftraegeTableTableManager
                 eingangsrechnungenRefs = false,
                 erlaeuterungenRefs = false,
                 protokolleRefs = false,
+                journaleintraegeRefs = false,
+                maengelRefs = false,
+                uebergabenRefs = false,
+                bauteiloeffnungenRefs = false,
+                messwerteRefs = false,
+                wertermittlungenRefs = false,
+                rechercheNotizenRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -36382,6 +44039,13 @@ class $$AuftraegeTableTableManager
                     if (eingangsrechnungenRefs) db.eingangsrechnungen,
                     if (erlaeuterungenRefs) db.erlaeuterungen,
                     if (protokolleRefs) db.protokolle,
+                    if (journaleintraegeRefs) db.journaleintraege,
+                    if (maengelRefs) db.maengel,
+                    if (uebergabenRefs) db.uebergaben,
+                    if (bauteiloeffnungenRefs) db.bauteiloeffnungen,
+                    if (messwerteRefs) db.messwerte,
+                    if (wertermittlungenRefs) db.wertermittlungen,
+                    if (rechercheNotizenRefs) db.rechercheNotizen,
                   ],
                   addJoins:
                       <
@@ -36774,6 +44438,153 @@ class $$AuftraegeTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (journaleintraegeRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          JournaleintraegeData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._journaleintraegeRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).journaleintraegeRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (maengelRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          MaengelData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._maengelRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).maengelRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (uebergabenRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          UebergabenData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._uebergabenRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).uebergabenRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (bauteiloeffnungenRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          BauteiloeffnungenData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._bauteiloeffnungenRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bauteiloeffnungenRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (messwerteRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          MesswerteData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._messwerteRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).messwerteRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (wertermittlungenRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          WertermittlungenData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._wertermittlungenRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).wertermittlungenRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (rechercheNotizenRefs)
+                        await $_getPrefetchedData<
+                          AuftraegeData,
+                          $AuftraegeTable,
+                          RechercheNotizenData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AuftraegeTableReferences
+                              ._rechercheNotizenRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AuftraegeTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).rechercheNotizenRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.auftragId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -36813,6 +44624,13 @@ typedef $$AuftraegeTableProcessedTableManager =
         bool eingangsrechnungenRefs,
         bool erlaeuterungenRefs,
         bool protokolleRefs,
+        bool journaleintraegeRefs,
+        bool maengelRefs,
+        bool uebergabenRefs,
+        bool bauteiloeffnungenRefs,
+        bool messwerteRefs,
+        bool wertermittlungenRefs,
+        bool rechercheNotizenRefs,
       })
     >;
 typedef $$GeraeteTableCreateCompanionBuilder =
@@ -36914,6 +44732,24 @@ final class $$GeraeteTableReferences
     final cache = $_typedResult.readTableOrNull(
       _auftraegeGeraeteRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MesswerteTable, List<MesswerteData>>
+  _messwerteRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.messwerte,
+    aliasName: $_aliasNameGenerator(db.geraete.id, db.messwerte.geraetId),
+  );
+
+  $$MesswerteTableProcessedTableManager get messwerteRefs {
+    final manager = $$MesswerteTableTableManager(
+      $_db,
+      $_db.messwerte,
+    ).filter((f) => f.geraetId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_messwerteRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -37120,6 +44956,31 @@ class $$GeraeteTableFilterComposer
           }) => $$AuftraegeGeraeteTableFilterComposer(
             $db: $db,
             $table: $db.auftraegeGeraete,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> messwerteRefs(
+    Expression<bool> Function($$MesswerteTableFilterComposer f) f,
+  ) {
+    final $$MesswerteTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.messwerte,
+      getReferencedColumn: (t) => t.geraetId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MesswerteTableFilterComposer(
+            $db: $db,
+            $table: $db.messwerte,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -37501,6 +45362,31 @@ class $$GeraeteTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> messwerteRefs<T extends Object>(
+    Expression<T> Function($$MesswerteTableAnnotationComposer a) f,
+  ) {
+    final $$MesswerteTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.messwerte,
+      getReferencedColumn: (t) => t.geraetId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MesswerteTableAnnotationComposer(
+            $db: $db,
+            $table: $db.messwerte,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$GeraeteTableTableManager
@@ -37516,7 +45402,10 @@ class $$GeraeteTableTableManager
           $$GeraeteTableUpdateCompanionBuilder,
           (GeraeteData, $$GeraeteTableReferences),
           GeraeteData,
-          PrefetchHooks Function({bool auftraegeGeraeteRefs})
+          PrefetchHooks Function({
+            bool auftraegeGeraeteRefs,
+            bool messwerteRefs,
+          })
         > {
   $$GeraeteTableTableManager(_$AppDatabase db, $GeraeteTable table)
     : super(
@@ -37685,37 +45574,63 @@ class $$GeraeteTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({auftraegeGeraeteRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (auftraegeGeraeteRefs) db.auftraegeGeraete,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (auftraegeGeraeteRefs)
-                    await $_getPrefetchedData<
-                      GeraeteData,
-                      $GeraeteTable,
-                      AuftragGeraet
-                    >(
-                      currentTable: table,
-                      referencedTable: $$GeraeteTableReferences
-                          ._auftraegeGeraeteRefsTable(db),
-                      managerFromTypedResult: (p0) => $$GeraeteTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).auftraegeGeraeteRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.geraetId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({auftraegeGeraeteRefs = false, messwerteRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (auftraegeGeraeteRefs) db.auftraegeGeraete,
+                    if (messwerteRefs) db.messwerte,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (auftraegeGeraeteRefs)
+                        await $_getPrefetchedData<
+                          GeraeteData,
+                          $GeraeteTable,
+                          AuftragGeraet
+                        >(
+                          currentTable: table,
+                          referencedTable: $$GeraeteTableReferences
+                              ._auftraegeGeraeteRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$GeraeteTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).auftraegeGeraeteRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.geraetId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (messwerteRefs)
+                        await $_getPrefetchedData<
+                          GeraeteData,
+                          $GeraeteTable,
+                          MesswerteData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$GeraeteTableReferences
+                              ._messwerteRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$GeraeteTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).messwerteRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.geraetId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -37732,7 +45647,7 @@ typedef $$GeraeteTableProcessedTableManager =
       $$GeraeteTableUpdateCompanionBuilder,
       (GeraeteData, $$GeraeteTableReferences),
       GeraeteData,
-      PrefetchHooks Function({bool auftraegeGeraeteRefs})
+      PrefetchHooks Function({bool auftraegeGeraeteRefs, bool messwerteRefs})
     >;
 typedef $$AuftraegeGeraeteTableCreateCompanionBuilder =
     AuftraegeGeraeteCompanion Function({
@@ -41143,6 +49058,7 @@ typedef $$FotosTableCreateCompanionBuilder =
       Value<int> id,
       Value<int?> auftragId,
       Value<int?> gutachtenId,
+      Value<String?> gutachtenAbschnitt,
       Value<String?> titel,
       Value<String?> raum,
       Value<String?> beschreibung,
@@ -41167,6 +49083,7 @@ typedef $$FotosTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int?> auftragId,
       Value<int?> gutachtenId,
+      Value<String?> gutachtenAbschnitt,
       Value<String?> titel,
       Value<String?> raum,
       Value<String?> beschreibung,
@@ -41236,6 +49153,11 @@ class $$FotosTableFilterComposer extends Composer<_$AppDatabase, $FotosTable> {
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gutachtenAbschnitt => $composableBuilder(
+    column: $table.gutachtenAbschnitt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -41390,6 +49312,11 @@ class $$FotosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get gutachtenAbschnitt => $composableBuilder(
+    column: $table.gutachtenAbschnitt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get titel => $composableBuilder(
     column: $table.titel,
     builder: (column) => ColumnOrderings(column),
@@ -41539,6 +49466,11 @@ class $$FotosTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get gutachtenAbschnitt => $composableBuilder(
+    column: $table.gutachtenAbschnitt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get titel =>
       $composableBuilder(column: $table.titel, builder: (column) => column);
 
@@ -41687,6 +49619,7 @@ class $$FotosTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int?> auftragId = const Value.absent(),
                 Value<int?> gutachtenId = const Value.absent(),
+                Value<String?> gutachtenAbschnitt = const Value.absent(),
                 Value<String?> titel = const Value.absent(),
                 Value<String?> raum = const Value.absent(),
                 Value<String?> beschreibung = const Value.absent(),
@@ -41709,6 +49642,7 @@ class $$FotosTableTableManager
                 id: id,
                 auftragId: auftragId,
                 gutachtenId: gutachtenId,
+                gutachtenAbschnitt: gutachtenAbschnitt,
                 titel: titel,
                 raum: raum,
                 beschreibung: beschreibung,
@@ -41733,6 +49667,7 @@ class $$FotosTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int?> auftragId = const Value.absent(),
                 Value<int?> gutachtenId = const Value.absent(),
+                Value<String?> gutachtenAbschnitt = const Value.absent(),
                 Value<String?> titel = const Value.absent(),
                 Value<String?> raum = const Value.absent(),
                 Value<String?> beschreibung = const Value.absent(),
@@ -41755,6 +49690,7 @@ class $$FotosTableTableManager
                 id: id,
                 auftragId: auftragId,
                 gutachtenId: gutachtenId,
+                gutachtenAbschnitt: gutachtenAbschnitt,
                 titel: titel,
                 raum: raum,
                 beschreibung: beschreibung,
@@ -45755,6 +53691,10 @@ typedef $$WiedervorlagenTableCreateCompanionBuilder =
       Value<String> prioritaet,
       Value<bool> erledigt,
       Value<String?> extras,
+      Value<String?> wiederholung,
+      Value<String?> triggerTyp,
+      Value<int?> triggerQuellId,
+      Value<String?> checklisteJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -45771,6 +53711,10 @@ typedef $$WiedervorlagenTableUpdateCompanionBuilder =
       Value<String> prioritaet,
       Value<bool> erledigt,
       Value<String?> extras,
+      Value<String?> wiederholung,
+      Value<String?> triggerTyp,
+      Value<int?> triggerQuellId,
+      Value<String?> checklisteJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -45867,6 +53811,26 @@ class $$WiedervorlagenTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get wiederholung => $composableBuilder(
+    column: $table.wiederholung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get triggerTyp => $composableBuilder(
+    column: $table.triggerTyp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get triggerQuellId => $composableBuilder(
+    column: $table.triggerQuellId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get checklisteJson => $composableBuilder(
+    column: $table.checklisteJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -45960,6 +53924,26 @@ class $$WiedervorlagenTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get wiederholung => $composableBuilder(
+    column: $table.wiederholung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get triggerTyp => $composableBuilder(
+    column: $table.triggerTyp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get triggerQuellId => $composableBuilder(
+    column: $table.triggerQuellId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get checklisteJson => $composableBuilder(
+    column: $table.checklisteJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -46039,6 +54023,26 @@ class $$WiedervorlagenTableAnnotationComposer
   GeneratedColumn<String> get extras =>
       $composableBuilder(column: $table.extras, builder: (column) => column);
 
+  GeneratedColumn<String> get wiederholung => $composableBuilder(
+    column: $table.wiederholung,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get triggerTyp => $composableBuilder(
+    column: $table.triggerTyp,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get triggerQuellId => $composableBuilder(
+    column: $table.triggerQuellId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get checklisteJson => $composableBuilder(
+    column: $table.checklisteJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -46110,6 +54114,10 @@ class $$WiedervorlagenTableTableManager
                 Value<String> prioritaet = const Value.absent(),
                 Value<bool> erledigt = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
+                Value<String?> wiederholung = const Value.absent(),
+                Value<String?> triggerTyp = const Value.absent(),
+                Value<int?> triggerQuellId = const Value.absent(),
+                Value<String?> checklisteJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WiedervorlagenCompanion(
@@ -46124,6 +54132,10 @@ class $$WiedervorlagenTableTableManager
                 prioritaet: prioritaet,
                 erledigt: erledigt,
                 extras: extras,
+                wiederholung: wiederholung,
+                triggerTyp: triggerTyp,
+                triggerQuellId: triggerQuellId,
+                checklisteJson: checklisteJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -46140,6 +54152,10 @@ class $$WiedervorlagenTableTableManager
                 Value<String> prioritaet = const Value.absent(),
                 Value<bool> erledigt = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
+                Value<String?> wiederholung = const Value.absent(),
+                Value<String?> triggerTyp = const Value.absent(),
+                Value<int?> triggerQuellId = const Value.absent(),
+                Value<String?> checklisteJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WiedervorlagenCompanion.insert(
@@ -46154,6 +54170,10 @@ class $$WiedervorlagenTableTableManager
                 prioritaet: prioritaet,
                 erledigt: erledigt,
                 extras: extras,
+                wiederholung: wiederholung,
+                triggerTyp: triggerTyp,
+                triggerQuellId: triggerQuellId,
+                checklisteJson: checklisteJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -48318,6 +56338,7 @@ typedef $$NormenTableCreateCompanionBuilder =
       Value<String?> zitat,
       Value<String?> beschreibung,
       Value<String?> notiz,
+      Value<String?> gewerk,
       Value<String?> pdfPfad,
       Value<String?> pdfStorageUrl,
       Value<String?> pdfMimeType,
@@ -48348,6 +56369,7 @@ typedef $$NormenTableUpdateCompanionBuilder =
       Value<String?> zitat,
       Value<String?> beschreibung,
       Value<String?> notiz,
+      Value<String?> gewerk,
       Value<String?> pdfPfad,
       Value<String?> pdfStorageUrl,
       Value<String?> pdfMimeType,
@@ -48452,6 +56474,11 @@ class $$NormenTableFilterComposer
 
   ColumnFilters<String> get notiz => $composableBuilder(
     column: $table.notiz,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gewerk => $composableBuilder(
+    column: $table.gewerk,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -48618,6 +56645,11 @@ class $$NormenTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get gewerk => $composableBuilder(
+    column: $table.gewerk,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get pdfPfad => $composableBuilder(
     column: $table.pdfPfad,
     builder: (column) => ColumnOrderings(column),
@@ -48763,6 +56795,9 @@ class $$NormenTableAnnotationComposer
   GeneratedColumn<String> get notiz =>
       $composableBuilder(column: $table.notiz, builder: (column) => column);
 
+  GeneratedColumn<String> get gewerk =>
+      $composableBuilder(column: $table.gewerk, builder: (column) => column);
+
   GeneratedColumn<String> get pdfPfad =>
       $composableBuilder(column: $table.pdfPfad, builder: (column) => column);
 
@@ -48886,6 +56921,7 @@ class $$NormenTableTableManager
                 Value<String?> zitat = const Value.absent(),
                 Value<String?> beschreibung = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
+                Value<String?> gewerk = const Value.absent(),
                 Value<String?> pdfPfad = const Value.absent(),
                 Value<String?> pdfStorageUrl = const Value.absent(),
                 Value<String?> pdfMimeType = const Value.absent(),
@@ -48914,6 +56950,7 @@ class $$NormenTableTableManager
                 zitat: zitat,
                 beschreibung: beschreibung,
                 notiz: notiz,
+                gewerk: gewerk,
                 pdfPfad: pdfPfad,
                 pdfStorageUrl: pdfStorageUrl,
                 pdfMimeType: pdfMimeType,
@@ -48944,6 +56981,7 @@ class $$NormenTableTableManager
                 Value<String?> zitat = const Value.absent(),
                 Value<String?> beschreibung = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
+                Value<String?> gewerk = const Value.absent(),
                 Value<String?> pdfPfad = const Value.absent(),
                 Value<String?> pdfStorageUrl = const Value.absent(),
                 Value<String?> pdfMimeType = const Value.absent(),
@@ -48972,6 +57010,7 @@ class $$NormenTableTableManager
                 zitat: zitat,
                 beschreibung: beschreibung,
                 notiz: notiz,
+                gewerk: gewerk,
                 pdfPfad: pdfPfad,
                 pdfStorageUrl: pdfStorageUrl,
                 pdfMimeType: pdfMimeType,
@@ -49082,6 +57121,7 @@ typedef $$EingangsrechnungenTableCreateCompanionBuilder =
       Value<double> ustBetrag,
       Value<double> brutto,
       Value<double> bezahlt,
+      Value<bool> geprueft,
       Value<String?> belegeJson,
       Value<String?> belegPfad,
       Value<String?> notiz,
@@ -49119,6 +57159,7 @@ typedef $$EingangsrechnungenTableUpdateCompanionBuilder =
       Value<double> ustBetrag,
       Value<double> brutto,
       Value<double> bezahlt,
+      Value<bool> geprueft,
       Value<String?> belegeJson,
       Value<String?> belegPfad,
       Value<String?> notiz,
@@ -49301,6 +57342,11 @@ class $$EingangsrechnungenTableFilterComposer
 
   ColumnFilters<double> get bezahlt => $composableBuilder(
     column: $table.bezahlt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get geprueft => $composableBuilder(
+    column: $table.geprueft,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -49502,6 +57548,11 @@ class $$EingangsrechnungenTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get geprueft => $composableBuilder(
+    column: $table.geprueft,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get belegeJson => $composableBuilder(
     column: $table.belegeJson,
     builder: (column) => ColumnOrderings(column),
@@ -49678,6 +57729,9 @@ class $$EingangsrechnungenTableAnnotationComposer
   GeneratedColumn<double> get bezahlt =>
       $composableBuilder(column: $table.bezahlt, builder: (column) => column);
 
+  GeneratedColumn<bool> get geprueft =>
+      $composableBuilder(column: $table.geprueft, builder: (column) => column);
+
   GeneratedColumn<String> get belegeJson => $composableBuilder(
     column: $table.belegeJson,
     builder: (column) => column,
@@ -49783,6 +57837,7 @@ class $$EingangsrechnungenTableTableManager
                 Value<double> ustBetrag = const Value.absent(),
                 Value<double> brutto = const Value.absent(),
                 Value<double> bezahlt = const Value.absent(),
+                Value<bool> geprueft = const Value.absent(),
                 Value<String?> belegeJson = const Value.absent(),
                 Value<String?> belegPfad = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
@@ -49818,6 +57873,7 @@ class $$EingangsrechnungenTableTableManager
                 ustBetrag: ustBetrag,
                 brutto: brutto,
                 bezahlt: bezahlt,
+                geprueft: geprueft,
                 belegeJson: belegeJson,
                 belegPfad: belegPfad,
                 notiz: notiz,
@@ -49855,6 +57911,7 @@ class $$EingangsrechnungenTableTableManager
                 Value<double> ustBetrag = const Value.absent(),
                 Value<double> brutto = const Value.absent(),
                 Value<double> bezahlt = const Value.absent(),
+                Value<bool> geprueft = const Value.absent(),
                 Value<String?> belegeJson = const Value.absent(),
                 Value<String?> belegPfad = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
@@ -49890,6 +57947,7 @@ class $$EingangsrechnungenTableTableManager
                 ustBetrag: ustBetrag,
                 brutto: brutto,
                 bezahlt: bezahlt,
+                geprueft: geprueft,
                 belegeJson: belegeJson,
                 belegPfad: belegPfad,
                 notiz: notiz,
@@ -52280,6 +60338,4002 @@ typedef $$ProtokolleTableProcessedTableManager =
       ProtokolleData,
       PrefetchHooks Function({bool auftragId})
     >;
+typedef $$JournaleintraegeTableCreateCompanionBuilder =
+    JournaleintraegeCompanion Function({
+      Value<int> id,
+      required int auftragId,
+      Value<DateTime> zeitpunkt,
+      Value<String?> kategorie,
+      Value<String?> kontakt,
+      required String notiz,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$JournaleintraegeTableUpdateCompanionBuilder =
+    JournaleintraegeCompanion Function({
+      Value<int> id,
+      Value<int> auftragId,
+      Value<DateTime> zeitpunkt,
+      Value<String?> kategorie,
+      Value<String?> kontakt,
+      Value<String> notiz,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$JournaleintraegeTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $JournaleintraegeTable,
+          JournaleintraegeData
+        > {
+  $$JournaleintraegeTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) =>
+      db.auftraege.createAlias(
+        $_aliasNameGenerator(db.journaleintraege.auftragId, db.auftraege.id),
+      );
+
+  $$AuftraegeTableProcessedTableManager get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id')!;
+
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$JournaleintraegeTableFilterComposer
+    extends Composer<_$AppDatabase, $JournaleintraegeTable> {
+  $$JournaleintraegeTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get zeitpunkt => $composableBuilder(
+    column: $table.zeitpunkt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kategorie => $composableBuilder(
+    column: $table.kategorie,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kontakt => $composableBuilder(
+    column: $table.kontakt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notiz => $composableBuilder(
+    column: $table.notiz,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JournaleintraegeTableOrderingComposer
+    extends Composer<_$AppDatabase, $JournaleintraegeTable> {
+  $$JournaleintraegeTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get zeitpunkt => $composableBuilder(
+    column: $table.zeitpunkt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kategorie => $composableBuilder(
+    column: $table.kategorie,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kontakt => $composableBuilder(
+    column: $table.kontakt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notiz => $composableBuilder(
+    column: $table.notiz,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JournaleintraegeTableAnnotationComposer
+    extends Composer<_$AppDatabase, $JournaleintraegeTable> {
+  $$JournaleintraegeTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get zeitpunkt =>
+      $composableBuilder(column: $table.zeitpunkt, builder: (column) => column);
+
+  GeneratedColumn<String> get kategorie =>
+      $composableBuilder(column: $table.kategorie, builder: (column) => column);
+
+  GeneratedColumn<String> get kontakt =>
+      $composableBuilder(column: $table.kontakt, builder: (column) => column);
+
+  GeneratedColumn<String> get notiz =>
+      $composableBuilder(column: $table.notiz, builder: (column) => column);
+
+  GeneratedColumn<String> get extras =>
+      $composableBuilder(column: $table.extras, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JournaleintraegeTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $JournaleintraegeTable,
+          JournaleintraegeData,
+          $$JournaleintraegeTableFilterComposer,
+          $$JournaleintraegeTableOrderingComposer,
+          $$JournaleintraegeTableAnnotationComposer,
+          $$JournaleintraegeTableCreateCompanionBuilder,
+          $$JournaleintraegeTableUpdateCompanionBuilder,
+          (JournaleintraegeData, $$JournaleintraegeTableReferences),
+          JournaleintraegeData,
+          PrefetchHooks Function({bool auftragId})
+        > {
+  $$JournaleintraegeTableTableManager(
+    _$AppDatabase db,
+    $JournaleintraegeTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$JournaleintraegeTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$JournaleintraegeTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$JournaleintraegeTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> auftragId = const Value.absent(),
+                Value<DateTime> zeitpunkt = const Value.absent(),
+                Value<String?> kategorie = const Value.absent(),
+                Value<String?> kontakt = const Value.absent(),
+                Value<String> notiz = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => JournaleintraegeCompanion(
+                id: id,
+                auftragId: auftragId,
+                zeitpunkt: zeitpunkt,
+                kategorie: kategorie,
+                kontakt: kontakt,
+                notiz: notiz,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int auftragId,
+                Value<DateTime> zeitpunkt = const Value.absent(),
+                Value<String?> kategorie = const Value.absent(),
+                Value<String?> kontakt = const Value.absent(),
+                required String notiz,
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => JournaleintraegeCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                zeitpunkt: zeitpunkt,
+                kategorie: kategorie,
+                kontakt: kontakt,
+                notiz: notiz,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$JournaleintraegeTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable:
+                                    $$JournaleintraegeTableReferences
+                                        ._auftragIdTable(db),
+                                referencedColumn:
+                                    $$JournaleintraegeTableReferences
+                                        ._auftragIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$JournaleintraegeTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $JournaleintraegeTable,
+      JournaleintraegeData,
+      $$JournaleintraegeTableFilterComposer,
+      $$JournaleintraegeTableOrderingComposer,
+      $$JournaleintraegeTableAnnotationComposer,
+      $$JournaleintraegeTableCreateCompanionBuilder,
+      $$JournaleintraegeTableUpdateCompanionBuilder,
+      (JournaleintraegeData, $$JournaleintraegeTableReferences),
+      JournaleintraegeData,
+      PrefetchHooks Function({bool auftragId})
+    >;
+typedef $$MaengelTableCreateCompanionBuilder =
+    MaengelCompanion Function({
+      Value<int> id,
+      required int auftragId,
+      Value<String?> nummer,
+      Value<String?> bauteil,
+      required String beschreibung,
+      Value<String?> ursache,
+      Value<String?> folge,
+      Value<String> prioritaet,
+      Value<double?> aufwand,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$MaengelTableUpdateCompanionBuilder =
+    MaengelCompanion Function({
+      Value<int> id,
+      Value<int> auftragId,
+      Value<String?> nummer,
+      Value<String?> bauteil,
+      Value<String> beschreibung,
+      Value<String?> ursache,
+      Value<String?> folge,
+      Value<String> prioritaet,
+      Value<double?> aufwand,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$MaengelTableReferences
+    extends BaseReferences<_$AppDatabase, $MaengelTable, MaengelData> {
+  $$MaengelTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) => db.auftraege
+      .createAlias($_aliasNameGenerator(db.maengel.auftragId, db.auftraege.id));
+
+  $$AuftraegeTableProcessedTableManager get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id')!;
+
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MaengelTableFilterComposer
+    extends Composer<_$AppDatabase, $MaengelTable> {
+  $$MaengelTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nummer => $composableBuilder(
+    column: $table.nummer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bauteil => $composableBuilder(
+    column: $table.bauteil,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get beschreibung => $composableBuilder(
+    column: $table.beschreibung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ursache => $composableBuilder(
+    column: $table.ursache,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get folge => $composableBuilder(
+    column: $table.folge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prioritaet => $composableBuilder(
+    column: $table.prioritaet,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get aufwand => $composableBuilder(
+    column: $table.aufwand,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MaengelTableOrderingComposer
+    extends Composer<_$AppDatabase, $MaengelTable> {
+  $$MaengelTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nummer => $composableBuilder(
+    column: $table.nummer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bauteil => $composableBuilder(
+    column: $table.bauteil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get beschreibung => $composableBuilder(
+    column: $table.beschreibung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ursache => $composableBuilder(
+    column: $table.ursache,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get folge => $composableBuilder(
+    column: $table.folge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prioritaet => $composableBuilder(
+    column: $table.prioritaet,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get aufwand => $composableBuilder(
+    column: $table.aufwand,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MaengelTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MaengelTable> {
+  $$MaengelTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get nummer =>
+      $composableBuilder(column: $table.nummer, builder: (column) => column);
+
+  GeneratedColumn<String> get bauteil =>
+      $composableBuilder(column: $table.bauteil, builder: (column) => column);
+
+  GeneratedColumn<String> get beschreibung => $composableBuilder(
+    column: $table.beschreibung,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ursache =>
+      $composableBuilder(column: $table.ursache, builder: (column) => column);
+
+  GeneratedColumn<String> get folge =>
+      $composableBuilder(column: $table.folge, builder: (column) => column);
+
+  GeneratedColumn<String> get prioritaet => $composableBuilder(
+    column: $table.prioritaet,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get aufwand =>
+      $composableBuilder(column: $table.aufwand, builder: (column) => column);
+
+  GeneratedColumn<String> get extras =>
+      $composableBuilder(column: $table.extras, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MaengelTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MaengelTable,
+          MaengelData,
+          $$MaengelTableFilterComposer,
+          $$MaengelTableOrderingComposer,
+          $$MaengelTableAnnotationComposer,
+          $$MaengelTableCreateCompanionBuilder,
+          $$MaengelTableUpdateCompanionBuilder,
+          (MaengelData, $$MaengelTableReferences),
+          MaengelData,
+          PrefetchHooks Function({bool auftragId})
+        > {
+  $$MaengelTableTableManager(_$AppDatabase db, $MaengelTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MaengelTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MaengelTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MaengelTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> auftragId = const Value.absent(),
+                Value<String?> nummer = const Value.absent(),
+                Value<String?> bauteil = const Value.absent(),
+                Value<String> beschreibung = const Value.absent(),
+                Value<String?> ursache = const Value.absent(),
+                Value<String?> folge = const Value.absent(),
+                Value<String> prioritaet = const Value.absent(),
+                Value<double?> aufwand = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => MaengelCompanion(
+                id: id,
+                auftragId: auftragId,
+                nummer: nummer,
+                bauteil: bauteil,
+                beschreibung: beschreibung,
+                ursache: ursache,
+                folge: folge,
+                prioritaet: prioritaet,
+                aufwand: aufwand,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int auftragId,
+                Value<String?> nummer = const Value.absent(),
+                Value<String?> bauteil = const Value.absent(),
+                required String beschreibung,
+                Value<String?> ursache = const Value.absent(),
+                Value<String?> folge = const Value.absent(),
+                Value<String> prioritaet = const Value.absent(),
+                Value<double?> aufwand = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => MaengelCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                nummer: nummer,
+                bauteil: bauteil,
+                beschreibung: beschreibung,
+                ursache: ursache,
+                folge: folge,
+                prioritaet: prioritaet,
+                aufwand: aufwand,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$MaengelTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable: $$MaengelTableReferences
+                                    ._auftragIdTable(db),
+                                referencedColumn: $$MaengelTableReferences
+                                    ._auftragIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MaengelTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MaengelTable,
+      MaengelData,
+      $$MaengelTableFilterComposer,
+      $$MaengelTableOrderingComposer,
+      $$MaengelTableAnnotationComposer,
+      $$MaengelTableCreateCompanionBuilder,
+      $$MaengelTableUpdateCompanionBuilder,
+      (MaengelData, $$MaengelTableReferences),
+      MaengelData,
+      PrefetchHooks Function({bool auftragId})
+    >;
+typedef $$UebergabenTableCreateCompanionBuilder =
+    UebergabenCompanion Function({
+      Value<int> id,
+      required int auftragId,
+      Value<DateTime> datum,
+      Value<String?> von,
+      Value<String?> an,
+      Value<String?> umfang,
+      Value<String?> unterlagen,
+      Value<String?> bemerkung,
+      Value<String?> unterschriftBase64,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$UebergabenTableUpdateCompanionBuilder =
+    UebergabenCompanion Function({
+      Value<int> id,
+      Value<int> auftragId,
+      Value<DateTime> datum,
+      Value<String?> von,
+      Value<String?> an,
+      Value<String?> umfang,
+      Value<String?> unterlagen,
+      Value<String?> bemerkung,
+      Value<String?> unterschriftBase64,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$UebergabenTableReferences
+    extends BaseReferences<_$AppDatabase, $UebergabenTable, UebergabenData> {
+  $$UebergabenTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) =>
+      db.auftraege.createAlias(
+        $_aliasNameGenerator(db.uebergaben.auftragId, db.auftraege.id),
+      );
+
+  $$AuftraegeTableProcessedTableManager get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id')!;
+
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$UebergabenTableFilterComposer
+    extends Composer<_$AppDatabase, $UebergabenTable> {
+  $$UebergabenTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get datum => $composableBuilder(
+    column: $table.datum,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get von => $composableBuilder(
+    column: $table.von,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get an => $composableBuilder(
+    column: $table.an,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get umfang => $composableBuilder(
+    column: $table.umfang,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unterlagen => $composableBuilder(
+    column: $table.unterlagen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unterschriftBase64 => $composableBuilder(
+    column: $table.unterschriftBase64,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UebergabenTableOrderingComposer
+    extends Composer<_$AppDatabase, $UebergabenTable> {
+  $$UebergabenTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get datum => $composableBuilder(
+    column: $table.datum,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get von => $composableBuilder(
+    column: $table.von,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get an => $composableBuilder(
+    column: $table.an,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get umfang => $composableBuilder(
+    column: $table.umfang,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unterlagen => $composableBuilder(
+    column: $table.unterlagen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unterschriftBase64 => $composableBuilder(
+    column: $table.unterschriftBase64,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UebergabenTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UebergabenTable> {
+  $$UebergabenTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get datum =>
+      $composableBuilder(column: $table.datum, builder: (column) => column);
+
+  GeneratedColumn<String> get von =>
+      $composableBuilder(column: $table.von, builder: (column) => column);
+
+  GeneratedColumn<String> get an =>
+      $composableBuilder(column: $table.an, builder: (column) => column);
+
+  GeneratedColumn<String> get umfang =>
+      $composableBuilder(column: $table.umfang, builder: (column) => column);
+
+  GeneratedColumn<String> get unterlagen => $composableBuilder(
+    column: $table.unterlagen,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bemerkung =>
+      $composableBuilder(column: $table.bemerkung, builder: (column) => column);
+
+  GeneratedColumn<String> get unterschriftBase64 => $composableBuilder(
+    column: $table.unterschriftBase64,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UebergabenTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UebergabenTable,
+          UebergabenData,
+          $$UebergabenTableFilterComposer,
+          $$UebergabenTableOrderingComposer,
+          $$UebergabenTableAnnotationComposer,
+          $$UebergabenTableCreateCompanionBuilder,
+          $$UebergabenTableUpdateCompanionBuilder,
+          (UebergabenData, $$UebergabenTableReferences),
+          UebergabenData,
+          PrefetchHooks Function({bool auftragId})
+        > {
+  $$UebergabenTableTableManager(_$AppDatabase db, $UebergabenTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UebergabenTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UebergabenTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UebergabenTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> auftragId = const Value.absent(),
+                Value<DateTime> datum = const Value.absent(),
+                Value<String?> von = const Value.absent(),
+                Value<String?> an = const Value.absent(),
+                Value<String?> umfang = const Value.absent(),
+                Value<String?> unterlagen = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<String?> unterschriftBase64 = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => UebergabenCompanion(
+                id: id,
+                auftragId: auftragId,
+                datum: datum,
+                von: von,
+                an: an,
+                umfang: umfang,
+                unterlagen: unterlagen,
+                bemerkung: bemerkung,
+                unterschriftBase64: unterschriftBase64,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int auftragId,
+                Value<DateTime> datum = const Value.absent(),
+                Value<String?> von = const Value.absent(),
+                Value<String?> an = const Value.absent(),
+                Value<String?> umfang = const Value.absent(),
+                Value<String?> unterlagen = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<String?> unterschriftBase64 = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => UebergabenCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                datum: datum,
+                von: von,
+                an: an,
+                umfang: umfang,
+                unterlagen: unterlagen,
+                bemerkung: bemerkung,
+                unterschriftBase64: unterschriftBase64,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$UebergabenTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable: $$UebergabenTableReferences
+                                    ._auftragIdTable(db),
+                                referencedColumn: $$UebergabenTableReferences
+                                    ._auftragIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$UebergabenTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UebergabenTable,
+      UebergabenData,
+      $$UebergabenTableFilterComposer,
+      $$UebergabenTableOrderingComposer,
+      $$UebergabenTableAnnotationComposer,
+      $$UebergabenTableCreateCompanionBuilder,
+      $$UebergabenTableUpdateCompanionBuilder,
+      (UebergabenData, $$UebergabenTableReferences),
+      UebergabenData,
+      PrefetchHooks Function({bool auftragId})
+    >;
+typedef $$QualifikationenTableCreateCompanionBuilder =
+    QualifikationenCompanion Function({
+      Value<int> id,
+      required String titel,
+      Value<String?> aussteller,
+      Value<DateTime?> ausgestelltAm,
+      Value<DateTime?> gueltigBis,
+      Value<String> typ,
+      Value<String?> beschreibung,
+      Value<String?> nachweisStorageUrl,
+      Value<String?> nachweisDateiname,
+      Value<String?> nachweisMimeType,
+      Value<int?> nachweisGroesse,
+      Value<bool> standardAnhang,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$QualifikationenTableUpdateCompanionBuilder =
+    QualifikationenCompanion Function({
+      Value<int> id,
+      Value<String> titel,
+      Value<String?> aussteller,
+      Value<DateTime?> ausgestelltAm,
+      Value<DateTime?> gueltigBis,
+      Value<String> typ,
+      Value<String?> beschreibung,
+      Value<String?> nachweisStorageUrl,
+      Value<String?> nachweisDateiname,
+      Value<String?> nachweisMimeType,
+      Value<int?> nachweisGroesse,
+      Value<bool> standardAnhang,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$QualifikationenTableFilterComposer
+    extends Composer<_$AppDatabase, $QualifikationenTable> {
+  $$QualifikationenTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titel => $composableBuilder(
+    column: $table.titel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get aussteller => $composableBuilder(
+    column: $table.aussteller,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get ausgestelltAm => $composableBuilder(
+    column: $table.ausgestelltAm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get gueltigBis => $composableBuilder(
+    column: $table.gueltigBis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get typ => $composableBuilder(
+    column: $table.typ,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get beschreibung => $composableBuilder(
+    column: $table.beschreibung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nachweisStorageUrl => $composableBuilder(
+    column: $table.nachweisStorageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nachweisDateiname => $composableBuilder(
+    column: $table.nachweisDateiname,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nachweisMimeType => $composableBuilder(
+    column: $table.nachweisMimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nachweisGroesse => $composableBuilder(
+    column: $table.nachweisGroesse,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get standardAnhang => $composableBuilder(
+    column: $table.standardAnhang,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$QualifikationenTableOrderingComposer
+    extends Composer<_$AppDatabase, $QualifikationenTable> {
+  $$QualifikationenTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titel => $composableBuilder(
+    column: $table.titel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get aussteller => $composableBuilder(
+    column: $table.aussteller,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get ausgestelltAm => $composableBuilder(
+    column: $table.ausgestelltAm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get gueltigBis => $composableBuilder(
+    column: $table.gueltigBis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get typ => $composableBuilder(
+    column: $table.typ,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get beschreibung => $composableBuilder(
+    column: $table.beschreibung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nachweisStorageUrl => $composableBuilder(
+    column: $table.nachweisStorageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nachweisDateiname => $composableBuilder(
+    column: $table.nachweisDateiname,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nachweisMimeType => $composableBuilder(
+    column: $table.nachweisMimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nachweisGroesse => $composableBuilder(
+    column: $table.nachweisGroesse,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get standardAnhang => $composableBuilder(
+    column: $table.standardAnhang,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$QualifikationenTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QualifikationenTable> {
+  $$QualifikationenTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get titel =>
+      $composableBuilder(column: $table.titel, builder: (column) => column);
+
+  GeneratedColumn<String> get aussteller => $composableBuilder(
+    column: $table.aussteller,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get ausgestelltAm => $composableBuilder(
+    column: $table.ausgestelltAm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get gueltigBis => $composableBuilder(
+    column: $table.gueltigBis,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get typ =>
+      $composableBuilder(column: $table.typ, builder: (column) => column);
+
+  GeneratedColumn<String> get beschreibung => $composableBuilder(
+    column: $table.beschreibung,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nachweisStorageUrl => $composableBuilder(
+    column: $table.nachweisStorageUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nachweisDateiname => $composableBuilder(
+    column: $table.nachweisDateiname,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nachweisMimeType => $composableBuilder(
+    column: $table.nachweisMimeType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get nachweisGroesse => $composableBuilder(
+    column: $table.nachweisGroesse,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get standardAnhang => $composableBuilder(
+    column: $table.standardAnhang,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get extras =>
+      $composableBuilder(column: $table.extras, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$QualifikationenTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QualifikationenTable,
+          QualifikationenData,
+          $$QualifikationenTableFilterComposer,
+          $$QualifikationenTableOrderingComposer,
+          $$QualifikationenTableAnnotationComposer,
+          $$QualifikationenTableCreateCompanionBuilder,
+          $$QualifikationenTableUpdateCompanionBuilder,
+          (
+            QualifikationenData,
+            BaseReferences<
+              _$AppDatabase,
+              $QualifikationenTable,
+              QualifikationenData
+            >,
+          ),
+          QualifikationenData,
+          PrefetchHooks Function()
+        > {
+  $$QualifikationenTableTableManager(
+    _$AppDatabase db,
+    $QualifikationenTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QualifikationenTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QualifikationenTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QualifikationenTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> titel = const Value.absent(),
+                Value<String?> aussteller = const Value.absent(),
+                Value<DateTime?> ausgestelltAm = const Value.absent(),
+                Value<DateTime?> gueltigBis = const Value.absent(),
+                Value<String> typ = const Value.absent(),
+                Value<String?> beschreibung = const Value.absent(),
+                Value<String?> nachweisStorageUrl = const Value.absent(),
+                Value<String?> nachweisDateiname = const Value.absent(),
+                Value<String?> nachweisMimeType = const Value.absent(),
+                Value<int?> nachweisGroesse = const Value.absent(),
+                Value<bool> standardAnhang = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => QualifikationenCompanion(
+                id: id,
+                titel: titel,
+                aussteller: aussteller,
+                ausgestelltAm: ausgestelltAm,
+                gueltigBis: gueltigBis,
+                typ: typ,
+                beschreibung: beschreibung,
+                nachweisStorageUrl: nachweisStorageUrl,
+                nachweisDateiname: nachweisDateiname,
+                nachweisMimeType: nachweisMimeType,
+                nachweisGroesse: nachweisGroesse,
+                standardAnhang: standardAnhang,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String titel,
+                Value<String?> aussteller = const Value.absent(),
+                Value<DateTime?> ausgestelltAm = const Value.absent(),
+                Value<DateTime?> gueltigBis = const Value.absent(),
+                Value<String> typ = const Value.absent(),
+                Value<String?> beschreibung = const Value.absent(),
+                Value<String?> nachweisStorageUrl = const Value.absent(),
+                Value<String?> nachweisDateiname = const Value.absent(),
+                Value<String?> nachweisMimeType = const Value.absent(),
+                Value<int?> nachweisGroesse = const Value.absent(),
+                Value<bool> standardAnhang = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => QualifikationenCompanion.insert(
+                id: id,
+                titel: titel,
+                aussteller: aussteller,
+                ausgestelltAm: ausgestelltAm,
+                gueltigBis: gueltigBis,
+                typ: typ,
+                beschreibung: beschreibung,
+                nachweisStorageUrl: nachweisStorageUrl,
+                nachweisDateiname: nachweisDateiname,
+                nachweisMimeType: nachweisMimeType,
+                nachweisGroesse: nachweisGroesse,
+                standardAnhang: standardAnhang,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$QualifikationenTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QualifikationenTable,
+      QualifikationenData,
+      $$QualifikationenTableFilterComposer,
+      $$QualifikationenTableOrderingComposer,
+      $$QualifikationenTableAnnotationComposer,
+      $$QualifikationenTableCreateCompanionBuilder,
+      $$QualifikationenTableUpdateCompanionBuilder,
+      (
+        QualifikationenData,
+        BaseReferences<
+          _$AppDatabase,
+          $QualifikationenTable,
+          QualifikationenData
+        >,
+      ),
+      QualifikationenData,
+      PrefetchHooks Function()
+    >;
+typedef $$BauteiloeffnungenTableCreateCompanionBuilder =
+    BauteiloeffnungenCompanion Function({
+      Value<int> id,
+      required int auftragId,
+      Value<DateTime> datum,
+      Value<String?> lage,
+      Value<String?> methode,
+      Value<String?> anwesend,
+      Value<String?> befund,
+      Value<String?> messwerteJson,
+      Value<String?> fotoVorStorageUrl,
+      Value<String?> fotoNachStorageUrl,
+      Value<String?> bemerkung,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$BauteiloeffnungenTableUpdateCompanionBuilder =
+    BauteiloeffnungenCompanion Function({
+      Value<int> id,
+      Value<int> auftragId,
+      Value<DateTime> datum,
+      Value<String?> lage,
+      Value<String?> methode,
+      Value<String?> anwesend,
+      Value<String?> befund,
+      Value<String?> messwerteJson,
+      Value<String?> fotoVorStorageUrl,
+      Value<String?> fotoNachStorageUrl,
+      Value<String?> bemerkung,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$BauteiloeffnungenTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $BauteiloeffnungenTable,
+          BauteiloeffnungenData
+        > {
+  $$BauteiloeffnungenTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) =>
+      db.auftraege.createAlias(
+        $_aliasNameGenerator(db.bauteiloeffnungen.auftragId, db.auftraege.id),
+      );
+
+  $$AuftraegeTableProcessedTableManager get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id')!;
+
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$BauteiloeffnungenTableFilterComposer
+    extends Composer<_$AppDatabase, $BauteiloeffnungenTable> {
+  $$BauteiloeffnungenTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get datum => $composableBuilder(
+    column: $table.datum,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lage => $composableBuilder(
+    column: $table.lage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get methode => $composableBuilder(
+    column: $table.methode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get anwesend => $composableBuilder(
+    column: $table.anwesend,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get befund => $composableBuilder(
+    column: $table.befund,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get messwerteJson => $composableBuilder(
+    column: $table.messwerteJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fotoVorStorageUrl => $composableBuilder(
+    column: $table.fotoVorStorageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fotoNachStorageUrl => $composableBuilder(
+    column: $table.fotoNachStorageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BauteiloeffnungenTableOrderingComposer
+    extends Composer<_$AppDatabase, $BauteiloeffnungenTable> {
+  $$BauteiloeffnungenTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get datum => $composableBuilder(
+    column: $table.datum,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lage => $composableBuilder(
+    column: $table.lage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get methode => $composableBuilder(
+    column: $table.methode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get anwesend => $composableBuilder(
+    column: $table.anwesend,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get befund => $composableBuilder(
+    column: $table.befund,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get messwerteJson => $composableBuilder(
+    column: $table.messwerteJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fotoVorStorageUrl => $composableBuilder(
+    column: $table.fotoVorStorageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fotoNachStorageUrl => $composableBuilder(
+    column: $table.fotoNachStorageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BauteiloeffnungenTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BauteiloeffnungenTable> {
+  $$BauteiloeffnungenTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get datum =>
+      $composableBuilder(column: $table.datum, builder: (column) => column);
+
+  GeneratedColumn<String> get lage =>
+      $composableBuilder(column: $table.lage, builder: (column) => column);
+
+  GeneratedColumn<String> get methode =>
+      $composableBuilder(column: $table.methode, builder: (column) => column);
+
+  GeneratedColumn<String> get anwesend =>
+      $composableBuilder(column: $table.anwesend, builder: (column) => column);
+
+  GeneratedColumn<String> get befund =>
+      $composableBuilder(column: $table.befund, builder: (column) => column);
+
+  GeneratedColumn<String> get messwerteJson => $composableBuilder(
+    column: $table.messwerteJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fotoVorStorageUrl => $composableBuilder(
+    column: $table.fotoVorStorageUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fotoNachStorageUrl => $composableBuilder(
+    column: $table.fotoNachStorageUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bemerkung =>
+      $composableBuilder(column: $table.bemerkung, builder: (column) => column);
+
+  GeneratedColumn<String> get extras =>
+      $composableBuilder(column: $table.extras, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BauteiloeffnungenTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BauteiloeffnungenTable,
+          BauteiloeffnungenData,
+          $$BauteiloeffnungenTableFilterComposer,
+          $$BauteiloeffnungenTableOrderingComposer,
+          $$BauteiloeffnungenTableAnnotationComposer,
+          $$BauteiloeffnungenTableCreateCompanionBuilder,
+          $$BauteiloeffnungenTableUpdateCompanionBuilder,
+          (BauteiloeffnungenData, $$BauteiloeffnungenTableReferences),
+          BauteiloeffnungenData,
+          PrefetchHooks Function({bool auftragId})
+        > {
+  $$BauteiloeffnungenTableTableManager(
+    _$AppDatabase db,
+    $BauteiloeffnungenTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BauteiloeffnungenTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BauteiloeffnungenTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BauteiloeffnungenTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> auftragId = const Value.absent(),
+                Value<DateTime> datum = const Value.absent(),
+                Value<String?> lage = const Value.absent(),
+                Value<String?> methode = const Value.absent(),
+                Value<String?> anwesend = const Value.absent(),
+                Value<String?> befund = const Value.absent(),
+                Value<String?> messwerteJson = const Value.absent(),
+                Value<String?> fotoVorStorageUrl = const Value.absent(),
+                Value<String?> fotoNachStorageUrl = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => BauteiloeffnungenCompanion(
+                id: id,
+                auftragId: auftragId,
+                datum: datum,
+                lage: lage,
+                methode: methode,
+                anwesend: anwesend,
+                befund: befund,
+                messwerteJson: messwerteJson,
+                fotoVorStorageUrl: fotoVorStorageUrl,
+                fotoNachStorageUrl: fotoNachStorageUrl,
+                bemerkung: bemerkung,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int auftragId,
+                Value<DateTime> datum = const Value.absent(),
+                Value<String?> lage = const Value.absent(),
+                Value<String?> methode = const Value.absent(),
+                Value<String?> anwesend = const Value.absent(),
+                Value<String?> befund = const Value.absent(),
+                Value<String?> messwerteJson = const Value.absent(),
+                Value<String?> fotoVorStorageUrl = const Value.absent(),
+                Value<String?> fotoNachStorageUrl = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => BauteiloeffnungenCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                datum: datum,
+                lage: lage,
+                methode: methode,
+                anwesend: anwesend,
+                befund: befund,
+                messwerteJson: messwerteJson,
+                fotoVorStorageUrl: fotoVorStorageUrl,
+                fotoNachStorageUrl: fotoNachStorageUrl,
+                bemerkung: bemerkung,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BauteiloeffnungenTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable:
+                                    $$BauteiloeffnungenTableReferences
+                                        ._auftragIdTable(db),
+                                referencedColumn:
+                                    $$BauteiloeffnungenTableReferences
+                                        ._auftragIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BauteiloeffnungenTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BauteiloeffnungenTable,
+      BauteiloeffnungenData,
+      $$BauteiloeffnungenTableFilterComposer,
+      $$BauteiloeffnungenTableOrderingComposer,
+      $$BauteiloeffnungenTableAnnotationComposer,
+      $$BauteiloeffnungenTableCreateCompanionBuilder,
+      $$BauteiloeffnungenTableUpdateCompanionBuilder,
+      (BauteiloeffnungenData, $$BauteiloeffnungenTableReferences),
+      BauteiloeffnungenData,
+      PrefetchHooks Function({bool auftragId})
+    >;
+typedef $$MesswerteTableCreateCompanionBuilder =
+    MesswerteCompanion Function({
+      Value<int> id,
+      required int auftragId,
+      Value<int?> geraetId,
+      Value<DateTime> zeitpunkt,
+      required String groesse,
+      Value<String?> einheit,
+      required double wert,
+      Value<String?> serie,
+      Value<String?> ort,
+      Value<String?> bemerkung,
+      Value<DateTime> createdAt,
+    });
+typedef $$MesswerteTableUpdateCompanionBuilder =
+    MesswerteCompanion Function({
+      Value<int> id,
+      Value<int> auftragId,
+      Value<int?> geraetId,
+      Value<DateTime> zeitpunkt,
+      Value<String> groesse,
+      Value<String?> einheit,
+      Value<double> wert,
+      Value<String?> serie,
+      Value<String?> ort,
+      Value<String?> bemerkung,
+      Value<DateTime> createdAt,
+    });
+
+final class $$MesswerteTableReferences
+    extends BaseReferences<_$AppDatabase, $MesswerteTable, MesswerteData> {
+  $$MesswerteTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) =>
+      db.auftraege.createAlias(
+        $_aliasNameGenerator(db.messwerte.auftragId, db.auftraege.id),
+      );
+
+  $$AuftraegeTableProcessedTableManager get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id')!;
+
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $GeraeteTable _geraetIdTable(_$AppDatabase db) => db.geraete
+      .createAlias($_aliasNameGenerator(db.messwerte.geraetId, db.geraete.id));
+
+  $$GeraeteTableProcessedTableManager? get geraetId {
+    final $_column = $_itemColumn<int>('geraet_id');
+    if ($_column == null) return null;
+    final manager = $$GeraeteTableTableManager(
+      $_db,
+      $_db.geraete,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_geraetIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MesswerteTableFilterComposer
+    extends Composer<_$AppDatabase, $MesswerteTable> {
+  $$MesswerteTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get zeitpunkt => $composableBuilder(
+    column: $table.zeitpunkt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get groesse => $composableBuilder(
+    column: $table.groesse,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get einheit => $composableBuilder(
+    column: $table.einheit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get wert => $composableBuilder(
+    column: $table.wert,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serie => $composableBuilder(
+    column: $table.serie,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ort => $composableBuilder(
+    column: $table.ort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$GeraeteTableFilterComposer get geraetId {
+    final $$GeraeteTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.geraetId,
+      referencedTable: $db.geraete,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GeraeteTableFilterComposer(
+            $db: $db,
+            $table: $db.geraete,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MesswerteTableOrderingComposer
+    extends Composer<_$AppDatabase, $MesswerteTable> {
+  $$MesswerteTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get zeitpunkt => $composableBuilder(
+    column: $table.zeitpunkt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get groesse => $composableBuilder(
+    column: $table.groesse,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get einheit => $composableBuilder(
+    column: $table.einheit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get wert => $composableBuilder(
+    column: $table.wert,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serie => $composableBuilder(
+    column: $table.serie,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ort => $composableBuilder(
+    column: $table.ort,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$GeraeteTableOrderingComposer get geraetId {
+    final $$GeraeteTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.geraetId,
+      referencedTable: $db.geraete,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GeraeteTableOrderingComposer(
+            $db: $db,
+            $table: $db.geraete,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MesswerteTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MesswerteTable> {
+  $$MesswerteTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get zeitpunkt =>
+      $composableBuilder(column: $table.zeitpunkt, builder: (column) => column);
+
+  GeneratedColumn<String> get groesse =>
+      $composableBuilder(column: $table.groesse, builder: (column) => column);
+
+  GeneratedColumn<String> get einheit =>
+      $composableBuilder(column: $table.einheit, builder: (column) => column);
+
+  GeneratedColumn<double> get wert =>
+      $composableBuilder(column: $table.wert, builder: (column) => column);
+
+  GeneratedColumn<String> get serie =>
+      $composableBuilder(column: $table.serie, builder: (column) => column);
+
+  GeneratedColumn<String> get ort =>
+      $composableBuilder(column: $table.ort, builder: (column) => column);
+
+  GeneratedColumn<String> get bemerkung =>
+      $composableBuilder(column: $table.bemerkung, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$GeraeteTableAnnotationComposer get geraetId {
+    final $$GeraeteTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.geraetId,
+      referencedTable: $db.geraete,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$GeraeteTableAnnotationComposer(
+            $db: $db,
+            $table: $db.geraete,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MesswerteTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MesswerteTable,
+          MesswerteData,
+          $$MesswerteTableFilterComposer,
+          $$MesswerteTableOrderingComposer,
+          $$MesswerteTableAnnotationComposer,
+          $$MesswerteTableCreateCompanionBuilder,
+          $$MesswerteTableUpdateCompanionBuilder,
+          (MesswerteData, $$MesswerteTableReferences),
+          MesswerteData,
+          PrefetchHooks Function({bool auftragId, bool geraetId})
+        > {
+  $$MesswerteTableTableManager(_$AppDatabase db, $MesswerteTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MesswerteTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MesswerteTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MesswerteTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> auftragId = const Value.absent(),
+                Value<int?> geraetId = const Value.absent(),
+                Value<DateTime> zeitpunkt = const Value.absent(),
+                Value<String> groesse = const Value.absent(),
+                Value<String?> einheit = const Value.absent(),
+                Value<double> wert = const Value.absent(),
+                Value<String?> serie = const Value.absent(),
+                Value<String?> ort = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => MesswerteCompanion(
+                id: id,
+                auftragId: auftragId,
+                geraetId: geraetId,
+                zeitpunkt: zeitpunkt,
+                groesse: groesse,
+                einheit: einheit,
+                wert: wert,
+                serie: serie,
+                ort: ort,
+                bemerkung: bemerkung,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int auftragId,
+                Value<int?> geraetId = const Value.absent(),
+                Value<DateTime> zeitpunkt = const Value.absent(),
+                required String groesse,
+                Value<String?> einheit = const Value.absent(),
+                required double wert,
+                Value<String?> serie = const Value.absent(),
+                Value<String?> ort = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => MesswerteCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                geraetId: geraetId,
+                zeitpunkt: zeitpunkt,
+                groesse: groesse,
+                einheit: einheit,
+                wert: wert,
+                serie: serie,
+                ort: ort,
+                bemerkung: bemerkung,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$MesswerteTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false, geraetId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable: $$MesswerteTableReferences
+                                    ._auftragIdTable(db),
+                                referencedColumn: $$MesswerteTableReferences
+                                    ._auftragIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (geraetId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.geraetId,
+                                referencedTable: $$MesswerteTableReferences
+                                    ._geraetIdTable(db),
+                                referencedColumn: $$MesswerteTableReferences
+                                    ._geraetIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MesswerteTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MesswerteTable,
+      MesswerteData,
+      $$MesswerteTableFilterComposer,
+      $$MesswerteTableOrderingComposer,
+      $$MesswerteTableAnnotationComposer,
+      $$MesswerteTableCreateCompanionBuilder,
+      $$MesswerteTableUpdateCompanionBuilder,
+      (MesswerteData, $$MesswerteTableReferences),
+      MesswerteData,
+      PrefetchHooks Function({bool auftragId, bool geraetId})
+    >;
+typedef $$WertermittlungenTableCreateCompanionBuilder =
+    WertermittlungenCompanion Function({
+      Value<int> id,
+      required int auftragId,
+      Value<DateTime> stichtag,
+      Value<double?> bodenrichtwert,
+      Value<double?> grundstueckFlaeche,
+      Value<double?> bgf,
+      Value<double?> nhk,
+      Value<double?> altersminderungFaktor,
+      Value<double?> marktanpassungFaktor,
+      Value<double?> vergleichswert,
+      Value<double?> sachwert,
+      Value<double?> marktwert,
+      Value<String?> berechnungJson,
+      Value<String?> bemerkung,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$WertermittlungenTableUpdateCompanionBuilder =
+    WertermittlungenCompanion Function({
+      Value<int> id,
+      Value<int> auftragId,
+      Value<DateTime> stichtag,
+      Value<double?> bodenrichtwert,
+      Value<double?> grundstueckFlaeche,
+      Value<double?> bgf,
+      Value<double?> nhk,
+      Value<double?> altersminderungFaktor,
+      Value<double?> marktanpassungFaktor,
+      Value<double?> vergleichswert,
+      Value<double?> sachwert,
+      Value<double?> marktwert,
+      Value<String?> berechnungJson,
+      Value<String?> bemerkung,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$WertermittlungenTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $WertermittlungenTable,
+          WertermittlungenData
+        > {
+  $$WertermittlungenTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) =>
+      db.auftraege.createAlias(
+        $_aliasNameGenerator(db.wertermittlungen.auftragId, db.auftraege.id),
+      );
+
+  $$AuftraegeTableProcessedTableManager get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id')!;
+
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$WertermittlungenTableFilterComposer
+    extends Composer<_$AppDatabase, $WertermittlungenTable> {
+  $$WertermittlungenTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get stichtag => $composableBuilder(
+    column: $table.stichtag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bodenrichtwert => $composableBuilder(
+    column: $table.bodenrichtwert,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get grundstueckFlaeche => $composableBuilder(
+    column: $table.grundstueckFlaeche,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bgf => $composableBuilder(
+    column: $table.bgf,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get nhk => $composableBuilder(
+    column: $table.nhk,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get altersminderungFaktor => $composableBuilder(
+    column: $table.altersminderungFaktor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get marktanpassungFaktor => $composableBuilder(
+    column: $table.marktanpassungFaktor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get vergleichswert => $composableBuilder(
+    column: $table.vergleichswert,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get sachwert => $composableBuilder(
+    column: $table.sachwert,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get marktwert => $composableBuilder(
+    column: $table.marktwert,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get berechnungJson => $composableBuilder(
+    column: $table.berechnungJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WertermittlungenTableOrderingComposer
+    extends Composer<_$AppDatabase, $WertermittlungenTable> {
+  $$WertermittlungenTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get stichtag => $composableBuilder(
+    column: $table.stichtag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get bodenrichtwert => $composableBuilder(
+    column: $table.bodenrichtwert,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get grundstueckFlaeche => $composableBuilder(
+    column: $table.grundstueckFlaeche,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get bgf => $composableBuilder(
+    column: $table.bgf,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get nhk => $composableBuilder(
+    column: $table.nhk,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get altersminderungFaktor => $composableBuilder(
+    column: $table.altersminderungFaktor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get marktanpassungFaktor => $composableBuilder(
+    column: $table.marktanpassungFaktor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get vergleichswert => $composableBuilder(
+    column: $table.vergleichswert,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get sachwert => $composableBuilder(
+    column: $table.sachwert,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get marktwert => $composableBuilder(
+    column: $table.marktwert,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get berechnungJson => $composableBuilder(
+    column: $table.berechnungJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bemerkung => $composableBuilder(
+    column: $table.bemerkung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WertermittlungenTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WertermittlungenTable> {
+  $$WertermittlungenTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get stichtag =>
+      $composableBuilder(column: $table.stichtag, builder: (column) => column);
+
+  GeneratedColumn<double> get bodenrichtwert => $composableBuilder(
+    column: $table.bodenrichtwert,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get grundstueckFlaeche => $composableBuilder(
+    column: $table.grundstueckFlaeche,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get bgf =>
+      $composableBuilder(column: $table.bgf, builder: (column) => column);
+
+  GeneratedColumn<double> get nhk =>
+      $composableBuilder(column: $table.nhk, builder: (column) => column);
+
+  GeneratedColumn<double> get altersminderungFaktor => $composableBuilder(
+    column: $table.altersminderungFaktor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get marktanpassungFaktor => $composableBuilder(
+    column: $table.marktanpassungFaktor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get vergleichswert => $composableBuilder(
+    column: $table.vergleichswert,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get sachwert =>
+      $composableBuilder(column: $table.sachwert, builder: (column) => column);
+
+  GeneratedColumn<double> get marktwert =>
+      $composableBuilder(column: $table.marktwert, builder: (column) => column);
+
+  GeneratedColumn<String> get berechnungJson => $composableBuilder(
+    column: $table.berechnungJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bemerkung =>
+      $composableBuilder(column: $table.bemerkung, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WertermittlungenTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WertermittlungenTable,
+          WertermittlungenData,
+          $$WertermittlungenTableFilterComposer,
+          $$WertermittlungenTableOrderingComposer,
+          $$WertermittlungenTableAnnotationComposer,
+          $$WertermittlungenTableCreateCompanionBuilder,
+          $$WertermittlungenTableUpdateCompanionBuilder,
+          (WertermittlungenData, $$WertermittlungenTableReferences),
+          WertermittlungenData,
+          PrefetchHooks Function({bool auftragId})
+        > {
+  $$WertermittlungenTableTableManager(
+    _$AppDatabase db,
+    $WertermittlungenTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WertermittlungenTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WertermittlungenTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WertermittlungenTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> auftragId = const Value.absent(),
+                Value<DateTime> stichtag = const Value.absent(),
+                Value<double?> bodenrichtwert = const Value.absent(),
+                Value<double?> grundstueckFlaeche = const Value.absent(),
+                Value<double?> bgf = const Value.absent(),
+                Value<double?> nhk = const Value.absent(),
+                Value<double?> altersminderungFaktor = const Value.absent(),
+                Value<double?> marktanpassungFaktor = const Value.absent(),
+                Value<double?> vergleichswert = const Value.absent(),
+                Value<double?> sachwert = const Value.absent(),
+                Value<double?> marktwert = const Value.absent(),
+                Value<String?> berechnungJson = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => WertermittlungenCompanion(
+                id: id,
+                auftragId: auftragId,
+                stichtag: stichtag,
+                bodenrichtwert: bodenrichtwert,
+                grundstueckFlaeche: grundstueckFlaeche,
+                bgf: bgf,
+                nhk: nhk,
+                altersminderungFaktor: altersminderungFaktor,
+                marktanpassungFaktor: marktanpassungFaktor,
+                vergleichswert: vergleichswert,
+                sachwert: sachwert,
+                marktwert: marktwert,
+                berechnungJson: berechnungJson,
+                bemerkung: bemerkung,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int auftragId,
+                Value<DateTime> stichtag = const Value.absent(),
+                Value<double?> bodenrichtwert = const Value.absent(),
+                Value<double?> grundstueckFlaeche = const Value.absent(),
+                Value<double?> bgf = const Value.absent(),
+                Value<double?> nhk = const Value.absent(),
+                Value<double?> altersminderungFaktor = const Value.absent(),
+                Value<double?> marktanpassungFaktor = const Value.absent(),
+                Value<double?> vergleichswert = const Value.absent(),
+                Value<double?> sachwert = const Value.absent(),
+                Value<double?> marktwert = const Value.absent(),
+                Value<String?> berechnungJson = const Value.absent(),
+                Value<String?> bemerkung = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => WertermittlungenCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                stichtag: stichtag,
+                bodenrichtwert: bodenrichtwert,
+                grundstueckFlaeche: grundstueckFlaeche,
+                bgf: bgf,
+                nhk: nhk,
+                altersminderungFaktor: altersminderungFaktor,
+                marktanpassungFaktor: marktanpassungFaktor,
+                vergleichswert: vergleichswert,
+                sachwert: sachwert,
+                marktwert: marktwert,
+                berechnungJson: berechnungJson,
+                bemerkung: bemerkung,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WertermittlungenTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable:
+                                    $$WertermittlungenTableReferences
+                                        ._auftragIdTable(db),
+                                referencedColumn:
+                                    $$WertermittlungenTableReferences
+                                        ._auftragIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$WertermittlungenTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WertermittlungenTable,
+      WertermittlungenData,
+      $$WertermittlungenTableFilterComposer,
+      $$WertermittlungenTableOrderingComposer,
+      $$WertermittlungenTableAnnotationComposer,
+      $$WertermittlungenTableCreateCompanionBuilder,
+      $$WertermittlungenTableUpdateCompanionBuilder,
+      (WertermittlungenData, $$WertermittlungenTableReferences),
+      WertermittlungenData,
+      PrefetchHooks Function({bool auftragId})
+    >;
+typedef $$SerienbriefeTableCreateCompanionBuilder =
+    SerienbriefeCompanion Function({
+      Value<int> id,
+      Value<DateTime> datum,
+      Value<String?> betreff,
+      Value<String?> anrede,
+      Value<String?> gruss,
+      Value<String?> inhaltJson,
+      Value<String> versandart,
+      Value<String?> empfaengerIdsJson,
+      Value<int> anzahl,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$SerienbriefeTableUpdateCompanionBuilder =
+    SerienbriefeCompanion Function({
+      Value<int> id,
+      Value<DateTime> datum,
+      Value<String?> betreff,
+      Value<String?> anrede,
+      Value<String?> gruss,
+      Value<String?> inhaltJson,
+      Value<String> versandart,
+      Value<String?> empfaengerIdsJson,
+      Value<int> anzahl,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$SerienbriefeTableFilterComposer
+    extends Composer<_$AppDatabase, $SerienbriefeTable> {
+  $$SerienbriefeTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get datum => $composableBuilder(
+    column: $table.datum,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get betreff => $composableBuilder(
+    column: $table.betreff,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get anrede => $composableBuilder(
+    column: $table.anrede,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gruss => $composableBuilder(
+    column: $table.gruss,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inhaltJson => $composableBuilder(
+    column: $table.inhaltJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get versandart => $composableBuilder(
+    column: $table.versandart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get empfaengerIdsJson => $composableBuilder(
+    column: $table.empfaengerIdsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get anzahl => $composableBuilder(
+    column: $table.anzahl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SerienbriefeTableOrderingComposer
+    extends Composer<_$AppDatabase, $SerienbriefeTable> {
+  $$SerienbriefeTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get datum => $composableBuilder(
+    column: $table.datum,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get betreff => $composableBuilder(
+    column: $table.betreff,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get anrede => $composableBuilder(
+    column: $table.anrede,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get gruss => $composableBuilder(
+    column: $table.gruss,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get inhaltJson => $composableBuilder(
+    column: $table.inhaltJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get versandart => $composableBuilder(
+    column: $table.versandart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get empfaengerIdsJson => $composableBuilder(
+    column: $table.empfaengerIdsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get anzahl => $composableBuilder(
+    column: $table.anzahl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SerienbriefeTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SerienbriefeTable> {
+  $$SerienbriefeTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get datum =>
+      $composableBuilder(column: $table.datum, builder: (column) => column);
+
+  GeneratedColumn<String> get betreff =>
+      $composableBuilder(column: $table.betreff, builder: (column) => column);
+
+  GeneratedColumn<String> get anrede =>
+      $composableBuilder(column: $table.anrede, builder: (column) => column);
+
+  GeneratedColumn<String> get gruss =>
+      $composableBuilder(column: $table.gruss, builder: (column) => column);
+
+  GeneratedColumn<String> get inhaltJson => $composableBuilder(
+    column: $table.inhaltJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get versandart => $composableBuilder(
+    column: $table.versandart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get empfaengerIdsJson => $composableBuilder(
+    column: $table.empfaengerIdsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get anzahl =>
+      $composableBuilder(column: $table.anzahl, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SerienbriefeTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SerienbriefeTable,
+          SerienbriefeData,
+          $$SerienbriefeTableFilterComposer,
+          $$SerienbriefeTableOrderingComposer,
+          $$SerienbriefeTableAnnotationComposer,
+          $$SerienbriefeTableCreateCompanionBuilder,
+          $$SerienbriefeTableUpdateCompanionBuilder,
+          (
+            SerienbriefeData,
+            BaseReferences<_$AppDatabase, $SerienbriefeTable, SerienbriefeData>,
+          ),
+          SerienbriefeData,
+          PrefetchHooks Function()
+        > {
+  $$SerienbriefeTableTableManager(_$AppDatabase db, $SerienbriefeTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SerienbriefeTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SerienbriefeTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SerienbriefeTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> datum = const Value.absent(),
+                Value<String?> betreff = const Value.absent(),
+                Value<String?> anrede = const Value.absent(),
+                Value<String?> gruss = const Value.absent(),
+                Value<String?> inhaltJson = const Value.absent(),
+                Value<String> versandart = const Value.absent(),
+                Value<String?> empfaengerIdsJson = const Value.absent(),
+                Value<int> anzahl = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SerienbriefeCompanion(
+                id: id,
+                datum: datum,
+                betreff: betreff,
+                anrede: anrede,
+                gruss: gruss,
+                inhaltJson: inhaltJson,
+                versandart: versandart,
+                empfaengerIdsJson: empfaengerIdsJson,
+                anzahl: anzahl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> datum = const Value.absent(),
+                Value<String?> betreff = const Value.absent(),
+                Value<String?> anrede = const Value.absent(),
+                Value<String?> gruss = const Value.absent(),
+                Value<String?> inhaltJson = const Value.absent(),
+                Value<String> versandart = const Value.absent(),
+                Value<String?> empfaengerIdsJson = const Value.absent(),
+                Value<int> anzahl = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SerienbriefeCompanion.insert(
+                id: id,
+                datum: datum,
+                betreff: betreff,
+                anrede: anrede,
+                gruss: gruss,
+                inhaltJson: inhaltJson,
+                versandart: versandart,
+                empfaengerIdsJson: empfaengerIdsJson,
+                anzahl: anzahl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SerienbriefeTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SerienbriefeTable,
+      SerienbriefeData,
+      $$SerienbriefeTableFilterComposer,
+      $$SerienbriefeTableOrderingComposer,
+      $$SerienbriefeTableAnnotationComposer,
+      $$SerienbriefeTableCreateCompanionBuilder,
+      $$SerienbriefeTableUpdateCompanionBuilder,
+      (
+        SerienbriefeData,
+        BaseReferences<_$AppDatabase, $SerienbriefeTable, SerienbriefeData>,
+      ),
+      SerienbriefeData,
+      PrefetchHooks Function()
+    >;
+typedef $$RechercheNotizenTableCreateCompanionBuilder =
+    RechercheNotizenCompanion Function({
+      Value<int> id,
+      Value<int?> auftragId,
+      required String titel,
+      required String inhalt,
+      Value<String?> quelle,
+      Value<String?> referenzNormenJson,
+      Value<bool> verwendet,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$RechercheNotizenTableUpdateCompanionBuilder =
+    RechercheNotizenCompanion Function({
+      Value<int> id,
+      Value<int?> auftragId,
+      Value<String> titel,
+      Value<String> inhalt,
+      Value<String?> quelle,
+      Value<String?> referenzNormenJson,
+      Value<bool> verwendet,
+      Value<String?> extras,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$RechercheNotizenTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $RechercheNotizenTable,
+          RechercheNotizenData
+        > {
+  $$RechercheNotizenTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AuftraegeTable _auftragIdTable(_$AppDatabase db) =>
+      db.auftraege.createAlias(
+        $_aliasNameGenerator(db.rechercheNotizen.auftragId, db.auftraege.id),
+      );
+
+  $$AuftraegeTableProcessedTableManager? get auftragId {
+    final $_column = $_itemColumn<int>('auftrag_id');
+    if ($_column == null) return null;
+    final manager = $$AuftraegeTableTableManager(
+      $_db,
+      $_db.auftraege,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_auftragIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RechercheNotizenTableFilterComposer
+    extends Composer<_$AppDatabase, $RechercheNotizenTable> {
+  $$RechercheNotizenTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titel => $composableBuilder(
+    column: $table.titel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inhalt => $composableBuilder(
+    column: $table.inhalt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get quelle => $composableBuilder(
+    column: $table.quelle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenzNormenJson => $composableBuilder(
+    column: $table.referenzNormenJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get verwendet => $composableBuilder(
+    column: $table.verwendet,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AuftraegeTableFilterComposer get auftragId {
+    final $$AuftraegeTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableFilterComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RechercheNotizenTableOrderingComposer
+    extends Composer<_$AppDatabase, $RechercheNotizenTable> {
+  $$RechercheNotizenTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titel => $composableBuilder(
+    column: $table.titel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get inhalt => $composableBuilder(
+    column: $table.inhalt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get quelle => $composableBuilder(
+    column: $table.quelle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenzNormenJson => $composableBuilder(
+    column: $table.referenzNormenJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get verwendet => $composableBuilder(
+    column: $table.verwendet,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AuftraegeTableOrderingComposer get auftragId {
+    final $$AuftraegeTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableOrderingComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RechercheNotizenTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RechercheNotizenTable> {
+  $$RechercheNotizenTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get titel =>
+      $composableBuilder(column: $table.titel, builder: (column) => column);
+
+  GeneratedColumn<String> get inhalt =>
+      $composableBuilder(column: $table.inhalt, builder: (column) => column);
+
+  GeneratedColumn<String> get quelle =>
+      $composableBuilder(column: $table.quelle, builder: (column) => column);
+
+  GeneratedColumn<String> get referenzNormenJson => $composableBuilder(
+    column: $table.referenzNormenJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get verwendet =>
+      $composableBuilder(column: $table.verwendet, builder: (column) => column);
+
+  GeneratedColumn<String> get extras =>
+      $composableBuilder(column: $table.extras, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$AuftraegeTableAnnotationComposer get auftragId {
+    final $$AuftraegeTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.auftragId,
+      referencedTable: $db.auftraege,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AuftraegeTableAnnotationComposer(
+            $db: $db,
+            $table: $db.auftraege,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RechercheNotizenTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RechercheNotizenTable,
+          RechercheNotizenData,
+          $$RechercheNotizenTableFilterComposer,
+          $$RechercheNotizenTableOrderingComposer,
+          $$RechercheNotizenTableAnnotationComposer,
+          $$RechercheNotizenTableCreateCompanionBuilder,
+          $$RechercheNotizenTableUpdateCompanionBuilder,
+          (RechercheNotizenData, $$RechercheNotizenTableReferences),
+          RechercheNotizenData,
+          PrefetchHooks Function({bool auftragId})
+        > {
+  $$RechercheNotizenTableTableManager(
+    _$AppDatabase db,
+    $RechercheNotizenTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RechercheNotizenTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RechercheNotizenTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RechercheNotizenTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> auftragId = const Value.absent(),
+                Value<String> titel = const Value.absent(),
+                Value<String> inhalt = const Value.absent(),
+                Value<String?> quelle = const Value.absent(),
+                Value<String?> referenzNormenJson = const Value.absent(),
+                Value<bool> verwendet = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => RechercheNotizenCompanion(
+                id: id,
+                auftragId: auftragId,
+                titel: titel,
+                inhalt: inhalt,
+                quelle: quelle,
+                referenzNormenJson: referenzNormenJson,
+                verwendet: verwendet,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> auftragId = const Value.absent(),
+                required String titel,
+                required String inhalt,
+                Value<String?> quelle = const Value.absent(),
+                Value<String?> referenzNormenJson = const Value.absent(),
+                Value<bool> verwendet = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => RechercheNotizenCompanion.insert(
+                id: id,
+                auftragId: auftragId,
+                titel: titel,
+                inhalt: inhalt,
+                quelle: quelle,
+                referenzNormenJson: referenzNormenJson,
+                verwendet: verwendet,
+                extras: extras,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$RechercheNotizenTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({auftragId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (auftragId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.auftragId,
+                                referencedTable:
+                                    $$RechercheNotizenTableReferences
+                                        ._auftragIdTable(db),
+                                referencedColumn:
+                                    $$RechercheNotizenTableReferences
+                                        ._auftragIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RechercheNotizenTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RechercheNotizenTable,
+      RechercheNotizenData,
+      $$RechercheNotizenTableFilterComposer,
+      $$RechercheNotizenTableOrderingComposer,
+      $$RechercheNotizenTableAnnotationComposer,
+      $$RechercheNotizenTableCreateCompanionBuilder,
+      $$RechercheNotizenTableUpdateCompanionBuilder,
+      (RechercheNotizenData, $$RechercheNotizenTableReferences),
+      RechercheNotizenData,
+      PrefetchHooks Function({bool auftragId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -52340,4 +64394,22 @@ class $AppDatabaseManager {
       $$KontenTableTableManager(_db, _db.konten);
   $$ProtokolleTableTableManager get protokolle =>
       $$ProtokolleTableTableManager(_db, _db.protokolle);
+  $$JournaleintraegeTableTableManager get journaleintraege =>
+      $$JournaleintraegeTableTableManager(_db, _db.journaleintraege);
+  $$MaengelTableTableManager get maengel =>
+      $$MaengelTableTableManager(_db, _db.maengel);
+  $$UebergabenTableTableManager get uebergaben =>
+      $$UebergabenTableTableManager(_db, _db.uebergaben);
+  $$QualifikationenTableTableManager get qualifikationen =>
+      $$QualifikationenTableTableManager(_db, _db.qualifikationen);
+  $$BauteiloeffnungenTableTableManager get bauteiloeffnungen =>
+      $$BauteiloeffnungenTableTableManager(_db, _db.bauteiloeffnungen);
+  $$MesswerteTableTableManager get messwerte =>
+      $$MesswerteTableTableManager(_db, _db.messwerte);
+  $$WertermittlungenTableTableManager get wertermittlungen =>
+      $$WertermittlungenTableTableManager(_db, _db.wertermittlungen);
+  $$SerienbriefeTableTableManager get serienbriefe =>
+      $$SerienbriefeTableTableManager(_db, _db.serienbriefe);
+  $$RechercheNotizenTableTableManager get rechercheNotizen =>
+      $$RechercheNotizenTableTableManager(_db, _db.rechercheNotizen);
 }

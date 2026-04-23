@@ -87,6 +87,30 @@ class AkteTabBar extends ConsumerWidget {
         icon: Icons.fact_check_outlined,
       ),
       const AkteTabData(
+        label: 'Journal',
+        icon: Icons.history_edu_outlined,
+      ),
+      const AkteTabData(
+        label: 'Mängel',
+        icon: Icons.report_gmailerrorred_outlined,
+      ),
+      const AkteTabData(
+        label: 'Übergabe',
+        icon: Icons.handshake_outlined,
+      ),
+      const AkteTabData(
+        label: 'Bauteilöffnung',
+        icon: Icons.construction_outlined,
+      ),
+      const AkteTabData(
+        label: 'Messwerte',
+        icon: Icons.show_chart,
+      ),
+      const AkteTabData(
+        label: 'Wertermittlung',
+        icon: Icons.euro_symbol,
+      ),
+      const AkteTabData(
         label: 'Wirtschaftlichkeit',
         icon: Icons.euro_outlined,
       ),

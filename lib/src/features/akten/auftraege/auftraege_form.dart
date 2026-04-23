@@ -10,6 +10,7 @@ import '../../../features/system/benutzer/benutzer_repository.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
 import '../../../features/system/einstellungen/nummernkreis_service.dart';
 import '../../../shared/widgets/date_field.dart';
+import '../../../shared/widgets/gericht_picker.dart';
 import '../../../shared/widgets/file_upload_section.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../kunden/kunden_picker.dart';
@@ -91,6 +92,8 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   late final _richter = _tec(widget.auftrag?.richter);
   late final _richterAnrede = _tec(widget.auftrag?.richterAnrede);
   late final _richterBrief = _tec(widget.auftrag?.richterBriefanrede);
+  late final _klaeger = _tec(widget.auftrag?.klaeger);
+  late final _beklagter = _tec(widget.auftrag?.beklagter);
   late final _stundensatz = _tec(_money(widget.auftrag?.stundensatz));
   late final _kostenLimit = _tec(_money(widget.auftrag?.kostenLimit));
   late final _kostenvorschuss =
@@ -204,7 +207,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       _aktenzeichen, _azExtern, _betreff, _bezeichnung,
       _objStrasse, _objPlz, _objOrt, _baujahr, _sachgebiet,
       _objektart, _kategorie,
-      _gericht, _gerichtsort, _gerichtsAz, _verfahrensart,
+      _gericht, _gerichtsort, _gerichtsAz, _verfahrensart, _klaeger, _beklagter,
       _ausfertigungen, _aktenSeitenVon, _aktenSeitenBis,
       _richter, _richterAnrede, _richterBrief,
       _stundensatz, _kostenLimit, _kostenvorschuss,
@@ -258,6 +261,8 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       gerichtsAktenzeichen: _nt(_gerichtsAz),
       gericht: _nt(_gericht),
       gerichtsort: _nt(_gerichtsort),
+      klaeger: _nt(_klaeger),
+      beklagter: _nt(_beklagter),
       verfahrensart: _nt(_verfahrensart),
       anzahlAusfertigungen: Value(int.tryParse(_ausfertigungen.text.trim())),
       aktenSeitenVon: Value(int.tryParse(_aktenSeitenVon.text.trim())),
@@ -345,17 +350,20 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
         ),
         const Divider(height: 1),
         Expanded(
-          child: Form(
-            key: _formKey,
-            child: TabBarView(
-              controller: _tabs,
-              children: [
-                _allgemeinTab(),
-                _objektTab(),
-                _gerichtTab(),
-                _termineTab(),
-                _aufgabenGeraeteTab(),
-              ],
+          child: Container(
+            color: Colors.white,
+            child: Form(
+              key: _formKey,
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  _allgemeinTab(),
+                  _objektTab(),
+                  _gerichtTab(),
+                  _termineTab(),
+                  _aufgabenGeraeteTab(),
+                ],
+              ),
             ),
           ),
         ),
@@ -555,8 +563,30 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row2(
-            left: LabeledField('Gericht',
-                TextFormField(controller: _gericht)),
+            left: LabeledField(
+              'Gericht',
+              Row(
+                children: [
+                  Expanded(
+                    child:
+                        TextFormField(controller: _gericht),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'Gericht aus Liste wählen',
+                    icon: const Icon(Icons.search, size: 18),
+                    onPressed: () async {
+                      final g = await showGerichtPicker(context);
+                      if (g == null) return;
+                      setState(() {
+                        _gericht.text = g.name;
+                        _gerichtsort.text = g.ort;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
             right: LabeledField('Gerichtsort',
                 TextFormField(controller: _gerichtsort)),
           ),
@@ -577,6 +607,28 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                 ],
                 onChanged: (v) =>
                     setState(() => _verfahrensart.text = v ?? ''),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Streitparteien',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Row2(
+            left: LabeledField(
+              'Kläger/in',
+              TextFormField(
+                controller: _klaeger,
+                decoration:
+                    const InputDecoration(hintText: 'Name / Firma'),
+              ),
+            ),
+            right: LabeledField(
+              'Beklagte/r',
+              TextFormField(
+                controller: _beklagter,
+                decoration:
+                    const InputDecoration(hintText: 'Name / Firma'),
               ),
             ),
           ),

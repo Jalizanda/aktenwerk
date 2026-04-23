@@ -77,6 +77,43 @@ class WiedervorlagenRepository {
       erledigtAm: Value(value ? DateTime.now() : null),
     ));
   }
+
+  /// Legt eine von einem anderen Datensatz (z.B. Rechnung) ausgelöste
+  /// Wiedervorlage an. Doppelung wird vermieden: wenn schon eine offene
+  /// Wiedervorlage mit demselben [triggerTyp] + [triggerQuellId] existiert,
+  /// wird nichts getan.
+  Future<void> ausloeseTrigger({
+    required String triggerTyp,
+    required int triggerQuellId,
+    required String titel,
+    required DateTime faelligAm,
+    int? auftragId,
+    String? anlass,
+    String? beschreibung,
+    String prioritaet = 'normal',
+  }) async {
+    final vorhanden = await (_db.select(_db.wiedervorlagen)
+          ..where((t) =>
+              t.triggerTyp.equals(triggerTyp) &
+              t.triggerQuellId.equals(triggerQuellId) &
+              t.erledigt.equals(false))
+          ..limit(1))
+        .getSingleOrNull();
+    if (vorhanden != null) return;
+
+    await _db.into(_db.wiedervorlagen).insert(
+          WiedervorlagenCompanion.insert(
+            titel: titel,
+            faelligAm: Value(faelligAm),
+            auftragId: Value(auftragId),
+            anlass: Value(anlass),
+            beschreibung: Value(beschreibung),
+            prioritaet: Value(prioritaet),
+            triggerTyp: Value(triggerTyp),
+            triggerQuellId: Value(triggerQuellId),
+          ),
+        );
+  }
 }
 
 final wiedervorlagenRepositoryProvider =

@@ -7,6 +7,7 @@ import '../../../data/database/app_database.dart';
 import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import 'sv_vorlagen_seed.dart';
 import 'textbausteine_repository.dart';
 
 class TextbausteineScreen extends ConsumerWidget {
@@ -27,6 +28,11 @@ class TextbausteineScreen extends ConsumerWidget {
           subtitle:
               'Wiederverwendbare Textblöcke für Gutachten und Anschreiben',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.library_books_outlined, size: 18),
+              label: const Text('SV-Vorlagen laden'),
+              onPressed: () => _importSvVorlagen(context, ref),
+            ),
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neuer Baustein'),
@@ -189,6 +195,56 @@ class TextbausteineScreen extends ConsumerWidget {
         context: context,
         useRootNavigator: true,
         builder: (_) => _BausteinForm(baustein: b));
+  }
+
+  Future<void> _importSvVorlagen(
+      BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('SV-Vorlagen Deutschland laden?'),
+        content: Text(
+          '${svVorlagen.length} Vorlagen (Gerichtsgutachten, JVEG/'
+          'Hinweispflicht, Privatgutachten, Qualitätssicherung) werden '
+          'zusätzlich zu deinen bestehenden Textbausteinen angelegt.\n\n'
+          'Deine vorhandenen Bausteine bleiben unverändert. Vorlagen '
+          'mit identischem Titel werden übersprungen — keine Duplikate.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Vorlagen importieren'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final report = await ladeSvVorlagen(ref);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(report.bereitsVorhanden == 0
+                ? '${report.neu} SV-Vorlagen importiert.'
+                : '${report.neu} neu angelegt · '
+                    '${report.bereitsVorhanden} bereits vorhanden (übersprungen).'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import fehlgeschlagen: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirm(

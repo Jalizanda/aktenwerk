@@ -187,17 +187,19 @@ class GoogleCalendarService {
     required DateTime from,
     required DateTime to,
   }) async {
-    final uri = Uri.https(
-      'www.googleapis.com',
-      '/calendar/v3/calendars/${Uri.encodeComponent(calendarId)}/events',
-      {
-        'timeMin': from.toUtc().toIso8601String(),
-        'timeMax': to.toUtc().toIso8601String(),
-        'singleEvents': 'true',
-        'maxResults': '1000',
-        'privateExtendedProperty': 'aktenwerk=1',
-      },
-    );
+    final params = <String, String>{
+      'timeMin': from.toUtc().toIso8601String(),
+      'timeMax': to.toUtc().toIso8601String(),
+      'singleEvents': 'true',
+      'maxResults': '1000',
+      'privateExtendedProperty': 'aktenwerk=1',
+    };
+    final qs = params.entries
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    final uri = Uri.parse(
+        'https://www.googleapis.com/calendar/v3/calendars/$calendarId/events?$qs');
     final r = await http.get(uri, headers: await _authHeaders());
     _checkResponse(r);
     final body = jsonDecode(r.body) as Map<String, dynamic>;
@@ -205,13 +207,24 @@ class GoogleCalendarService {
     return items.cast<Map<String, dynamic>>();
   }
 
+  /// Baut die Calendar-Events-URL. Wichtig: `@` und `.` im Calendar-ID
+  /// dürfen im Pfad NICHT durch URL-Encoder in `%40`/`%2E` verwandelt
+  /// werden — Googles Calendar-API matcht sonst kein Kalender-Resource.
+  /// Daher stellen wir die URL von Hand zusammen.
+  Uri _eventsUri(String calendarId, [String? eventId]) {
+    final buf = StringBuffer('https://www.googleapis.com/calendar/v3/calendars/')
+      ..write(calendarId)
+      ..write('/events');
+    if (eventId != null) buf.write('/$eventId');
+    return Uri.parse(buf.toString());
+  }
+
   Future<Map<String, dynamic>> insertEvent({
     required String calendarId,
     required Map<String, dynamic> event,
   }) async {
     final r = await http.post(
-      Uri.parse(
-          'https://www.googleapis.com/calendar/v3/calendars/${Uri.encodeComponent(calendarId)}/events'),
+      _eventsUri(calendarId),
       headers: await _authHeaders(),
       body: jsonEncode(event),
     );
@@ -225,8 +238,7 @@ class GoogleCalendarService {
     required Map<String, dynamic> event,
   }) async {
     final r = await http.put(
-      Uri.parse(
-          'https://www.googleapis.com/calendar/v3/calendars/${Uri.encodeComponent(calendarId)}/events/${Uri.encodeComponent(eventId)}'),
+      _eventsUri(calendarId, eventId),
       headers: await _authHeaders(),
       body: jsonEncode(event),
     );
@@ -239,8 +251,7 @@ class GoogleCalendarService {
     required String eventId,
   }) async {
     final r = await http.delete(
-      Uri.parse(
-          'https://www.googleapis.com/calendar/v3/calendars/${Uri.encodeComponent(calendarId)}/events/${Uri.encodeComponent(eventId)}'),
+      _eventsUri(calendarId, eventId),
       headers: await _authHeaders(),
     );
     if (r.statusCode == 404 || r.statusCode == 410) return;

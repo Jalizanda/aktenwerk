@@ -30,6 +30,10 @@ class Normen extends Table {
   TextColumn get beschreibung => text().nullable()();
   TextColumn get notiz => text().nullable()();
 
+  /// Primäres Gewerk zur Gruppierung / Filterung — z. B.
+  /// „Fenster/Türen", „Schallschutz/Akustik", „Brandschutz", „Abdichtung".
+  TextColumn get gewerk => text().nullable()();
+
   /// Optional: eingebundenes PDF (Volltext, Merkblatt, Zitat).
   TextColumn get pdfPfad => text().nullable()();
   TextColumn get pdfStorageUrl => text().nullable()();
