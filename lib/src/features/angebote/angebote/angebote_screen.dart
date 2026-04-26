@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/geo/plz_autofill.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/auftraege/auto_akte.dart';
 import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../features/akten/workflow/dokument_workflow.dart';
+import '../../../features/system/benutzer/benutzer_repository.dart';
 import '../../../features/system/einstellungen/absender_service.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
 import '../../../features/system/einstellungen/nummernkreis_service.dart';
@@ -119,8 +123,9 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
         2 => cmp(
             a.kunde == null ? null : kundeAnzeigename(a.kunde!).toLowerCase(),
             b.kunde == null ? null : kundeAnzeigename(b.kunde!).toLowerCase()),
-        3 => cmp(a.angebot.betreff?.toLowerCase(),
-            b.angebot.betreff?.toLowerCase()),
+        3 => cmp(
+            ((a.angebot.anfrage ?? a.angebot.betreff) ?? '').toLowerCase(),
+            ((b.angebot.anfrage ?? b.angebot.betreff) ?? '').toLowerCase()),
         4 => cmp(a.angebot.gueltigBis, b.angebot.gueltigBis),
         5 => cmp(a.angebot.netto, b.angebot.netto),
         6 => cmp(a.angebot.brutto, b.angebot.brutto),
@@ -154,7 +159,7 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
           sortCol('Nr.', 0),
           sortCol('Datum', 1),
           sortCol('Kunde', 2),
-          sortCol('Betreff', 3),
+          sortCol('Anfrage / Beschreibung', 3),
           sortCol('Gültig bis', 4),
           sortCol('Netto €', 5, numeric: true),
           sortCol('Brutto €', 6, numeric: true),
@@ -177,9 +182,11 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
                     ? '—'
                     : kundeAnzeigename(a.kunde!))),
                 DataCell(SizedBox(
-                  width: 220,
+                  width: 280,
                   child: Text(
-                    a.angebot.betreff ?? '',
+                    (a.angebot.anfrage?.trim().isNotEmpty ?? false)
+                        ? a.angebot.anfrage!
+                        : (a.angebot.betreff ?? ''),
                     overflow: TextOverflow.ellipsis,
                   ),
                 )),
@@ -204,12 +211,6 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
                       onPressed: () => _previewPdf(context, a, false),
                     ),
                     IconButton(
-                      tooltip: 'Auftragsbestätigung als PDF',
-                      icon: const Icon(Icons.assignment_turned_in_outlined,
-                          size: 20),
-                      onPressed: () => _previewPdf(context, a, true),
-                    ),
-                    IconButton(
                       tooltip: a.angebot.pdfStorageUrl != null
                           ? 'Archivierte PDF aktualisieren'
                           : 'PDF archivieren',
@@ -219,7 +220,7 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
                             : Icons.cloud_upload_outlined,
                         size: 20,
                         color: a.angebot.pdfStorageUrl != null
-                            ? const Color(0xFF16A34A)
+                            ? AwTokens.green
                             : null,
                       ),
                       onPressed: () => _archivePdf(context, a),
@@ -253,18 +254,29 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.angebotFusstext);
+    // Aktenzeichen aus dem verknüpften Auftrag holen, falls vorhanden.
+    String? aktenzeichen;
+    if (a.angebot.auftragId != null) {
+      final db = ref.read(appDatabaseProvider);
+      final auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(a.angebot.auftragId!)))
+          .getSingleOrNull();
+      aktenzeichen = auftrag?.aktenzeichen;
+    }
     return PdfDocumentData(
       dokumentTyp: alsAb ? 'Auftragsbestätigung' : 'Angebot',
       dokumentNr: a.angebot.angebotsnummer,
       datum: a.angebot.datum,
       faelligBis: a.angebot.gueltigBis,
       betreff: a.angebot.betreff,
+      aktenzeichen: aktenzeichen,
       positionen: positionsFromJson(a.angebot.positionenJson),
       kopftext: a.angebot.kopftext,
       fusstext: a.angebot.fusstext ?? fuss,
       absender: absender,
       empfaenger: a.kunde,
       brutto: a.angebot.brutto,
+      zahlungsbedingungen: a.angebot.bedingungen,
     );
   }
 
@@ -405,6 +417,7 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   late final _fuss = TextEditingController(
       text: widget.eintrag?.angebot.fusstext ?? '');
   bool _saving = false;
+  late final VoidCallback _plzAutoFillDispose;
 
   @override
   void initState() {
@@ -417,6 +430,7 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
         a?.gueltigBis ?? DateTime.now().add(const Duration(days: 30));
     _status = a?.status ?? 'anfrage';
     _positionen = positionsFromJson(a?.positionenJson);
+    _plzAutoFillDispose = attachPlzAutoFill(_objPlz, _objOrt);
     if (widget.eintrag == null) _prefill();
   }
 
@@ -430,8 +444,34 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.angebotFusstext);
-    if (mounted && _fuss.text.isEmpty && fuss != null) {
-      _fuss.text = fuss;
+    if (mounted && _fuss.text.isEmpty) {
+      // Default-Grußformel zusammenbauen: „Mit freundlichen Grüßen" +
+      // Leerzeile + Name + (optional) Titel des aktiven Benutzers.
+      // Falls in den Einstellungen ein eigener Angebot-Fußtext hinterlegt
+      // ist, bekommt der Vorrang.
+      if (fuss != null && fuss.trim().isNotEmpty) {
+        _fuss.text = fuss;
+      } else {
+        try {
+          final benutzer = await ref
+              .read(benutzerRepositoryProvider)
+              .getActive();
+          final name = [benutzer?.vorname, benutzer?.nachname]
+              .whereType<String>()
+              .where((s) => s.trim().isNotEmpty)
+              .join(' ');
+          final titel = (benutzer?.titel ?? '').trim();
+          final lines = <String>[
+            'Mit freundlichen Grüßen',
+            '',
+            if (name.isNotEmpty) name,
+            if (titel.isNotEmpty) titel,
+          ];
+          _fuss.text = lines.join('\n');
+        } catch (_) {
+          _fuss.text = 'Mit freundlichen Grüßen';
+        }
+      }
     }
   }
 
@@ -454,6 +494,7 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 
   @override
   void dispose() {
+    _plzAutoFillDispose();
     for (final c in [
       _nr, _betreff, _anfrage, _objStrasse, _objPlz, _objOrt,
       _bedingungen, _ust, _notiz, _kopf, _fuss,
@@ -552,6 +593,15 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.angebotFusstext);
+    // Aktenzeichen aus dem verknüpften Auftrag laden.
+    String? aktenzeichen;
+    if (_auftragId != null) {
+      final db = ref.read(appDatabaseProvider);
+      final auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(_auftragId!)))
+          .getSingleOrNull();
+      aktenzeichen = auftrag?.aktenzeichen;
+    }
     final objekt = [
       _objStrasse.text.trim(),
       '${_objPlz.text.trim()} ${_objOrt.text.trim()}'.trim(),
@@ -561,6 +611,8 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
       dokumentNr: _nr.text.trim(),
       datum: _datum,
       faelligBis: _gueltigBis,
+      betreff: _betreff.text.trim().isEmpty ? null : _betreff.text.trim(),
+      aktenzeichen: aktenzeichen,
       sachverhalt:
           _anfrage.text.trim().isEmpty ? _betreff.text : _anfrage.text,
       objektAdresse: objekt.isEmpty ? null : objekt,
@@ -569,6 +621,8 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
       fusstext: _fuss.text.trim().isEmpty ? fuss : _fuss.text,
       absender: absender,
       empfaenger: kunde,
+      zahlungsbedingungen:
+          _bedingungen.text.trim().isEmpty ? null : _bedingungen.text,
     );
   }
 
@@ -728,7 +782,7 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
         children: [
           OutlinedButton.icon(
             icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-            label: const Text('Drucken'),
+            label: const Text('Vorschau'),
             onPressed: () => _previewPdf(alsAb: _istAb),
           ),
           const SizedBox(width: 6),
@@ -874,32 +928,63 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
                 ],
               ),
               const SizedBox(height: 14),
-              // Auftraggeber
-              KundenPickerField(
-                kundeId: _kundeId,
-                onChanged: (id) => setState(() => _kundeId = id),
-                label: 'Auftraggeber (vorhandener oder neuer)',
+              // Auftraggeber + Akte nebeneinander
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: KundenPickerField(
+                      kundeId: _kundeId,
+                      onChanged: (id) => setState(() => _kundeId = id),
+                      label: 'Auftraggeber (vorhandener oder neuer)',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AuftragPickerField(
+                      auftragId: _auftragId,
+                      onChanged: (id) => setState(() => _auftragId = id),
+                      label:
+                          'Akte (optional — wird sonst automatisch angelegt)',
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
-              // Akte (optional — wird sonst beim Speichern angelegt)
-              AuftragPickerField(
-                auftragId: _auftragId,
-                onChanged: (id) => setState(() => _auftragId = id),
-                label:
-                    'Akte (optional — wird sonst automatisch angelegt)',
-              ),
-              const SizedBox(height: 14),
-              // Anfrage / Sachverhalt
-              LabeledField(
-                'Anfrage-Beschreibung / Sachverhalt *',
-                TextFormField(
-                  controller: _anfrage,
-                  minLines: 3,
-                  maxLines: 6,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Erforderlich'
-                      : null,
-                ),
+              // Betreff + Anrede nebeneinander, gleich breit und gleich hoch.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LabeledField(
+                      'Betreff',
+                      TextFormField(
+                        controller: _betreff,
+                        minLines: 4,
+                        maxLines: 8,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'z. B. Bauschadensgutachten Wohnhaus …',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LabeledField(
+                      'Anrede',
+                      TextFormField(
+                        controller: _kopf,
+                        minLines: 4,
+                        maxLines: 8,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihre Anfrage. Ich biete Ihnen die nachfolgenden sachverständigen Leistungen wie folgt an:',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
               // Objektadresse
@@ -972,9 +1057,16 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
               ),
               const SizedBox(height: 14),
               LabeledField(
-                'Fußtext',
+                'Fußtext (Grußformel)',
                 TextFormField(
-                    controller: _fuss, minLines: 2, maxLines: 5),
+                  controller: _fuss,
+                  minLines: 2,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText:
+                        'Mit freundlichen Grüßen\n\n{Name} {Titel}',
+                  ),
+                ),
               ),
             ],
           ),

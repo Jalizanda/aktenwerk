@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../konten/datev_export.dart';
 import '../sync/sync_section.dart';
 import 'backup_section.dart';
@@ -431,7 +432,7 @@ class _EinstellungenFormState
   Future<void> _save() async {
     setState(() => _saving = true);
     final repo = ref.read(einstellungenRepositoryProvider);
-
+    try {
     // Stammdaten
     await repo.set(SettingsKeys.firmaName, _firmaName.text.trim());
     await repo.set(SettingsKeys.firmaTitel, _firmaTitel.text.trim());
@@ -542,11 +543,19 @@ class _EinstellungenFormState
     await repo.set(SettingsKeys.unterschriftBase64, _unterschriftBase64);
     await repo.set(SettingsKeys.unterschriftMime, _unterschriftMime);
 
-    if (mounted) {
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Einstellungen gespeichert')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Einstellungen gespeichert')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speichern fehlgeschlagen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -559,7 +568,7 @@ class _EinstellungenFormState
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
           child: Row(
             children: [
-              const Icon(Icons.tune_outlined, size: 32),
+              const Icon(Icons.tune_outlined, size: 24, color: AwTokens.orange),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

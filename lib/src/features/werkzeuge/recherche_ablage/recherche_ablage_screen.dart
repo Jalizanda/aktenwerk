@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' show Value;
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftraege_repository.dart';
+import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import '../textbausteine/textbausteine_repository.dart';
@@ -245,6 +246,45 @@ class _AuftragFilterDropdown extends ConsumerWidget {
   final int? aktuell;
   final ValueChanged<int?> onChanged;
 
+  /// Baut die zweizeilige Anzeige für ein Akten-Dropdown-Item:
+  /// Zeile 1 = Aktenzeichen + Name, Zeile 2 = Anschrift + Thema.
+  Widget _buildItem(AuftragWithKunde a) {
+    final az = a.auftrag.aktenzeichen ?? '—';
+    final name = a.kunde == null ? '' : kundeAnzeigename(a.kunde!);
+    final adresse = [
+      a.auftrag.objektStrasse,
+      [a.auftrag.objektPlz, a.auftrag.objektOrt]
+          .whereType<String>()
+          .where((s) => s.trim().isNotEmpty)
+          .join(' '),
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).join(', ');
+    final thema = (a.auftrag.bezeichnung?.trim().isNotEmpty ?? false)
+        ? a.auftrag.bezeichnung!.trim()
+        : (a.auftrag.betreff?.trim() ?? '');
+    final zeile1 =
+        [az, if (name.isNotEmpty) name].join(' · ');
+    final zeile2Parts = [
+      if (adresse.isNotEmpty) adresse,
+      if (thema.isNotEmpty) thema,
+    ];
+    final zeile2 = zeile2Parts.join(' · ');
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(zeile1,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        if (zeile2.isNotEmpty)
+          Text(zeile2,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, color: Colors.black54)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(auftraegeListProvider);
@@ -255,13 +295,27 @@ class _AuftragFilterDropdown extends ConsumerWidget {
         child: DropdownButton<int?>(
           value: aktuell,
           hint: const Text('Alle Akten'),
+          isExpanded: true,
+          // Im geschlossenen Zustand möchten wir nur einzeilige Anzeige
+          // (Aktenzeichen + Name). Im aufgeklappten Menu: zwei Zeilen
+          // (Aktenzeichen + Name oben, Anschrift + Thema unten).
+          selectedItemBuilder: (_) => [
+            const Text('Alle Akten'),
+            for (final a in list)
+              Builder(builder: (_) {
+                final az = a.auftrag.aktenzeichen ?? '—';
+                final name = a.kunde == null ? '' : kundeAnzeigename(a.kunde!);
+                return Text([az, if (name.isNotEmpty) name].join(' · '),
+                    overflow: TextOverflow.ellipsis);
+              }),
+          ],
           items: [
             const DropdownMenuItem<int?>(
                 value: null, child: Text('Alle Akten')),
             for (final a in list)
               DropdownMenuItem<int?>(
                 value: a.auftrag.id,
-                child: Text(a.auftrag.aktenzeichen ?? '—'),
+                child: _buildItem(a),
               ),
           ],
           onChanged: onChanged,

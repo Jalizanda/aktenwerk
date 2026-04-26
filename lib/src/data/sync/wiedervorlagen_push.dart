@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:js_interop';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:web/web.dart' as web;
 
+import '../../core/web/web_compat.dart' as web;
 import '../../features/werkzeuge/wiedervorlagen/wiedervorlagen_repository.dart';
 
 /// Einfacher Web-Notification-Dienst für heute/überfällige Wiedervorlagen.
@@ -22,40 +21,17 @@ class WiedervorlagenPushService {
 
   static const _prefGezeigt = 'wv.push.gezeigt.v1';
 
-  bool get _supported {
-    if (!kIsWeb) return false;
-    try {
-      // `Notification.permission` ist ein statischer Getter — wenn die API
-      // nicht existiert, wirft der Zugriff eine Exception. Einfacher
-      // Feature-Check ohne Inline-JS.
-      web.Notification.permission;
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
+  bool get _supported => kIsWeb && web.notificationSupported;
 
-  String get permission {
-    if (!_supported) return 'unsupported';
-    return web.Notification.permission.toString();
-  }
+  String get permission => web.notificationPermission;
 
-  Future<bool> requestPermission() async {
-    if (!_supported) return false;
-    final completer = Completer<String>();
-    web.Notification.requestPermission(((String p) {
-      if (!completer.isCompleted) completer.complete(p);
-    }).toJS);
-    final result = await completer.future
-        .timeout(const Duration(seconds: 30), onTimeout: () => 'denied');
-    return result == 'granted';
-  }
+  Future<bool> requestPermission() => web.requestNotificationPermission();
 
   /// Prüft alle offenen Wiedervorlagen und zeigt Browser-Pushes für
   /// heute und überfällige, die wir heute noch nicht gezeigt haben.
   Future<void> checkAndNotify() async {
     if (!_supported) return;
-    if (web.Notification.permission.toString() != 'granted') return;
+    if (web.notificationPermission != 'granted') return;
 
     final prefs = await SharedPreferences.getInstance();
     final heute = _heuteIso();
@@ -92,21 +68,12 @@ class WiedervorlagenPushService {
         'Fällig: ${fmt.format(faellig)}',
       ].join(' · ');
 
-      try {
-        web.Notification(
-          '$prefix: ${eintrag.titel}',
-          web.NotificationOptions(
-            body: body,
-            tag: 'wv-${eintrag.id}',
-            requireInteraction: false,
-          ),
-        );
-        neuGezeigt.add(key);
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('[wv-push] Fehler: $e');
-        }
-      }
+      web.showBrowserNotification(
+        '$prefix: ${eintrag.titel}',
+        body: body,
+        tag: 'wv-${eintrag.id}',
+      );
+      neuGezeigt.add(key);
     }
 
     await prefs.setStringList(_prefGezeigt, neuGezeigt);

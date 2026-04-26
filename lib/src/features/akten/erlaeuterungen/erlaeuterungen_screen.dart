@@ -616,8 +616,8 @@ class _VergSumCard extends StatelessWidget {
                 Text(l, style: s),
                 if (sub.isNotEmpty)
                   Text(sub,
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF64748B))),
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.slate500)),
               ],
             ),
           ),

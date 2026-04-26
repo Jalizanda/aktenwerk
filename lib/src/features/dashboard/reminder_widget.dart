@@ -126,7 +126,7 @@ class _FristenListe extends ConsumerWidget {
             entries.add(_Fristentry(
               zeitpunkt: f,
               titel: overdue
-                  ? '⚠️ Rechnung ${r.rechnungsnummer ?? ''} überfällig'
+                  ? 'Rechnung ${r.rechnungsnummer ?? ''} überfällig'
                   : 'Rechnung ${r.rechnungsnummer ?? ''} fällig',
               quelle: 'Rechnung',
               route: r.auftragId != null ? '/akte/${r.auftragId}' : '/opos',
@@ -255,7 +255,7 @@ class _FristRow extends StatelessWidget {
       return (BadgeColors.amberBg, BadgeColors.amberFg, 'in $days\u00a0T');
     }
     if (days <= 14) {
-      return (const Color(0xFFFEF9C3), const Color(0xFF854D0E),
+      return (BadgeColors.amberBg, BadgeColors.amberFg,
           'in $days\u00a0T');
     }
     return (BadgeColors.greenBg, BadgeColors.greenFg, 'in $days\u00a0T');

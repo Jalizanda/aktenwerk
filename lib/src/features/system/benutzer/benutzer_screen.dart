@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:file_picker/file_picker.dart';
@@ -6,7 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/geo/plz_autofill.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
+import '../../../shared/widgets/signature_pad.dart';
 import 'benutzer_repository.dart';
 
 class BenutzerScreen extends ConsumerWidget {
@@ -48,6 +52,7 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
   late final _website = _tec(widget.benutzer?.website);
   late final _steuerNr = _tec(widget.benutzer?.steuerNr);
   late final _ustId = _tec(widget.benutzer?.ustId);
+  late final _hrb = _tec(widget.benutzer?.hrb);
   late final _iban = _tec(widget.benutzer?.iban);
   late final _bic = _tec(widget.benutzer?.bic);
   late final _bank = _tec(widget.benutzer?.bank);
@@ -57,6 +62,9 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
       _tec(widget.benutzer?.standardStundensatz?.toStringAsFixed(2));
   String? _profilBildBase64;
   String? _profilBildMime;
+  String? _unterschriftDataUrl;
+  final _sigController = SignaturePadController();
+  late final VoidCallback _plzAutoFillDispose;
 
   bool _saving = false;
 
@@ -65,17 +73,20 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
     super.initState();
     _profilBildBase64 = widget.benutzer?.profilBildBase64;
     _profilBildMime = widget.benutzer?.profilBildMime;
+    _unterschriftDataUrl = widget.benutzer?.unterschriftPfad;
+    _plzAutoFillDispose = attachPlzAutoFill(_plz, _ort);
   }
 
   TextEditingController _tec(String? v) => TextEditingController(text: v ?? '');
 
   @override
   void dispose() {
+    _plzAutoFillDispose();
     for (final c in [
       _anrede, _titel, _vorname, _nachname, _firma,
       _strasse, _plz, _ort,
       _telefon, _mobil, _email, _website,
-      _steuerNr, _ustId, _iban, _bic, _bank,
+      _steuerNr, _ustId, _hrb, _iban, _bic, _bank,
       _bestellungsText, _gruss, _standardSatz,
     ]) {
       c.dispose();
@@ -103,6 +114,7 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
       website: _nt(_website),
       steuerNr: _nt(_steuerNr),
       ustId: _nt(_ustId),
+      hrb: _nt(_hrb),
       iban: _nt(_iban),
       bic: _nt(_bic),
       bank: _nt(_bank),
@@ -110,6 +122,7 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
       grussformel: _nt(_gruss),
       profilBildBase64: Value(_profilBildBase64),
       profilBildMime: Value(_profilBildMime),
+      unterschriftPfad: Value(_unterschriftDataUrl),
       standardStundensatz:
           satz == null ? const Value(null) : Value(satz),
     );
@@ -185,7 +198,8 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
           child: Row(
             children: [
-              const Icon(Icons.account_circle_outlined, size: 32),
+              const Icon(Icons.account_circle_outlined,
+                  size: 24, color: AwTokens.orange),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -293,6 +307,16 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
                             TextFormField(controller: _ustId)),
                       ),
                       const SizedBox(height: 12),
+                      _L(
+                        'HRB / Handelsregister',
+                        TextFormField(
+                          controller: _hrb,
+                          decoration: const InputDecoration(
+                            hintText: 'z. B. HRB 12345 (AG Düsseldorf)',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _L('Bank', TextFormField(controller: _bank)),
                       const SizedBox(height: 12),
                       _Row2(
@@ -345,6 +369,16 @@ class _BenutzerFormState extends ConsumerState<_BenutzerForm> {
                           _profilBildBase64 = null;
                           _profilBildMime = null;
                         }),
+                      ),
+                    ]),
+                    _Section('Unterschrift', children: [
+                      _SignaturBlock(
+                        controller: _sigController,
+                        existing: _unterschriftDataUrl,
+                        onSaved: (url) =>
+                            setState(() => _unterschriftDataUrl = url),
+                        onRemoved: () =>
+                            setState(() => _unterschriftDataUrl = null),
                       ),
                     ]),
                   ],
@@ -482,6 +516,146 @@ class _Row2 extends StatelessWidget {
         Expanded(flex: l, child: left),
         const SizedBox(width: 12),
         Expanded(flex: r, child: right),
+      ],
+    );
+  }
+}
+
+
+class _SignaturBlock extends StatefulWidget {
+  const _SignaturBlock({
+    required this.controller,
+    required this.existing,
+    required this.onSaved,
+    required this.onRemoved,
+  });
+  final SignaturePadController controller;
+  final String? existing;
+  final void Function(String dataUrl) onSaved;
+  final VoidCallback onRemoved;
+
+  @override
+  State<_SignaturBlock> createState() => _SignaturBlockState();
+}
+
+class _SignaturBlockState extends State<_SignaturBlock> {
+  bool _zeichneNeu = false;
+
+  bool get _hatBild =>
+      (widget.existing ?? '').trim().isNotEmpty && !_zeichneNeu;
+
+  Uint8List? _decode(String url) {
+    try {
+      final comma = url.indexOf(',');
+      if (comma < 0) return base64Decode(url);
+      return base64Decode(url.substring(comma + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_hatBild) {
+      final bytes = _decode(widget.existing!);
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 320,
+            height: 140,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: bytes == null
+                ? const Center(child: Text('Kein gültiges Bild'))
+                : Image.memory(bytes, fit: BoxFit.contain),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Unterschrift hinterlegt',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600)),
+                Text(
+                  'Wird auf Gutachten und PDF-Briefen mit ausgedruckt.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Neu zeichnen'),
+                    onPressed: () {
+                      widget.controller.clear();
+                      setState(() => _zeichneNeu = true);
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Entfernen'),
+                    onPressed: widget.onRemoved,
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Unterschrift mit Maus oder Touch in den Kasten unterhalb '
+          'zeichnen, dann „Übernehmen" klicken.',
+          style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SignaturePad(controller: widget.controller),
+        ),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          FilledButton.icon(
+            icon: const Icon(Icons.save_outlined, size: 16),
+            label: const Text('Unterschrift übernehmen'),
+            onPressed: () async {
+              final dataUrl = await widget.controller.toDataUrl();
+              if (dataUrl == null) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Bitte zuerst eine Unterschrift zeichnen.')),
+                  );
+                }
+                return;
+              }
+              widget.onSaved(dataUrl);
+              setState(() => _zeichneNeu = false);
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Zurücksetzen'),
+            onPressed: () => widget.controller.clear(),
+          ),
+          if ((widget.existing ?? '').isNotEmpty)
+            TextButton(
+              onPressed: () => setState(() => _zeichneNeu = false),
+              child: const Text('Abbrechen'),
+            ),
+        ]),
       ],
     );
   }

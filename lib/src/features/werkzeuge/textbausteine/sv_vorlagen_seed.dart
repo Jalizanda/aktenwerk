@@ -543,7 +543,7 @@ Mit freundlichen Grüßen
 
   SvVorlageEintrag(
     id: 'GA_113',
-    titel: '⚠ GA 113 — Hinweis § 407a Abs. 4 ZPO (Kostenüberschreitung)',
+    titel: 'GA 113 — Hinweis § 407a Abs. 4 ZPO (Kostenüberschreitung)',
     kategorie: 'anschreiben',
     sachgebiet: '110 JVEG & Hinweispflicht',
     favorit: true,

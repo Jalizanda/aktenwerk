@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 import '../../data/database/app_database.dart';
+import '../shell/mobile_home.dart';
 import '../../shared/charts/chart_theme.dart';
 import '../../shared/widgets/badges.dart';
 import '../akten/auftraege/auftraege_repository.dart';
@@ -38,10 +40,23 @@ class DashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final auftraegeAsync = ref.watch(auftraegeListProvider);
 
+    // Mobile (< 720 px): Quick-Access-Kacheln statt dichter Desktop-Dashboard.
+    if (MediaQuery.sizeOf(context).width < 720) {
+      return const MobileHome();
+    }
+
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text('Dashboard', style: theme.textTheme.headlineSmall),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.dashboard_outlined,
+                size: 22, color: AwTokens.orange),
+            const SizedBox(width: 10),
+            Text('Dashboard', style: theme.textTheme.headlineSmall),
+          ],
+        ),
         const SizedBox(height: 4),
         Text(
           'Übersicht über deine Sachverständigentätigkeit',
@@ -69,25 +84,47 @@ class DashboardScreen extends ConsumerWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // ---- Auftrags-Status-Listen ----
-    final offenList = auftraege
-        .where((a) => a.auftrag.status == 'offen')
+    // ---- Pipeline-Listen für die drei Dashboard-Kacheln ----
+    // Angebote (offen): noch nicht angenommen/abgelehnt — also alles vor
+    // dem Auftrag.
+    final angeboteAll =
+        ref.watch(angeboteListProvider).valueOrNull ?? const [];
+    const angeboteOffenStati = {
+      'entwurf', 'anfrage', 'angebot', 'nachverhandlung',
+    };
+    final offeneAngebote = angeboteAll
+        .where((a) => angeboteOffenStati.contains(a.angebot.status))
         .toList()
-      ..sort((a, b) => b.auftrag.createdAt.compareTo(a.auftrag.createdAt));
+      ..sort((a, b) =>
+          b.angebot.datum.compareTo(a.angebot.datum));
+
+    final rechnungenAll =
+        ref.watch(rechnungenListProvider).valueOrNull ?? const [];
+
+    // In Bearbeitung = Auftrag existiert und es wurde noch KEINE
+    // (nicht-stornierte) Rechnung dazu gestellt.
+    bool hatRechnung(int auftragId) => rechnungenAll.any((r) =>
+        r.rechnung.auftragId == auftragId &&
+        r.rechnung.status != 'storniert');
+
     final laufendList = auftraege
         .where((a) =>
-            a.auftrag.status == 'in_arbeit' ||
-            a.auftrag.status == 'laufend')
+            a.auftrag.status != 'abgeschlossen' &&
+            a.auftrag.status != 'abgerechnet' &&
+            a.auftrag.status != 'storniert' &&
+            !hatRechnung(a.auftrag.id))
         .toList()
       ..sort((a, b) => b.auftrag.createdAt.compareTo(a.auftrag.createdAt));
+
+    // Abgeschlossen = Auftrag mit mindestens einer Rechnung (oder Status
+    // ausdrücklich abgeschlossen/abgerechnet).
     final abgeschlossenList = auftraege
         .where((a) =>
+            hatRechnung(a.auftrag.id) ||
             a.auftrag.status == 'abgeschlossen' ||
             a.auftrag.status == 'abgerechnet')
         .toList()
       ..sort((a, b) => b.auftrag.createdAt.compareTo(a.auftrag.createdAt));
-    final rechnungenAll =
-        ref.watch(rechnungenListProvider).valueOrNull ?? const [];
 
     // ---- Fristen & Termine ----
     final offeneFristen = auftraege
@@ -124,7 +161,7 @@ class DashboardScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _AuftragsListRow(
-          offenList: offenList,
+          offeneAngebote: offeneAngebote,
           laufendList: laufendList,
           abgeschlossenList: abgeschlossenList,
           rechnungen: rechnungenAll,
@@ -243,15 +280,23 @@ class _QuickActionsBar extends StatelessWidget {
 /// (max. 5 Einträge). Klick auf Eintrag → Akte/Kunden öffnen.
 class _AuftragsListRow extends StatelessWidget {
   const _AuftragsListRow({
-    required this.offenList,
+    required this.offeneAngebote,
     required this.laufendList,
     required this.abgeschlossenList,
     required this.rechnungen,
   });
-  final List<AuftragWithKunde> offenList;
+  final List<AngebotWithKunde> offeneAngebote;
   final List<AuftragWithKunde> laufendList;
   final List<AuftragWithKunde> abgeschlossenList;
   final List<RechnungWithKunde> rechnungen;
+
+  double _sumForAngebote(List<AngebotWithKunde> items) {
+    double total = 0;
+    for (final a in items) {
+      total += a.angebot.brutto;
+    }
+    return total;
+  }
 
   double _sumForAuftraege(List<AuftragWithKunde> items) {
     final ids = items.map((a) => a.auftrag.id).toSet();
@@ -288,13 +333,13 @@ class _AuftragsListRow extends StatelessWidget {
         children: [
           SizedBox(
             width: cardWidth,
-            child: _AuftragsListCard(
-              label: 'Offene Aufträge',
+            child: _AngeboteListCard(
+              label: 'Offene Angebote',
               bg: BadgeColors.blueBg,
               fg: BadgeColors.blueFg,
-              items: offenList,
-              summe: _sumForAuftraege(offenList),
-              allRoute: '/auftraege',
+              items: offeneAngebote,
+              summe: _sumForAngebote(offeneAngebote),
+              allRoute: '/angebote',
             ),
           ),
           SizedBox(
@@ -380,7 +425,7 @@ class _AuftragsListCard extends StatelessWidget {
                         style: TextStyle(
                           color: fg,
                           fontSize: 22,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           height: 1.0,
                           fontFeatures: const [
                             FontFeature.tabularFigures()
@@ -451,6 +496,191 @@ class _AuftragsListCard extends StatelessWidget {
 
 /// Einzelne Zeile in einer Auftrags-Listen-Kachel: Aktenzeichen · Betreff ·
 /// Auftraggeber. Klick springt in die Akte.
+/// Karte für die Dashboard-Spalte „Offene Angebote" — Strukturell wie
+/// `_AuftragsListCard`, nur dass die Items `AngebotWithKunde` sind und
+/// der Zeilen-Klick zum Angebote-Modul navigiert.
+class _AngeboteListCard extends StatelessWidget {
+  const _AngeboteListCard({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.items,
+    required this.summe,
+    required this.allRoute,
+  });
+  final String label;
+  final Color bg;
+  final Color fg;
+  final List<AngebotWithKunde> items;
+  final double summe;
+  final String allRoute;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = items.take(5).toList();
+    return _DashCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.08 * 10.5,
+                    color: AppTheme.slate500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: bg,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${items.length}',
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          fontFeatures: const [
+                            FontFeature.tabularFigures()
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        DashboardScreen._money.format(summe),
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          if (top.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Text(
+                'Keine offenen Angebote.',
+                style: TextStyle(
+                    fontSize: 12.5, color: AppTheme.slate500),
+              ),
+            )
+          else
+            for (var i = 0; i < top.length; i++) ...[
+              if (i > 0)
+                const Divider(height: 1, indent: 14, endIndent: 14),
+              _AngebotsRow(entry: top[i]),
+            ],
+          if (items.length > 5) ...[
+            const Divider(height: 1),
+            InkWell(
+              onTap: () => context.go(allRoute),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                child: Center(
+                  child: Text(
+                    'Alle ${items.length} Angebote ansehen',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.accent700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AngebotsRow extends StatelessWidget {
+  const _AngebotsRow({required this.entry});
+  final AngebotWithKunde entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.go('/angebote'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 90,
+              child: Text(
+                entry.angebot.angebotsnummer ?? '—',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accent700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (entry.angebot.anfrage?.trim().isNotEmpty ?? false)
+                        ? entry.angebot.anfrage!
+                        : (entry.angebot.betreff ?? '—'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (entry.kunde != null)
+                    Text(
+                      kundeAnzeigename(entry.kunde!),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.slate500),
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 16, color: AppTheme.slate400),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AuftragsRow extends StatelessWidget {
   const _AuftragsRow({required this.entry});
   final AuftragWithKunde entry;
@@ -521,9 +751,9 @@ class _DashCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.slate200),
+        color: AwTokens.white,
+        borderRadius: BorderRadius.circular(AwTokens.radiusLg),
+        border: Border.all(color: AwTokens.line),
       ),
       clipBehavior: Clip.antiAlias,
       child: child,
@@ -531,16 +761,25 @@ class _DashCard extends StatelessWidget {
   }
 }
 
+/// AW-Card-Header (handoff/README §6 „Card"): aw-h3 = 14 px 600 `-0.01em`,
+/// Padding 14–18 px.
 Widget _cardHeader(BuildContext context, String title,
     {Widget? trailing}) {
   return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+    padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
     child: Row(
       children: [
         Expanded(
-          child: Text(title,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700)),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: AwTokens.textLg,
+              fontWeight: FontWeight.w600,
+              letterSpacing: AwTokens.textLg * -0.01,
+              color: AwTokens.ink,
+              height: 1.1,
+            ),
+          ),
         ),
         ?trailing,
       ],
@@ -729,7 +968,7 @@ class _PipelineCard extends ConsumerWidget {
                               color: AppTheme.slate500)),
                       Text('${offenPipeline.length}',
                           style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.w800)),
+                              fontSize: 22, fontWeight: FontWeight.w600)),
                       Text(
                         DashboardScreen._money.format(offenSumme),
                         style: const TextStyle(
@@ -753,7 +992,7 @@ class _PipelineCard extends ConsumerWidget {
                             ? '—'
                             : '${conv.toStringAsFixed(0)} %',
                         style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w800),
+                            fontSize: 22, fontWeight: FontWeight.w600),
                       ),
                       Text(
                         conv == null
@@ -871,11 +1110,29 @@ class _StatBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(fontSize: 11, color: AppTheme.slate500)),
-        Text(value,
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+        // AW-Eyebrow: 11 px 500 uppercase-spacing, Mute.
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 11 * 0.05,
+            color: AwTokens.mute,
+          ),
+        ),
+        const SizedBox(height: 2),
+        // AW-H2 Metrik: 20 px 600 `-0.025em` mit tabular-nums.
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: AwTokens.textH2,
+            fontWeight: FontWeight.w600,
+            letterSpacing: AwTokens.textH2 * -0.025,
+            color: color,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            height: 1.1,
+          ),
+        ),
       ],
     );
   }
@@ -1402,7 +1659,7 @@ class _FortbildungCard extends ConsumerWidget {
                     Text(
                       stunden.toStringAsFixed(1),
                       style: const TextStyle(
-                          fontSize: 26, fontWeight: FontWeight.w800),
+                          fontSize: 26, fontWeight: FontWeight.w600),
                     ),
                     Text('  / ${_ziel.toInt()} h',
                         style: TextStyle(
@@ -1569,8 +1826,8 @@ class _DaysBadge extends StatelessWidget {
   const _DaysBadge({required this.days});
   final int days;
 
-  static const _yellowBg = Color(0xFFFEF9C3);
-  static const _yellowFg = Color(0xFF854D0E);
+  // Gelb-Tier (14-Tage-Frist) wurde auf Amber gemappt — die
+  // AW-Status-Palette kennt kein separates Gelb.
 
   @override
   Widget build(BuildContext context) {
@@ -1584,7 +1841,7 @@ class _DaysBadge extends StatelessWidget {
       1 => (BadgeColors.amberBg, BadgeColors.amberFg, 'morgen'),
       <= 7 =>
         (BadgeColors.amberBg, BadgeColors.amberFg, 'in $days T'),
-      <= 14 => (_yellowBg, _yellowFg, 'in $days T'),
+      <= 14 => (BadgeColors.amberBg, BadgeColors.amberFg, 'in $days T'),
       _ => (BadgeColors.greenBg, BadgeColors.greenFg, 'in $days T'),
     };
     return PillBadge(text: label, background: bg, foreground: fg);

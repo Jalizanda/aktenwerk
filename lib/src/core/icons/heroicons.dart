@@ -120,6 +120,15 @@ class Heroicons {
     'auftragsakten': [
       'M3 7v13h18V7M3 7l3-4h12l3 4M3 7h18M8 11h8',
     ],
+    // Qualifikationen — Medaille / Award-Band (entspricht Material
+    // workspace_premium_outlined). Zwei Pfade: oberer Kreis-Bogen + Bänder.
+    'qualifikationen': [
+      'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.456-2.456L14.25 6l1.035-.259a3.375 3.375 0 002.456-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z',
+    ],
+    // CO₂-Tracker — Blatt/Eco-Symbol (entspricht Material eco_outlined).
+    'co2': [
+      'M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z',
+    ],
   };
 
   static bool has(String name) => _paths.containsKey(name);

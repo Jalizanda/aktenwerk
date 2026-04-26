@@ -180,13 +180,29 @@ class EinstellungenRepository {
           .catchError((_) {}));
       return;
     }
-    await _db.into(_db.einstellungen).insertOnConflictUpdate(
-          EinstellungenCompanion.insert(
-            key: key,
+    // WICHTIG: insertOnConflictUpdate löst Konflikte über den Primary Key
+    // (id) auf — die UNIQUE-Constraint liegt aber auf `key`, was beim
+    // Wiederspeichern in einen "UNIQUE constraint failed: einstellungen.key"
+    // läuft. Daher manueller Upsert anhand des Keys.
+    final existing = await (_db.select(_db.einstellungen)
+          ..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
+    if (existing != null) {
+      await (_db.update(_db.einstellungen)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(EinstellungenCompanion(
             wert: Value(value),
             updatedAt: Value(now),
-          ),
-        );
+          ));
+    } else {
+      await _db.into(_db.einstellungen).insert(
+            EinstellungenCompanion.insert(
+              key: key,
+              wert: Value(value),
+              updatedAt: Value(now),
+            ),
+          );
+    }
     if (value.length > _firestoreMaxValueBytes) {
       // z. B. Firma-Logo-Base64 ist zu groß für Firestore — nur lokal.
       return;
@@ -216,13 +232,27 @@ class EinstellungenRepository {
       final key = d['key']?.toString();
       final wert = d['wert']?.toString();
       if (key == null || key.isEmpty) continue;
-      await _db.into(_db.einstellungen).insertOnConflictUpdate(
-            EinstellungenCompanion.insert(
-              key: key,
+      // Upsert per Key (siehe Hinweis in `set` — UNIQUE-Constraint liegt
+      // auf `key`, nicht auf `id`).
+      final existing = await (_db.select(_db.einstellungen)
+            ..where((t) => t.key.equals(key)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (_db.update(_db.einstellungen)
+              ..where((t) => t.id.equals(existing.id)))
+            .write(EinstellungenCompanion(
               wert: Value(wert),
               updatedAt: Value(DateTime.now()),
-            ),
-          );
+            ));
+      } else {
+        await _db.into(_db.einstellungen).insert(
+              EinstellungenCompanion.insert(
+                key: key,
+                wert: Value(wert),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
+      }
       count++;
     }
     return count;

@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'firebase_init.dart';
 
@@ -54,6 +57,53 @@ class AuthService {
       accessToken: auth.accessToken,
     );
     return _auth.signInWithCredential(credential);
+  }
+
+  /// „Mit Apple anmelden" — auf iOS/macOS via natives Apple-Sheet,
+  /// auf Web via Firebase OAuthProvider-Popup. Liefert ggf.
+  /// `displayName`, das wir nach erfolgreichem Login direkt im
+  /// Firebase-User-Profil setzen, weil Apple den Namen nur beim
+  /// allerersten Konsens-Dialog mitschickt.
+  Future<UserCredential> signInWithApple() async {
+    _require();
+    if (kIsWeb) {
+      final provider = OAuthProvider('apple.com')
+        ..addScope('email')
+        ..addScope('name');
+      return _auth.signInWithPopup(provider);
+    }
+    if (!(Platform.isIOS || Platform.isMacOS)) {
+      throw FirebaseAuthException(
+        code: 'unsupported-platform',
+        message: 'Apple-Anmeldung ist nur auf iOS, macOS oder Web verfügbar.',
+      );
+    }
+    final apple = await SignInWithApple.getAppleIDCredential(
+      scopes: const [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+    );
+    final credential = OAuthProvider('apple.com').credential(
+      idToken: apple.identityToken,
+      accessToken: apple.authorizationCode,
+    );
+    final result = await _auth.signInWithCredential(credential);
+
+    // Apple gibt den Namen NUR beim ersten Login mit. Wir merken ihn
+    // direkt im Firebase-User-Profil, damit User-Menü etc. ihn anzeigen.
+    final fullName = [apple.givenName, apple.familyName]
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .join(' ');
+    if (fullName.isNotEmpty &&
+        (result.user?.displayName == null ||
+            result.user!.displayName!.isEmpty)) {
+      try {
+        await result.user?.updateDisplayName(fullName);
+      } catch (_) {}
+    }
+    return result;
   }
 
   Future<void> sendPasswordReset(String email) {

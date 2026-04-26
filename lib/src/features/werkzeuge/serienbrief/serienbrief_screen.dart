@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart' show Uint8List;
 
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
@@ -129,7 +130,7 @@ class _SerienbriefScreenState extends ConsumerState<SerienbriefScreen> {
               const VerticalDivider(width: 1),
               Expanded(
                 child: Container(
-                  color: const Color(0xFFF5F5F4),
+                  color: AwTokens.paper,
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 28, vertical: 24),
@@ -140,8 +141,7 @@ class _SerienbriefScreenState extends ConsumerState<SerienbriefScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(
-                                color: Color(0xFFE5E7EB)),
+                            side: const BorderSide(color: AwTokens.line),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(20),

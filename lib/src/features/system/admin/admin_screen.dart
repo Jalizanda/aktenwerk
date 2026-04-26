@@ -146,7 +146,7 @@ class _PendingUsersTab extends ConsumerWidget {
                   CircleAvatar(
                     backgroundColor: BadgeColors.amberBg,
                     child: const Icon(Icons.hourglass_top_outlined,
-                        color: Color(0xFFB45309), size: 18),
+                        color: BadgeColors.amberFg, size: 18),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

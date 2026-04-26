@@ -15,6 +15,7 @@ import '../../../features/akten/gutachten/gutachten_repository.dart';
 import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../features/werkzeuge/textbausteine/textbausteine_repository.dart';
+import '../../../shared/pdf/document_pdf.dart';
 import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
@@ -201,6 +202,42 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
         );
       }
     }
+  }
+
+  /// Öffnet die PDF-Vorschau (Print-Dialog) für das aktuell angezeigte
+  /// Anschreiben. Speichert vorher NICHT — du siehst den aktuellen
+  /// Editor-Stand.
+  Future<void> _previewPdf() async {
+    final db = ref.read(appDatabaseProvider);
+    KundenData? kunde;
+    final kid = _kundeId;
+    if (kid != null) {
+      kunde = await (db.select(db.kunden)..where((t) => t.id.equals(kid)))
+          .getSingleOrNull();
+    }
+    AuftraegeData? auftrag;
+    if (_auftragId != null) {
+      auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(_auftragId!)))
+          .getSingleOrNull();
+    }
+    final absender = await absenderFromSettings(ref);
+    final brieftext = plainTextFromDeltaJson(_inhaltJson);
+    if (!mounted) return;
+    await previewAnschreibenPdf(AnschreibenPdfData(
+      datum: _datum,
+      betreff: _betreff.text.trim().isEmpty ? null : _betreff.text.trim(),
+      aktenzeichen: auftrag?.aktenzeichen,
+      anrede: _anrede.text.trim().isEmpty ? null : _anrede.text.trim(),
+      briefText: brieftext.isEmpty ? null : brieftext,
+      gruss: _gruss.text.trim().isEmpty ? null : _gruss.text.trim(),
+      absender: absender,
+      empfaenger: kunde,
+      gericht: auftrag?.gericht,
+      gerichtsAktenzeichen: auftrag?.gerichtsAktenzeichen,
+      klaeger: auftrag?.klaeger,
+      beklagter: auftrag?.beklagter,
+    ));
   }
 
   /// Öffnet den KI-Chat zum Entwerfen eines Anschreibens. Nimmt dem
@@ -390,10 +427,21 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
               .read(anschreibenRepositoryProvider)
               .delete(widget.eintrag!.anschreiben.id)
           : null,
-      footerLeading: OutlinedButton.icon(
-        icon: const Icon(Icons.article_outlined, size: 16),
-        label: const Text('Vorlage einfügen …'),
-        onPressed: _vorlageEinfuegen,
+      footerLeading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+            label: const Text('Vorschau'),
+            onPressed: _saving ? null : _previewPdf,
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.article_outlined, size: 16),
+            label: const Text('Vorlage einfügen …'),
+            onPressed: _vorlageEinfuegen,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

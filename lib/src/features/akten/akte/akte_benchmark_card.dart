@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 
@@ -212,9 +213,7 @@ class _Zeile extends StatelessWidget {
       final sign = delta! > 0 ? '+' : '−';
       deltaText =
           '$sign${delta!.abs().toStringAsFixed(1)} $einheit vs. Schnitt';
-      deltaColor = delta! > 0
-          ? const Color(0xFFB91C1C)
-          : const Color(0xFF166534);
+      deltaColor = delta! > 0 ? AwTokens.red : AwTokens.green;
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

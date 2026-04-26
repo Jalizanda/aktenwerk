@@ -1,60 +1,63 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-/// Theme entspricht 1:1 der Original-SV-Software
-/// (Tailwind slate + accent orange, Inter-Font).
+import 'aw_tokens.dart';
+
+/// Theme nach Aktenwerk Design Guideline v1.0 (siehe `handoff/`).
+/// Ink + Paper statt Slate, Orange `#F25C1F` (Brand), Geist-Schrift,
+/// Borders via `--aw-line` (8 % Ink).
 class AppTheme {
-  // Brand / Slate
-  static const slate50 = Color(0xFFF8FAFC);
-  static const slate100 = Color(0xFFF1F5F9);
-  static const slate200 = Color(0xFFE2E8F0);
-  static const slate300 = Color(0xFFCBD5E1);
-  static const slate400 = Color(0xFF94A3B8);
-  static const slate500 = Color(0xFF64748B);
-  static const slate600 = Color(0xFF475569);
-  static const slate700 = Color(0xFF334155);
-  static const slate800 = Color(0xFF1E293B);
-  static const slate900 = Color(0xFF0F172A);
+  // ---- Alt-API (Slate/Accent) — bleibt als Alias erhalten, damit die
+  // ~120 bestehenden Referenzen weiterhin kompilieren. Intern sind die
+  // Farben nun auf die AW-Guideline gemappt.
+  static const slate50 = AwTokens.paper;
+  static const slate100 = Color(0xFFF1F3F0); // leicht wärmer als ink-8%
+  static const slate200 = AwTokens.line;
+  static const slate300 = AwTokens.lineStrong;
+  static const slate400 = AwTokens.muteSoft;
+  static const slate500 = AwTokens.mute;
+  static const slate600 = Color(0xFF4B5466);
+  static const slate700 = Color(0xFF2E3848);
+  static const slate800 = AwTokens.ink2;
+  static const slate900 = AwTokens.ink;
 
-  // Accent / Orange
-  static const accent50 = Color(0xFFFFF7ED);
-  static const accent100 = Color(0xFFFFEDD5);
-  static const accent400 = Color(0xFFFB923C);
-  static const accent500 = Color(0xFFF97316);
-  static const accent600 = Color(0xFFEA580C);
-  static const accent700 = Color(0xFFC2410C);
+  static const accent50 = Color(0xFFFEEFE7); // ~orange @ 10 % auf Weiß
+  static const accent100 = Color(0xFFFCD9C7);
+  static const accent400 = Color(0xFFF37A45);
+  static const accent500 = AwTokens.orange;
+  static const accent600 = AwTokens.orange;
+  static const accent700 = AwTokens.orangeDeep;
 
-  static const brand = slate900;
-  static const accent = accent600;
+  static const brand = AwTokens.ink;
+  static const accent = AwTokens.orange;
 
   static ThemeData light() {
-    final scheme = const ColorScheme.light(
-      primary: accent600,
-      onPrimary: Colors.white,
+    const scheme = ColorScheme.light(
+      primary: AwTokens.orange,
+      onPrimary: AwTokens.white,
       primaryContainer: accent50,
-      onPrimaryContainer: accent700,
-      secondary: slate700,
-      onSecondary: Colors.white,
-      secondaryContainer: slate100,
-      onSecondaryContainer: slate800,
-      tertiary: accent500,
-      onTertiary: Colors.white,
+      onPrimaryContainer: AwTokens.orangeDeep,
+      secondary: AwTokens.ink,
+      onSecondary: AwTokens.white,
+      secondaryContainer: AwTokens.paper,
+      onSecondaryContainer: AwTokens.ink,
+      tertiary: AwTokens.orange,
+      onTertiary: AwTokens.white,
       tertiaryContainer: accent100,
-      onTertiaryContainer: accent700,
-      error: Color(0xFFDC2626),
-      onError: Colors.white,
+      onTertiaryContainer: AwTokens.orangeDeep,
+      error: AwTokens.red,
+      onError: AwTokens.white,
       errorContainer: Color(0xFFFEE2E2),
-      onErrorContainer: Color(0xFF991B1B),
-      surface: Colors.white,
-      onSurface: slate900,
-      surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: slate50,
-      surfaceContainer: slate50,
+      onErrorContainer: Color(0xFF7F1D1D),
+      surface: AwTokens.white,
+      onSurface: AwTokens.ink,
+      surfaceContainerLowest: AwTokens.white,
+      surfaceContainerLow: AwTokens.paper,
+      surfaceContainer: AwTokens.paper,
       surfaceContainerHigh: slate100,
       surfaceContainerHighest: slate100,
-      onSurfaceVariant: slate600,
-      outline: slate300,
-      outlineVariant: slate200,
+      onSurfaceVariant: AwTokens.mute,
+      outline: AwTokens.lineStrong,
+      outlineVariant: AwTokens.line,
     );
     return _base(scheme, Brightness.light);
   }
@@ -92,11 +95,15 @@ class AppTheme {
   }
 
   static ThemeData _base(ColorScheme scheme, Brightness b) {
-    final baseText = GoogleFonts.interTextTheme(
-      b == Brightness.light
-          ? ThemeData.light().textTheme
-          : ThemeData.dark().textTheme,
-    ).apply(
+    // Geist ist die Brand-Schrift (handoff/README §3). Wird auf Web
+    // via `<link>` in `web/index.html` geladen und vom Browser-Text-
+    // Engine verwendet. Auf Desktop/Mobile fällt Flutter auf die
+    // System-Schrift zurück.
+    final baseText = (b == Brightness.light
+            ? ThemeData.light().textTheme
+            : ThemeData.dark().textTheme)
+        .apply(
+      fontFamily: AwTokens.fontSans,
       bodyColor: scheme.onSurface,
       displayColor: scheme.onSurface,
     );
@@ -185,25 +192,38 @@ class AppTheme {
         space: 1,
         thickness: 1,
       ),
+      // AW-Guideline DIALOGS §4 „Felder":
+      // - 34 px hoch, weißer BG, Line-Strong Border, 8 px Radius.
+      // - Focus: Orange-Border, Text 12.5 px 500, Mute-Hint.
+      // - Error: Red-Border, Red-Helper 11 px.
       inputDecorationTheme: InputDecorationTheme(
         isDense: true,
         filled: true,
-        fillColor: scheme.surfaceContainerHighest,
+        fillColor: AwTokens.white,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        hintStyle: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
-        labelStyle: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
-        floatingLabelStyle: const TextStyle(fontSize: 11),
+        hintStyle: const TextStyle(fontSize: 12.5, color: AwTokens.mute),
+        labelStyle: const TextStyle(fontSize: 12.5, color: AwTokens.mute),
+        floatingLabelStyle: const TextStyle(fontSize: 11, color: AwTokens.mute),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8)),
+            borderRadius: BorderRadius.circular(AwTokens.radiusMd)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: scheme.outline),
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+          borderSide: const BorderSide(color: AwTokens.lineStrong),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: accent600, width: 2),
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+          borderSide: const BorderSide(color: AwTokens.orange, width: 2),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+          borderSide: const BorderSide(color: AwTokens.red),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+          borderSide: const BorderSide(color: AwTokens.red, width: 2),
+        ),
+        errorStyle: const TextStyle(fontSize: 11, color: AwTokens.red),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
@@ -217,23 +237,27 @@ class AppTheme {
       // Alternative Lösung: DataTable-Wrapper. Hier wird das Default-Theme
       // angepasst, damit wenigstens die Klick-Ziele korrekt funktionieren.
       dataTableTheme: DataTableThemeData(
+        // AW-Guideline §6 „Tabellen": Header-BG Paper, Text 10.5 px
+        // uppercase 600 mute, letter-spacing 0.05em.
+        headingRowColor: WidgetStateProperty.all(AwTokens.paper),
         headingTextStyle: textTheme.labelLarge?.copyWith(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            color: scheme.onSurfaceVariant,
-            letterSpacing: 0.1),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: AwTokens.mute,
+            letterSpacing: 10.5 * 0.05),
         dataTextStyle: textTheme.bodyMedium?.copyWith(fontSize: 12.5),
         headingRowHeight: 40,
         dataRowMinHeight: 38,
         dataRowMaxHeight: 48,
         columnSpacing: 18,
         horizontalMargin: 12,
+        dividerThickness: 1,
         // Zeilen-Verhalten 1:1 wie die Sidebar-NavItems:
         // Hover = leicht grau, Selected/Pressed = orange-Hintergrund.
         dataRowColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return accent50;
-          if (states.contains(WidgetState.pressed)) return accent50;
-          if (states.contains(WidgetState.hovered)) return slate100;
+          if (states.contains(WidgetState.selected)) return AwTokens.orangeSoft;
+          if (states.contains(WidgetState.pressed)) return AwTokens.orangeSoft;
+          if (states.contains(WidgetState.hovered)) return AwTokens.paper;
           return null;
         }),
       ),
@@ -243,10 +267,66 @@ class AppTheme {
           borderRadius: BorderRadius.circular(999),
         ),
       ),
+      // AW-Guideline §6 „Progress": 5 px, Paper-Track, Orange-Fill.
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AwTokens.orange,
+        linearTrackColor: AwTokens.paper,
+        linearMinHeight: 5,
+      ),
+      // AW-Guideline: TabBar-Active mit Orange-Underline (2 px),
+      // Inactive mute, Label 13 px 500.
+      tabBarTheme: const TabBarThemeData(
+        indicatorColor: AwTokens.orange,
+        indicatorSize: TabBarIndicatorSize.label,
+        labelColor: AwTokens.ink,
+        unselectedLabelColor: AwTokens.mute,
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle:
+            TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        dividerColor: AwTokens.line,
+      ),
       dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14)),
+            borderRadius: BorderRadius.circular(AwTokens.radiusXl)),
         elevation: 10,
+      ),
+      // AW-Popup-Menü (Dropdowns, Kontextmenüs): weißes Panel,
+      // 8 px Radius, mute-Text, Orange-Soft für Selected.
+      popupMenuTheme: PopupMenuThemeData(
+        color: AwTokens.white,
+        surfaceTintColor: AwTokens.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+          side: const BorderSide(color: AwTokens.line),
+        ),
+        textStyle: const TextStyle(fontSize: 12.5, color: AwTokens.ink),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: const WidgetStatePropertyAll(AwTokens.white),
+          surfaceTintColor: const WidgetStatePropertyAll(AwTokens.white),
+          elevation: const WidgetStatePropertyAll(4),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+              side: const BorderSide(color: AwTokens.line),
+            ),
+          ),
+        ),
+      ),
+      // AW-Snackbar / Toast (handoff/DIALOGS §7): Ink-BG, weißer
+      // Text 12.5 px, 8 px Radius, 360 px max. Action-Link in Orange.
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AwTokens.ink,
+        contentTextStyle: TextStyle(
+            color: AwTokens.white, fontSize: 12.5, height: 1.35),
+        actionTextColor: AwTokens.orange,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(AwTokens.radiusMd)),
+        ),
+        insetPadding: EdgeInsets.all(20),
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 import '../../data/sync/auth_service.dart';
 import '../../data/sync/storage_service.dart';
 
@@ -478,8 +479,7 @@ class _Thumb extends StatelessWidget {
       return const SizedBox(
         width: size,
         height: size,
-        child: Icon(Icons.picture_as_pdf,
-            size: 28, color: Color(0xFFDC2626)),
+        child: Icon(Icons.picture_as_pdf, size: 28, color: AwTokens.red),
       );
     }
     return const SizedBox(

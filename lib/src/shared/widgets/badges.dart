@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
 
-/// Farbpalette der Original-Badges aus der SV-Software
-/// (Tailwind-Werte: indigo/blue/red/green/amber jeweils 50er BG + 700/800 FG).
+import '../../core/theme/aw_tokens.dart';
+
+/// Badge-Farbpalette, gemappt auf AW-Guideline-Status (handoff/README §6).
+/// BG-Varianten sind die *-soft-Werte (10 % Deckkraft auf Ink),
+/// FG die Volltöne.
 class BadgeColors {
   BadgeColors._();
 
-  // Tailwind 50-BG + 700/800 FG
-  static const indigoBg = Color(0xFFEEF2FF);
-  static const indigoFg = Color(0xFF4338CA);
-  static const blueBg = Color(0xFFEFF6FF);
-  static const blueFg = Color(0xFF1D4ED8);
-  static const redBg = Color(0xFFFEF2F2);
-  static const redFg = Color(0xFF991B1B);
-  static const greenBg = Color(0xFFF0FDF4);
-  static const greenFg = Color(0xFF166534);
-  static const amberBg = Color(0xFFFFFBEB);
-  static const amberFg = Color(0xFFB45309);
-  static const slateBg = Color(0xFFF1F5F9);
-  static const slateFg = Color(0xFF334155);
+  // AW-Status-Paletten.
+  static const indigoBg = AwTokens.blueSoft; // indigo-Alias auf AW-blue
+  static const indigoFg = AwTokens.blue;
+  static const blueBg = AwTokens.blueSoft;
+  static const blueFg = AwTokens.blue;
+  static const redBg = AwTokens.redSoft;
+  static const redFg = AwTokens.red;
+  static const greenBg = AwTokens.greenSoft;
+  static const greenFg = AwTokens.green;
+  static const amberBg = AwTokens.amberSoft;
+  static const amberFg = AwTokens.amber;
+  static const slateBg = AwTokens.paper;
+  static const slateFg = AwTokens.mute;
 }
 
 /// Pill-Badge à la Tailwind (rounded-full, 11 px, fett, letter-spacing 0.01em).
@@ -217,8 +220,16 @@ class KpiCard extends StatelessWidget {
   final Color? accent;
   final IconData? icon;
 
+  // Mapping FG-Hex → zugehörige soft-BG. Alte Tailwind-Werte bleiben
+  // als Aliase drin, damit Aufrufer mit `accent: BadgeColors.xxxFg`
+  // UND Legacy-Aufrufer mit Tailwind-Konstanten beide treffen.
   static const _bgFor = <int, Color>{
+    // Neue AW-Werte:
     0xFFB45309: BadgeColors.amberBg,
+    0xFF16794A: BadgeColors.greenBg,
+    0xFF1E4ED8: BadgeColors.blueBg,
+    0xFFB42318: BadgeColors.redBg,
+    // Legacy-Tailwind-Werte (falls irgendwo noch direkt verwendet):
     0xFF166534: BadgeColors.greenBg,
     0xFF1D4ED8: BadgeColors.blueBg,
     0xFF991B1B: BadgeColors.redBg,

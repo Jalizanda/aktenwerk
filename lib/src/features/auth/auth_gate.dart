@@ -1,8 +1,12 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../../shared/widgets/aw_logo.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 import '../../data/sync/auth_service.dart';
 import '../../data/sync/firebase_init.dart';
 import 'user_approval_service.dart';
@@ -55,7 +59,7 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset('assets/images/logo.svg', height: 64),
+            const AwLogo(size: 90, variant: AwLogoVariant.lockup),
             const SizedBox(height: 24),
             const SizedBox(
               width: 24,
@@ -100,6 +104,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _busy = false;
+
+  /// Apple-Sign-In ist nur auf iOS, macOS und im Web verfügbar.
+  bool get _appleVerfuegbar =>
+      kIsWeb || Platform.isIOS || Platform.isMacOS;
   String? _error;
 
   Future<void> _handle(Future<Object?> Function() fn) async {
@@ -154,6 +162,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _googleLogin() async {
     await _handle(() => ref.read(authServiceProvider).signInWithGoogle());
+  }
+
+  Future<void> _appleLogin() async {
+    await _handle(() => ref.read(authServiceProvider).signInWithApple());
   }
 
   Future<void> _emailLogin() async {
@@ -325,16 +337,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _card(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.slate200),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F0F172A),
-            blurRadius: 24,
-            offset: Offset(0, 8),
-          ),
-        ],
+        color: AwTokens.white,
+        borderRadius: BorderRadius.circular(AwTokens.radiusXl),
+        border: Border.all(color: AwTokens.line),
+        boxShadow: AwTokens.shadowLg,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -342,16 +348,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Logo-Kopfbereich: leicht eingefärbter Hintergrund, durch eine
-          // Trennlinie vom Formular-Bereich abgesetzt.
-          Container(
-            color: AppTheme.slate50,
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            alignment: Alignment.center,
-            child: SvgPicture.asset(
-              'assets/images/logo.svg',
-              height: 84,
-              fit: BoxFit.contain,
-            ),
+          // Trennlinie vom Formular-Bereich abgesetzt. Logo skaliert
+          // auf schmalen Viewports, damit auf 360-px-Phones noch Luft ist.
+          Builder(
+            builder: (ctx) {
+              final w = MediaQuery.sizeOf(ctx).width;
+              // Stufenweise; auf iPad (810–1180) nur ~80–90.
+              final logoH = w < 480
+                  ? 56.0
+                  : (w < 720 ? 72.0 : (w < 1280 ? 84.0 : 100.0));
+              return Container(
+                color: AppTheme.slate50,
+                padding:
+                    EdgeInsets.symmetric(vertical: w < 480 ? 18 : 24),
+                alignment: Alignment.center,
+                child: AwLogo(size: logoH, variant: AwLogoVariant.lockup),
+              );
+            },
           ),
           const Divider(height: 1, color: AppTheme.slate200),
           Padding(
@@ -372,6 +385,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
           _GoogleButton(onPressed: _busy ? null : _googleLogin),
+          if (_appleVerfuegbar) ...[
+            const SizedBox(height: 8),
+            _AppleButton(onPressed: _busy ? null : _appleLogin),
+          ],
           const SizedBox(height: 12),
           _OrDivider(),
           const SizedBox(height: 12),
@@ -411,14 +428,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFFCA5A5)),
+                color: AwTokens.redSoft,
+                borderRadius: BorderRadius.circular(AwTokens.radiusSm),
+                border: Border.all(color: AwTokens.line),
               ),
               child: Text(
                 _error!,
                 style: const TextStyle(
-                    color: Color(0xFF991B1B), fontSize: 12, height: 1.3),
+                    color: AwTokens.red, fontSize: 12, height: 1.3),
               ),
             ),
           ],
@@ -478,6 +495,25 @@ class _GoogleButton extends StatelessWidget {
         foregroundColor: AppTheme.slate900,
         backgroundColor: Colors.white,
         side: const BorderSide(color: AppTheme.slate200),
+        minimumSize: const Size.fromHeight(46),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      ),
+    );
+  }
+}
+
+class _AppleButton extends StatelessWidget {
+  const _AppleButton({this.onPressed});
+  final VoidCallback? onPressed;
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.apple, size: 20, color: Colors.white),
+      label: const Text('Mit Apple anmelden'),
+      style: FilledButton.styleFrom(
+        backgroundColor: AwTokens.ink,
+        foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(46),
         textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
       ),

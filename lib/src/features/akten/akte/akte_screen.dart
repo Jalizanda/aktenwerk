@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:drift/drift.dart' show OrderingTerm, OrderingMode, innerJoin;
+import 'package:drift/drift.dart'
+    show OrderingTerm, OrderingMode, innerJoin, Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../shared/widgets/badges.dart';
@@ -539,7 +541,7 @@ class _AkteInfoCard extends StatelessWidget {
                   child: Row(
                     children: [
                       const Icon(Icons.picture_as_pdf,
-                          size: 18, color: Color(0xFFDC2626)),
+                          size: 18, color: AwTokens.red),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -547,7 +549,7 @@ class _AkteInfoCard extends StatelessWidget {
                               'Beweisbeschluss',
                           style: const TextStyle(
                             fontSize: 12.5,
-                            color: Color(0xFF1D4ED8),
+                            color: AwTokens.blue,
                             decoration: TextDecoration.underline,
                           ),
                         ),
@@ -1117,7 +1119,8 @@ class _AngeboteTab extends ConsumerWidget {
         columns: const [
           DataColumn(label: Text('Nr.')),
           DataColumn(label: Text('Datum')),
-          DataColumn(label: Text('Betreff')),
+          DataColumn(label: Text('Beschreibung')),
+          DataColumn(label: Text('Objekt')),
           DataColumn(label: Text('Brutto €')),
           DataColumn(label: Text('Status')),
         ],
@@ -1130,7 +1133,33 @@ class _AngeboteTab extends ConsumerWidget {
                 DataCell(Text(a.angebot.angebotsnummer ?? '',
                     style: const TextStyle(fontFamily: 'monospace'))),
                 DataCell(Text(_dateFmt.format(a.angebot.datum))),
-                DataCell(Text(a.angebot.betreff ?? '')),
+                DataCell(SizedBox(
+                  width: 280,
+                  child: Text(
+                    (a.angebot.anfrage?.trim().isNotEmpty ?? false)
+                        ? a.angebot.anfrage!
+                        : (a.angebot.betreff ?? ''),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                )),
+                DataCell(SizedBox(
+                  width: 200,
+                  child: Text(
+                    [
+                      a.angebot.objektStrasse,
+                      [a.angebot.objektPlz, a.angebot.objektOrt]
+                          .whereType<String>()
+                          .where((s) => s.trim().isNotEmpty)
+                          .join(' '),
+                    ]
+                        .whereType<String>()
+                        .where((s) => s.trim().isNotEmpty)
+                        .join(', '),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                )),
                 DataCell(Text(_money(a.angebot.brutto))),
                 DataCell(Text(a.angebot.status)),
               ],
@@ -1398,6 +1427,7 @@ class _NormenTab extends ConsumerWidget {
               DataColumn(label: Text('Titel')),
               DataColumn(label: Text('Ausgabe')),
               DataColumn(label: Text('Relevanz')),
+              DataColumn(label: Text('')),
             ],
             rows: [
               for (final n in items)
@@ -1410,6 +1440,44 @@ class _NormenTab extends ConsumerWidget {
                     DataCell(Text(n.titel ?? '')),
                     DataCell(Text(n.ausgabe ?? '')),
                     DataCell(Text(n.relevanz ?? '')),
+                    DataCell(IconButton(
+                      tooltip: 'Norm aus dieser Akte entfernen',
+                      icon: const Icon(Icons.link_off_outlined,
+                          size: 18),
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: ctx,
+                          useRootNavigator: true,
+                          builder: (_) => AlertDialog(
+                            title: const Text(
+                                'Norm aus Akte entfernen?'),
+                            content: Text(
+                                'Die Zuordnung von „${n.nummer}" zu '
+                                'dieser Akte wird gelöst. Die Norm '
+                                'selbst bleibt im Katalog erhalten.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx,
+                                        rootNavigator: true)
+                                    .pop(false),
+                                child: const Text('Abbrechen'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(ctx,
+                                        rootNavigator: true)
+                                    .pop(true),
+                                child: const Text('Entfernen'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok != true) return;
+                        await (db.update(db.normen)
+                              ..where((t) => t.id.equals(n.id)))
+                            .write(const NormenCompanion(
+                                auftragId: Value(null)));
+                      },
+                    )),
                   ],
                 ),
             ],
@@ -1487,6 +1555,7 @@ class _GeraeteTab extends ConsumerWidget {
               DataColumn(label: Text('Bezeichnung')),
               DataColumn(label: Text('Hersteller')),
               DataColumn(label: Text('Nächste Kal.')),
+              DataColumn(label: Text('')),
             ],
             rows: [
               for (final g in items)
@@ -1499,6 +1568,45 @@ class _GeraeteTab extends ConsumerWidget {
                     DataCell(Text(g.naechsteKalibrierung == null
                         ? ''
                         : _dateFmt.format(g.naechsteKalibrierung!))),
+                    DataCell(IconButton(
+                      tooltip: 'Gerät aus dieser Akte entfernen',
+                      icon: const Icon(Icons.link_off_outlined,
+                          size: 18),
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: ctx,
+                          useRootNavigator: true,
+                          builder: (_) => AlertDialog(
+                            title: const Text(
+                                'Gerät aus Akte entfernen?'),
+                            content: Text(
+                                'Die Zuordnung von „${g.bezeichnung}" '
+                                'zu dieser Akte wird gelöst. Das Gerät '
+                                'selbst bleibt im Inventar erhalten.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx,
+                                        rootNavigator: true)
+                                    .pop(false),
+                                child: const Text('Abbrechen'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(ctx,
+                                        rootNavigator: true)
+                                    .pop(true),
+                                child: const Text('Entfernen'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok != true) return;
+                        await (db.delete(db.auftraegeGeraete)
+                              ..where((t) =>
+                                  t.auftragId.equals(auftragId))
+                              ..where((t) => t.geraetId.equals(g.id)))
+                            .go();
+                      },
+                    )),
                   ],
                 ),
             ],

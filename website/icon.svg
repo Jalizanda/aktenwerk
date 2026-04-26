@@ -1,15 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Aktenwerk App-Icon">
-  <rect width="512" height="512" rx="96" fill="#0f172a"/>
-  <!-- Aktenrücken -->
-  <rect x="128" y="128" width="256" height="256" rx="24" fill="#ffffff"/>
-  <rect x="128" y="128" width="256" height="40" rx="24" fill="#ea580c"/>
-  <!-- Linien / Papier -->
-  <rect x="160" y="196" width="192" height="8" rx="4" fill="#cbd5e1"/>
-  <rect x="160" y="224" width="192" height="8" rx="4" fill="#cbd5e1"/>
-  <rect x="160" y="252" width="140" height="8" rx="4" fill="#cbd5e1"/>
-  <rect x="160" y="280" width="170" height="8" rx="4" fill="#cbd5e1"/>
-  <!-- Werk-Plakette -->
-  <circle cx="360" cy="360" r="56" fill="#ea580c"/>
-  <path d="M332 360 L360 332 L388 360 L360 388 Z" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <rect x="0" y="0" width="64" height="64" rx="10" fill="#0B1220"></rect>
+  <rect x="14" y="18" width="28" height="22" rx="3" fill="none" stroke="#FAFAF7" stroke-width="2.5"></rect>
+  <rect x="22" y="26" width="28" height="22" rx="3" fill="#F25C1F"></rect>
 </svg>

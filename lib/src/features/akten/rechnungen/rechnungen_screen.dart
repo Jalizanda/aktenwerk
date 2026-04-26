@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../features/akten/workflow/dokument_workflow.dart';
+import '../../../features/system/benutzer/benutzer_repository.dart';
 import '../../../features/system/einstellungen/absender_service.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
 import '../../../features/system/einstellungen/nummernkreis_service.dart';
@@ -216,14 +218,24 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
                 DataCell(Text(
                   r.rechnung.rechnungsnummer ?? '',
                   style: const TextStyle(
-                      fontFamily: 'monospace', fontSize: 12),
+                    color: AwTokens.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 )),
                 DataCell(Text(r.rechnung.rechnungsdatum == null
                     ? ''
                     : RechnungenScreen._dateFmt
                         .format(r.rechnung.rechnungsdatum!))),
                 DataCell(RechnungTypBadge(r.rechnung.typ)),
-                DataCell(Text(r.auftrag?.aktenzeichen ?? '')),
+                DataCell(Text(
+                  r.auftrag?.aktenzeichen ?? '',
+                  style: const TextStyle(
+                    color: AwTokens.orange,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                )),
                 DataCell(Text(r.kunde == null
                     ? '—'
                     : kundeAnzeigename(r.kunde!))),
@@ -254,7 +266,7 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
                             : Icons.print_outlined,
                         size: 20,
                         color: r.rechnung.pdfStorageUrl != null
-                            ? const Color(0xFF16A34A)
+                            ? AwTokens.green
                             : null,
                       ),
                       onPressed: () => _druckenUndEinfrieren(context, r),
@@ -497,8 +509,33 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.rechnungFusstext);
-    if (mounted && _fuss.text.isEmpty && fuss != null) {
-      _fuss.text = fuss;
+    if (mounted && _fuss.text.isEmpty) {
+      // Default-Schlusstext: hinterlegter Rechnungs-Fußtext aus den
+      // Einstellungen — sonst „Mit freundlichen Grüßen" + Name + Titel
+      // des aktiven Benutzers.
+      if (fuss != null && fuss.trim().isNotEmpty) {
+        _fuss.text = fuss;
+      } else {
+        try {
+          final benutzer = await ref
+              .read(benutzerRepositoryProvider)
+              .getActive();
+          final name = [benutzer?.vorname, benutzer?.nachname]
+              .whereType<String>()
+              .where((s) => s.trim().isNotEmpty)
+              .join(' ');
+          final titel = (benutzer?.titel ?? '').trim();
+          final lines = <String>[
+            'Mit freundlichen Grüßen',
+            '',
+            if (name.isNotEmpty) name,
+            if (titel.isNotEmpty) titel,
+          ];
+          _fuss.text = lines.join('\n');
+        } catch (_) {
+          _fuss.text = 'Mit freundlichen Grüßen';
+        }
+      }
     }
   }
 
@@ -853,14 +890,14 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AwTokens.amberSoft,
+                    border: Border.all(color: AwTokens.line),
+                    borderRadius: BorderRadius.circular(AwTokens.radiusMd),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.lock_outline,
-                          color: Color(0xFFB45309), size: 18),
+                          color: AwTokens.amber, size: 18),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
@@ -1081,6 +1118,20 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                         : () => _auslagenUebernehmen(),
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+              // Anrede / Einleitungstext (Kopftext im PDF) — analog Angebot.
+              LabeledField(
+                'Anrede',
+                TextFormField(
+                  controller: _kopf,
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    hintText:
+                        'Sehr geehrte Damen und Herren,\n\nfür meine sachverständigen Leistungen erlaube ich mir zu berechnen:',
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               // Schlusstext links · Summen-Karte rechts (wie im Original)
@@ -1340,22 +1391,22 @@ class _RechnungsTypHinweis extends StatelessWidget {
         return (
           'Akontoanforderung (Nummernkreis AZ{YYYY}-…)',
           'Reine Zahlungsaufforderung — USt-Pflicht entsteht erst mit Zahlungseingang (Zufluss-/Istversteuerung §13 Abs. 1 Nr. 1 b UStG). Sobald die Anforderung bezahlt ist, trägt sie zur USt-Bemessungsgrundlage bei und wird in der Schlussrechnung als „Bezahlte Akontoanforderung …" abgezogen.',
-          const Color(0xFF7C3AED),
+          AwTokens.amber,
         );
       case 'teilrechnung':
         return (
           'Teil-/Abschlagsrechnung',
           'USt-pflichtig mit Rechnungsdatum (Soll-Versteuerung §13 Abs. 1 Nr. 1 a UStG). Netto + USt werden sofort in der Voranmeldung geführt. Bezahlte Teilrechnungen werden in der Schlussrechnung als Abzug ausgewiesen.',
-          const Color(0xFF2563EB),
+          AwTokens.blue,
         );
       case 'schlussrechnung':
         return (
           'Schlussrechnung',
           'Weist das volle Auftragshonorar aus und zieht alle vorangegangenen Teilrechnungen sowie bezahlten Akontorechnungen mit jeweiliger USt ab (§14 Abs. 5 UStG). Den Button „Abzüge übernehmen" klicken, um die Abzugs-Positionen automatisch anzulegen.',
-          const Color(0xFF059669),
+          AwTokens.green,
         );
     }
-    return ('', '', const Color(0xFF475569));
+    return ('', '', AwTokens.mute);
   }
 }
 
@@ -1387,9 +1438,9 @@ class _SchlussrechnungAbzuege extends ConsumerWidget {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            border: Border.all(color: const Color(0xFF86EFAC)),
-            borderRadius: BorderRadius.circular(8),
+            color: AwTokens.greenSoft,
+            border: Border.all(color: AwTokens.line),
+            borderRadius: BorderRadius.circular(AwTokens.radiusMd),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1414,9 +1465,7 @@ class _SchlussrechnungAbzuege extends ConsumerWidget {
                               ? Icons.check_circle
                               : Icons.radio_button_unchecked,
                           size: 14,
-                          color: relevant
-                              ? const Color(0xFF059669)
-                              : const Color(0xFFB45309),
+                          color: relevant ? AwTokens.green : AwTokens.amber,
                         ),
                         const SizedBox(width: 8),
                         Expanded(

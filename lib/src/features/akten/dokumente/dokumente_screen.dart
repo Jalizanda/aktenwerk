@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/storage_service.dart';
@@ -538,7 +539,7 @@ class _UploadDialogState extends ConsumerState<_UploadDialog> {
                                 ? Icons.cloud_done_outlined
                                 : Icons.save_outlined,
                             color: e.cloud
-                                ? const Color(0xFF16A34A)
+                                ? AwTokens.green
                                 : Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant,
@@ -553,7 +554,7 @@ class _UploadDialogState extends ConsumerState<_UploadDialog> {
                           ),
                           trailing:
                               const Icon(Icons.check_circle,
-                                  color: Color(0xFF16A34A)),
+                                  color: AwTokens.green),
                         );
                       },
                     ),

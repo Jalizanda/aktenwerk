@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/aw_tokens.dart';
 import '../../../shared/widgets/badges.dart';
 import '../kunden/kunden_repository.dart';
 import 'auftraege_form.dart';
@@ -55,8 +56,10 @@ class _ToolbarState extends ConsumerState<_Toolbar> {
 
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.sizeOf(context).width;
+    final searchW = screenW < 720 ? screenW - 40 : 320.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Wrap(
         spacing: 12,
         runSpacing: 8,
@@ -65,14 +68,15 @@ class _ToolbarState extends ConsumerState<_Toolbar> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.assignment_outlined, size: 28),
+              const Icon(Icons.assignment_outlined,
+                  size: 22, color: AwTokens.orange),
               const SizedBox(width: 10),
               Text('Aufträge',
                   style: Theme.of(context).textTheme.headlineSmall),
             ],
           ),
           SizedBox(
-            width: 320,
+            width: searchW,
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
@@ -184,7 +188,11 @@ class _AuftraegeTable extends ConsumerWidget {
       onSelectChanged: (_) => showAuftragFormDialog(context, auftrag: a),
       cells: [
         DataCell(Text(a.aktenzeichen ?? '—',
-            style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]))),
+            style: const TextStyle(
+              color: AwTokens.orange,
+              fontWeight: FontWeight.w500,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ))),
         DataCell(Text(AuftragArtX.fromDb(a.art).label)),
         DataCell(Text(
             kunde == null ? '—' : kundeAnzeigename(kunde))),

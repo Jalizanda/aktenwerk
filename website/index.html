@@ -6,9 +6,11 @@
 <title>Aktenwerk — Die Sachverständigen-Suite für Bausachverständige</title>
 <meta name="description" content="Aktenwerk ist die komplette Akten-, Gutachten- und Abrechnungssoftware für Bausachverständige. Multi-Mandant, Cloud-Sync, SEPA-QR, JVEG-Rechner, Textbausteine nach Zöller, DIBt-Lastzonen, 11-Tab-Auftragsakte, Admin-Bereich." />
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#0B1220">
 
 <meta property="og:title" content="Aktenwerk — Sachverständigen-Suite">
 <meta property="og:description" content="Akten, Gutachten, Rechnungen, JVEG, SEPA-QR — alles in einer modernen Cloud-App für Bausachverständige.">
@@ -62,45 +64,12 @@
       </div>
     </div>
     <div class="hero-visual">
-      <div class="mockup">
+      <div class="mockup mockup-real">
         <div class="mockup-bar">
           <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
           <div class="mockup-url">app.aktenwerk.app</div>
         </div>
-        <div class="mockup-body">
-          <div class="mockup-sidebar">
-            <div class="mockup-logo">
-              <img src="logo.svg" alt="" style="height:32px;">
-            </div>
-            <div class="mockup-navgroup">AKTEN</div>
-            <div class="mockup-navitem active">📁 Auftragsakten</div>
-            <div class="mockup-navitem">📨 Angebote</div>
-            <div class="mockup-navitem">📑 Gutachten</div>
-            <div class="mockup-navitem">💶 Rechnungen</div>
-            <div class="mockup-navgroup">WERKZEUGE</div>
-            <div class="mockup-navitem">🏷 Artikel</div>
-            <div class="mockup-navitem">⏱ Stunden</div>
-          </div>
-          <div class="mockup-content">
-            <div class="mockup-kpis">
-              <div class="kpi"><div class="kpi-label">Offene Aufträge</div><div class="kpi-value">8</div></div>
-              <div class="kpi"><div class="kpi-label">In Bearbeitung</div><div class="kpi-value">5</div></div>
-              <div class="kpi"><div class="kpi-label">Umsatz YTD</div><div class="kpi-value">48.620 €</div></div>
-              <div class="kpi"><div class="kpi-label">Conversion</div><div class="kpi-value">72 %</div></div>
-            </div>
-            <div class="mockup-akte">
-              <div class="mockup-akte-head">
-                <div>
-                  <span class="az">📁 2026-001</span>
-                  <span class="az-ext">⚖ 12 OH 4/26</span>
-                </div>
-                <span class="badge">In Bearbeitung</span>
-              </div>
-              <div class="mockup-akte-title">Feuchtigkeitsschäden Keller · selbständiges Beweisverfahren</div>
-              <div class="mockup-akte-meta">Amtsgericht Duisburg · Richter Dr. Schwerdtfeger · Lindenweg 7, Duisburg · Schnee Zone 1 · Wind Zone 2</div>
-            </div>
-          </div>
-        </div>
+        <img class="mockup-real-img" src="screenshots/hero-app.png" alt="Aktenwerk — Live-Screenshot der Web-App">
       </div>
     </div>
   </div>
@@ -261,11 +230,188 @@
       </div>
     </div>
 
-    <div class="feature-more">
-      <div>Außerdem: <b>Formeln</b> (=2×3) in allen Zahlenfeldern · <b>Aufgaben-Liste</b> pro Auftrag · <b>Wiedervorlagen</b> mit Scope-Filtern · <b>Artikel-Kalkulation</b> aus Unterleistungen · <b>Rückfragen-Stellungnahmen</b> · <b>Fortbildungs-Tracker</b> mit 30h-Progress · <b>DIBt-Lastzonen</b> (Schnee/Wind) · <b>PLZ→Ort-Autocomplete</b> · <b>Geocoding</b> · <b>iCal-Export</b> · <b>Auto-Backup</b> · <b>PWA-Installation</b> · <b>Benutzerverwaltung</b> mit Rollen · <b>Rich-Text-Editor</b> (Quill) · <b>Hilfe- &amp; Release-Notes-Dialog</b> direkt in der App.</div>
+    <h3 class="feature-more-title">Weitere Funktionen im Detail</h3>
+    <div class="feature-more-grid">
+      <div class="fmore">
+        <div class="fmore-ico">∑</div>
+        <h4>Formel-Rechner in jedem Zahlenfeld</h4>
+        <p>Tipp einfach <code>=2*3</code> oder <code>=netto*1,19</code> in ein Geld- oder Mengen-Feld — Aktenwerk rechnet live aus. Funktioniert in Rechnungen, Auslagen, Stunden, Artikeln und Auftrags-Honoraren. Kein Wechsel mehr in den Taschenrechner.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">✓</div>
+        <h4>Aufgaben-Liste pro Auftrag</h4>
+        <p>Pro Akte eine Mini-To-do-Liste mit Drag-&amp;-Drop-Reihenfolge. Häkchen-State synchronisiert über alle Geräte. Ideal für Beweisfragen, Maßnahmen-Listen und ungelöste Fragen, die zwischen Ortstermin und Gutachten-Schreiben anfallen.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">↻</div>
+        <h4>Wiedervorlagen mit Scope-Filtern</h4>
+        <p>Erinnerungen pro Akte oder global. Filter: Heute, Diese Woche, Überfällig, Erledigt. Wiederkehrende Wiedervorlagen (täglich/wöchentlich/monatlich/jährlich), Trigger-Quellen für automatische Erstellung beim Status-Wechsel und eine Checklisten-Erweiterung pro Eintrag.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">📐</div>
+        <h4>Artikel-Kalkulation aus Unterleistungen</h4>
+        <p>Komplexe Honorar-Pakete aus Stunden-Stundensätzen + Zuschlägen + festen Komponenten zusammenklicken. Aktenwerk rechnet die Endpreise pro Artikel automatisch und zieht sie ins Angebot bzw. die Rechnung.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">⚖</div>
+        <h4>Rückfragen-Stellungnahmen</h4>
+        <p>Eigener Modul-Tab in der Akte für gerichtliche Rückfragen mit Datum, Frist, Antwort-Editor (Quill, mit Vorlagen für „auf Hinweis des Gerichts vom …" und §407a-Bezug) und PDF-Versand inklusive Aktenzeichen-Footer.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">🎓</div>
+        <h4>Fortbildungs-Tracker (30 h IHK)</h4>
+        <p>Trage Fortbildungen mit Stundenanzahl, Veranstalter und Nachweis-PDF ein. Live-Progress-Bar zeigt den Stand zum 30-h-Pflichtwert für IHK-Wiederbestellung. Perfekt für die Vorlage beim Bestellungstermin.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">❄</div>
+        <h4>DIBt-Schnee- &amp; Windlastzonen</h4>
+        <p>Beim Anlegen einer Akte wird über die PLZ die DIBt-Schnee­last­zone und Windlast­zone automatisch ermittelt — direkt aus der offiziellen DIBt-Tabelle. Spart in jedem Standsicherheits-Gutachten den manuellen Lookup.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">📍</div>
+        <h4>PLZ → Ort-Autocomplete + Geocoding</h4>
+        <p>Tipp die PLZ ein, der Ortsname kommt automatisch (vollständiger 8-stelliger DACH-PLZ-Datensatz). Bei der Akten-Anlage werden Adressen in Lat/Lon umgewandelt — damit funktioniert der „Hier bin ich"-GPS-Match in der iOS-App und Strecken­berechnungen für JVEG-Auslagen.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">🗓</div>
+        <h4>iCal-Export &amp; Google-Kalender-Sync</h4>
+        <p>Alle Termine, Fristen, Wiedervorlagen, Erläuterungs- und Ortstermine als <code>.ics</code> abrufbar. Optionaler Two-Way-Sync mit deinem Google-Kalender (OAuth) — Aktenwerk hängt automatisch die Akte dran und sortiert nach Mandant.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">☁</div>
+        <h4>Auto-Backup &amp; Cloud-Sync</h4>
+        <p>Lokale Drift-Datenbank wird transparent in deinen Firestore-Mandanten gespiegelt. Auto-Sync läuft beim Tab-Focus, bei Online-Status-Wechsel und alle X Minuten konfigurierbar. JSON-Backup-Export für lokale Archivierung jederzeit verfügbar.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">📲</div>
+        <h4>PWA &amp; native Apps</h4>
+        <p>Aktenwerk läuft im Browser, als installierte Progressive Web App (Offline-fähig) und nativ auf iPhone &amp; iPad. Beim Ortstermin Fotos direkt vom iPhone aufnehmen, beim Schreibtisch-Tag dieselbe Akte am Desktop-Monitor öffnen — gleiche Daten, gleiche Oberfläche.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">👥</div>
+        <h4>Multi-Mandant + Rollen</h4>
+        <p>Demo-Mandant zum Üben, Produktiv-Mandant für echte Akten — getrennte Datenbanken im selben Account. Mitglieder mit Rollen (Owner, Editor, Viewer, Read-only-Praktikant), Einladungs-Codes, Modul-Berechtigungen pro Mitglied.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">✏︎</div>
+        <h4>Rich-Text-Editor (Quill 11)</h4>
+        <p>Im Gutachten, Anschreiben, Erläuterungs-Stellungnahmen und Textbausteinen: voller Quill-Editor mit Bold/Italic, Listen, Header, Tabellen-Bindungen, Bild-Embedding und 1-Klick-AI-Korrektur (Rechtschreibung, Umformulieren, Juristisch, Kürzer, Ausführlicher).</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">🤖</div>
+        <h4>KI-Assistenten</h4>
+        <p>Gemini-2.5 für Rechtschreibprüfung, Umformulieren, juristische Diktion, Anschreiben-Entwürfe per Prompt, Audio-Transkripte aus Ortstermin-Notizen, Belegerfassung mit OCR. Die KI sieht NUR die Akte, in der du arbeitest — keine Kreuzverweise.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">📷</div>
+        <h4>Foto-Workflow</h4>
+        <p>Pro Akte beliebig viele Lichtbilder mit Raum-Zuordnung, Titel und Beschreibung. Inline pro Gutachten-Abschnitt einsortieren oder als Lichtbildanlage am Ende. EXIF-Daten (Aufnahme-Zeitpunkt, GPS) bleiben erhalten. Bemal-Editor für Pfeil-Markierungen.</p>
+      </div>
+      <div class="fmore">
+        <div class="fmore-ico">📑</div>
+        <h4>Hilfe &amp; Release-Notes in-App</h4>
+        <p>Eigener Hilfe-Dialog mit Quick-Tipps, Tastatur-Shortcuts und Modul-Onboarding. Release-Notes-Dialog informiert dich beim Login über neue Features — kein E-Mail-Spam.</p>
+      </div>
     </div>
   </div>
 </section>
+
+<!-- ======== APP-VORSCHAU ======== -->
+<section id="vorschau" class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">App-Vorschau</div>
+      <h2>So sieht Aktenwerk auf deinen Geräten aus</h2>
+      <p class="lead">Eine UI, drei Form-Faktoren — Desktop, Tablet, Smartphone. Gleiche Daten, gleiche Bedienlogik, optimierte Layouts pro Bildschirmgröße.</p>
+    </div>
+    <!-- Desktop oben in voller Breite -->
+    <figure class="vorschau-desktop">
+      <div class="device-frame device-desktop" data-lightbox="screenshots/ipad-home.png">
+        <div class="device-bar">
+          <span class="device-dot device-dot-r"></span>
+          <span class="device-dot device-dot-y"></span>
+          <span class="device-dot device-dot-g"></span>
+          <span class="device-url">app.aktenwerk.app</span>
+        </div>
+        <img src="screenshots/ipad-home.png" alt="Aktenwerk auf dem Desktop — voller Funktionsumfang">
+        <button class="device-zoom" type="button" aria-label="Bild vergrößern">⤢</button>
+      </div>
+      <figcaption>
+        <div class="vorschau-eyebrow">Desktop / Web</div>
+        <h4>Voller Funktionsumfang im Browser</h4>
+        <p>Aktenwerk läuft als PWA — installierbar auf macOS, Windows und Linux. Mehrere Akten parallel offen, Hotkeys (⌘K für globale Suche), volle Sidebar mit allen 26 Modulen.</p>
+      </figcaption>
+    </figure>
+
+    <!-- iPhone + iPad nebeneinander -->
+    <div class="vorschau-mobile-grid">
+      <figure class="vorschau-item">
+        <div class="device-frame device-iphone" data-lightbox="screenshots/iphone-home.png">
+          <div class="device-notch"></div>
+          <img src="screenshots/iphone-home.png" alt="Aktenwerk auf dem iPhone — Quick-Zugriff Home">
+          <button class="device-zoom" type="button" aria-label="Bild vergrößern">⤢</button>
+        </div>
+        <figcaption>
+          <div class="vorschau-eyebrow">iPhone</div>
+          <h4>Quick-Zugriff vor Ort</h4>
+          <p>Ortstermin-Modus mit einem Tap, schneller Zugriff auf Akten, Kontakte, Kalender. Optimiert für 360-px-Phones, Bottom-Nav für die fünf wichtigsten Bereiche.</p>
+        </figcaption>
+      </figure>
+      <figure class="vorschau-item">
+        <div class="device-frame device-tablet" data-lightbox="screenshots/ipad-home.png">
+          <img src="screenshots/ipad-home.png" alt="Aktenwerk auf dem iPad — Drei-Spalten-Layout">
+          <button class="device-zoom" type="button" aria-label="Bild vergrößern">⤢</button>
+        </div>
+        <figcaption>
+          <div class="vorschau-eyebrow">iPad</div>
+          <h4>Drei-Spalten-Workspace</h4>
+          <p>Sidebar links, Hauptbereich in der Mitte, kontextueller Detail-Bereich rechts. Side-by-side: Auftragsliste + Auftragsakte + Foto-Bemal-Tool. Apple-Pencil-fähig.</p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- Lightbox — wird per JS gefüllt -->
+<div id="aw-lightbox" class="aw-lightbox" role="dialog" aria-modal="true" aria-hidden="true">
+  <button class="aw-lightbox-close" type="button" aria-label="Schließen">✕</button>
+  <img class="aw-lightbox-img" src="" alt="">
+</div>
+
+<script>
+(function () {
+  var box = document.getElementById('aw-lightbox');
+  var img = box.querySelector('.aw-lightbox-img');
+  var closeBtn = box.querySelector('.aw-lightbox-close');
+  function open(src) {
+    img.src = src;
+    box.classList.add('open');
+    box.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    box.classList.remove('open');
+    box.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    setTimeout(function () { img.src = ''; }, 250);
+  }
+  document.querySelectorAll('[data-lightbox]').forEach(function (el) {
+    el.style.cursor = 'zoom-in';
+    el.addEventListener('click', function (e) {
+      if (e.target.closest('a')) return;
+      e.preventDefault();
+      open(el.getAttribute('data-lightbox'));
+    });
+  });
+  closeBtn.addEventListener('click', close);
+  box.addEventListener('click', function (e) {
+    if (e.target === box) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && box.classList.contains('open')) close();
+  });
+})();
+</script>
 
 <!-- ======== DASHBOARD-SCREENSHOT ======== -->
 <section class="section section-alt">
@@ -515,22 +661,30 @@
     </div>
     <div class="kontakt-grid">
       <div class="kontakt-card">
-        <div class="kontakt-icon">📮</div>
+        <div class="kontakt-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 1 1 14 0c0 4.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        </div>
         <div class="kontakt-label">Anschrift</div>
         <div>Alexander Höpken<br>Auf dem Stemmingholt 21<br>46499 Hamminkeln</div>
       </div>
       <div class="kontakt-card">
-        <div class="kontakt-icon">📞</div>
+        <div class="kontakt-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+        </div>
         <div class="kontakt-label">Telefon</div>
         <div><a href="tel:+4915251975042">+49 152 519 75 042</a></div>
       </div>
       <div class="kontakt-card">
-        <div class="kontakt-icon">✉</div>
+        <div class="kontakt-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+        </div>
         <div class="kontakt-label">E-Mail</div>
         <div><a href="mailto:hello@aktenwerk.app">hello@aktenwerk.app</a></div>
       </div>
       <div class="kontakt-card">
-        <div class="kontakt-icon">🌐</div>
+        <div class="kontakt-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>
+        </div>
         <div class="kontakt-label">Webseite SV-Büro</div>
         <div><a href="https://bauelemente-experte.de" target="_blank">bauelemente-experte.de</a></div>
       </div>

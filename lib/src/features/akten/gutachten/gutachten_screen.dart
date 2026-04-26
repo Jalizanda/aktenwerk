@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/ai/rechtschreibung_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
@@ -454,7 +455,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     if (treffer.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text(
-              '✅ Sprach-Check: Keine typischen Floskeln gefunden — sehr gut!')));
+              'Sprach-Check: Keine typischen Floskeln gefunden — sehr gut.')));
     }
   }
 
@@ -1160,14 +1161,14 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
-        borderRadius: BorderRadius.circular(8),
+        color: AwTokens.blueSoft,
+        border: Border.all(color: AwTokens.line),
+        borderRadius: BorderRadius.circular(AwTokens.radiusMd),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, size: 18, color: Color(0xFF1D4ED8)),
+          const Icon(Icons.info_outline, size: 18, color: AwTokens.blue),
           const SizedBox(width: 8),
           const Expanded(
             child: Text.rich(
@@ -1204,9 +1205,9 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF9C3),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-        borderRadius: BorderRadius.circular(8),
+        color: AwTokens.amberSoft,
+        border: Border.all(color: AwTokens.line),
+        borderRadius: BorderRadius.circular(AwTokens.radiusMd),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1214,7 +1215,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
           Row(
             children: [
               const Icon(Icons.warning_amber_outlined,
-                  size: 18, color: Color(0xFF854D0E)),
+                  size: 18, color: AwTokens.amber),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1222,7 +1223,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
-                      color: Color(0xFF854D0E)),
+                      color: AwTokens.amber),
                 ),
               ),
               IconButton(
@@ -1240,7 +1241,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('•  ',
-                      style: TextStyle(color: Color(0xFF854D0E))),
+                      style: TextStyle(color: AwTokens.amber)),
                   Expanded(
                     child: Text.rich(
                       TextSpan(
@@ -1255,7 +1256,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
                             style: const TextStyle(
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
-                                color: Color(0xFF854D0E)),
+                                color: AwTokens.amber),
                           ),
                           TextSpan(
                             text: t.hinweis,
@@ -1280,9 +1281,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
         Container(
           padding: const EdgeInsets.only(top: 4, bottom: 8),
           decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: Color(0xFFE2E8F0)),
-            ),
+            border: Border(top: BorderSide(color: AwTokens.line)),
           ),
           child: Padding(
             padding: const EdgeInsets.only(top: 8),

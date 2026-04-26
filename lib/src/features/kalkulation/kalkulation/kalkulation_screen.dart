@@ -497,12 +497,13 @@ class _KostenschaetzungTabState
         ]);
   }
 
-  void _update(int i, _KostPos p) {
-    setState(() {
-      final copy = List<_KostPos>.from(_kost.positionen);
-      copy[i] = p;
-      _kost.positionen = copy;
-    });
+  /// Wird vom KostRow nach jedem Tastendruck gerufen — die Position wurde
+  /// bereits in-place mutiert. Wir stoßen nur Neuberechnung der Summen
+  /// und Persistenz an. WICHTIG: Liste/Instanz dürfen sich NICHT ändern,
+  /// sonst wechselt ValueKey(p) und das Row-State (inkl. Fokus) geht
+  /// verloren.
+  void _onRowChanged() {
+    setState(() {});
   }
 
   void _remove(int i) {
@@ -660,9 +661,14 @@ class _KostenschaetzungTabState
           ),
           for (final p in list)
             _KostRow(
-              key: ValueKey(p),
+              // GlobalObjectKey statt ValueKey: erhält den Row-State auch
+              // dann, wenn sich beim Tippen in „Gewerk" die Gruppierung
+              // ändert und die Zeile dadurch in einen anderen
+              // Container-Subtree wandert. Sonst verlöre der TextField
+              // den Fokus nach jedem Zeichen.
+              key: GlobalObjectKey(p),
               pos: p,
-              onChanged: (np) => _update(_kost.positionen.indexOf(p), np),
+              onChanged: _onRowChanged,
               onRemove: () => _remove(_kost.positionen.indexOf(p)),
             ),
         ],
@@ -691,7 +697,7 @@ class _KostRow extends StatefulWidget {
       required this.onChanged,
       required this.onRemove});
   final _KostPos pos;
-  final ValueChanged<_KostPos> onChanged;
+  final VoidCallback onChanged;
   final VoidCallback onRemove;
   @override
   State<_KostRow> createState() => _KostRowState();
@@ -717,14 +723,15 @@ class _KostRowState extends State<_KostRow> {
   }
 
   void _emit() {
-    widget.onChanged(_KostPos(
-      gewerk: _gewerk.text,
-      bezeichnung: _bez.text,
-      menge: parseMengeOrFormel(_menge.text),
-      einheit: _einheit.text,
-      einzelpreis: parseMengeOrFormel(_preis.text),
-      bemerkung: widget.pos.bemerkung,
-    ));
+    // In-place mutieren — Instanz-Identität bleibt stabil, damit
+    // ValueKey(p) im Parent gleich bleibt und der Fokus nicht verloren geht.
+    widget.pos
+      ..gewerk = _gewerk.text
+      ..bezeichnung = _bez.text
+      ..menge = parseMengeOrFormel(_menge.text)
+      ..einheit = _einheit.text
+      ..einzelpreis = parseMengeOrFormel(_preis.text);
+    widget.onChanged();
   }
 
   @override

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/seed/demo_merge_importer.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/file_upload_section.dart';
 import '../../../shared/widgets/form_widgets.dart';
@@ -27,6 +28,11 @@ class GeraeteScreen extends ConsumerWidget {
           title: 'Messgeräte',
           subtitle: 'Inventar mit Kalibrier-Verfolgung',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cloud_download_outlined, size: 18),
+              label: const Text('Demo-Geräte laden'),
+              onPressed: () => _importDemoGeraete(context, ref),
+            ),
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neues Gerät'),
@@ -125,6 +131,54 @@ class GeraeteScreen extends ConsumerWidget {
       context: context,
       builder: (_) => _GeraetForm(geraet: g),
     );
+  }
+
+  Future<void> _importDemoGeraete(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Demo-Messgeräte laden?'),
+        content: const Text(
+          'Die 12 Messgeräte aus den Demo-Daten werden zusätzlich in '
+          'deinen Mandanten importiert. Bestehende Geräte bleiben '
+          'unverändert; Geräte mit identischer Inventar-Nummer (oder '
+          'Bezeichnung + Seriennummer) werden übersprungen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Importieren'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final res = await ref.read(demoMergeImporterProvider).importGeraete();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res.skipped == 0
+                ? '${res.added} Messgeräte importiert.'
+                : '${res.added} neu angelegt · ${res.skipped} '
+                    'übersprungen (bereits vorhanden).'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import fehlgeschlagen: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirm(

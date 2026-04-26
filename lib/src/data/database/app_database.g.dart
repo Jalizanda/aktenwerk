@@ -187,6 +187,26 @@ class $KundenTable extends Kunden with TableInfo<$KundenTable, KundenData> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hrbMeta = const VerificationMeta('hrb');
+  @override
+  late final GeneratedColumn<String> hrb = GeneratedColumn<String>(
+    'hrb',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ansprechpartnerMeta = const VerificationMeta(
+    'ansprechpartner',
+  );
+  @override
+  late final GeneratedColumn<String> ansprechpartner = GeneratedColumn<String>(
+    'ansprechpartner',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _aktenpraefixMeta = const VerificationMeta(
     'aktenpraefix',
   );
@@ -271,6 +291,8 @@ class $KundenTable extends Kunden with TableInfo<$KundenTable, KundenData> {
     website,
     steuerNr,
     ustId,
+    hrb,
+    ansprechpartner,
     aktenpraefix,
     debitornummer,
     notiz,
@@ -393,6 +415,21 @@ class $KundenTable extends Kunden with TableInfo<$KundenTable, KundenData> {
       context.handle(
         _ustIdMeta,
         ustId.isAcceptableOrUnknown(data['ust_id']!, _ustIdMeta),
+      );
+    }
+    if (data.containsKey('hrb')) {
+      context.handle(
+        _hrbMeta,
+        hrb.isAcceptableOrUnknown(data['hrb']!, _hrbMeta),
+      );
+    }
+    if (data.containsKey('ansprechpartner')) {
+      context.handle(
+        _ansprechpartnerMeta,
+        ansprechpartner.isAcceptableOrUnknown(
+          data['ansprechpartner']!,
+          _ansprechpartnerMeta,
+        ),
       );
     }
     if (data.containsKey('aktenpraefix')) {
@@ -518,6 +555,14 @@ class $KundenTable extends Kunden with TableInfo<$KundenTable, KundenData> {
         DriftSqlType.string,
         data['${effectivePrefix}ust_id'],
       ),
+      hrb: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hrb'],
+      ),
+      ansprechpartner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ansprechpartner'],
+      ),
       aktenpraefix: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}aktenpraefix'],
@@ -570,6 +615,11 @@ class KundenData extends DataClass implements Insertable<KundenData> {
   final String? website;
   final String? steuerNr;
   final String? ustId;
+  final String? hrb;
+
+  /// Weitere Ansprechpartner als JSON-Liste:
+  /// `[{name, rolle, telefon, mobil, email, notiz}]`
+  final String? ansprechpartner;
 
   /// Aktenzeichen-Präfix (z.B. "12 OH 4/26" bei Gerichten).
   final String? aktenpraefix;
@@ -599,6 +649,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
     this.website,
     this.steuerNr,
     this.ustId,
+    this.hrb,
+    this.ansprechpartner,
     this.aktenpraefix,
     this.debitornummer,
     this.notiz,
@@ -658,6 +710,12 @@ class KundenData extends DataClass implements Insertable<KundenData> {
     }
     if (!nullToAbsent || ustId != null) {
       map['ust_id'] = Variable<String>(ustId);
+    }
+    if (!nullToAbsent || hrb != null) {
+      map['hrb'] = Variable<String>(hrb);
+    }
+    if (!nullToAbsent || ansprechpartner != null) {
+      map['ansprechpartner'] = Variable<String>(ansprechpartner);
     }
     if (!nullToAbsent || aktenpraefix != null) {
       map['aktenpraefix'] = Variable<String>(aktenpraefix);
@@ -720,6 +778,10 @@ class KundenData extends DataClass implements Insertable<KundenData> {
       ustId: ustId == null && nullToAbsent
           ? const Value.absent()
           : Value(ustId),
+      hrb: hrb == null && nullToAbsent ? const Value.absent() : Value(hrb),
+      ansprechpartner: ansprechpartner == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ansprechpartner),
       aktenpraefix: aktenpraefix == null && nullToAbsent
           ? const Value.absent()
           : Value(aktenpraefix),
@@ -761,6 +823,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
       website: serializer.fromJson<String?>(json['website']),
       steuerNr: serializer.fromJson<String?>(json['steuerNr']),
       ustId: serializer.fromJson<String?>(json['ustId']),
+      hrb: serializer.fromJson<String?>(json['hrb']),
+      ansprechpartner: serializer.fromJson<String?>(json['ansprechpartner']),
       aktenpraefix: serializer.fromJson<String?>(json['aktenpraefix']),
       debitornummer: serializer.fromJson<String?>(json['debitornummer']),
       notiz: serializer.fromJson<String?>(json['notiz']),
@@ -791,6 +855,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
       'website': serializer.toJson<String?>(website),
       'steuerNr': serializer.toJson<String?>(steuerNr),
       'ustId': serializer.toJson<String?>(ustId),
+      'hrb': serializer.toJson<String?>(hrb),
+      'ansprechpartner': serializer.toJson<String?>(ansprechpartner),
       'aktenpraefix': serializer.toJson<String?>(aktenpraefix),
       'debitornummer': serializer.toJson<String?>(debitornummer),
       'notiz': serializer.toJson<String?>(notiz),
@@ -819,6 +885,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
     Value<String?> website = const Value.absent(),
     Value<String?> steuerNr = const Value.absent(),
     Value<String?> ustId = const Value.absent(),
+    Value<String?> hrb = const Value.absent(),
+    Value<String?> ansprechpartner = const Value.absent(),
     Value<String?> aktenpraefix = const Value.absent(),
     Value<String?> debitornummer = const Value.absent(),
     Value<String?> notiz = const Value.absent(),
@@ -844,6 +912,10 @@ class KundenData extends DataClass implements Insertable<KundenData> {
     website: website.present ? website.value : this.website,
     steuerNr: steuerNr.present ? steuerNr.value : this.steuerNr,
     ustId: ustId.present ? ustId.value : this.ustId,
+    hrb: hrb.present ? hrb.value : this.hrb,
+    ansprechpartner: ansprechpartner.present
+        ? ansprechpartner.value
+        : this.ansprechpartner,
     aktenpraefix: aktenpraefix.present ? aktenpraefix.value : this.aktenpraefix,
     debitornummer: debitornummer.present
         ? debitornummer.value
@@ -873,6 +945,10 @@ class KundenData extends DataClass implements Insertable<KundenData> {
       website: data.website.present ? data.website.value : this.website,
       steuerNr: data.steuerNr.present ? data.steuerNr.value : this.steuerNr,
       ustId: data.ustId.present ? data.ustId.value : this.ustId,
+      hrb: data.hrb.present ? data.hrb.value : this.hrb,
+      ansprechpartner: data.ansprechpartner.present
+          ? data.ansprechpartner.value
+          : this.ansprechpartner,
       aktenpraefix: data.aktenpraefix.present
           ? data.aktenpraefix.value
           : this.aktenpraefix,
@@ -907,6 +983,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
           ..write('website: $website, ')
           ..write('steuerNr: $steuerNr, ')
           ..write('ustId: $ustId, ')
+          ..write('hrb: $hrb, ')
+          ..write('ansprechpartner: $ansprechpartner, ')
           ..write('aktenpraefix: $aktenpraefix, ')
           ..write('debitornummer: $debitornummer, ')
           ..write('notiz: $notiz, ')
@@ -937,6 +1015,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
     website,
     steuerNr,
     ustId,
+    hrb,
+    ansprechpartner,
     aktenpraefix,
     debitornummer,
     notiz,
@@ -966,6 +1046,8 @@ class KundenData extends DataClass implements Insertable<KundenData> {
           other.website == this.website &&
           other.steuerNr == this.steuerNr &&
           other.ustId == this.ustId &&
+          other.hrb == this.hrb &&
+          other.ansprechpartner == this.ansprechpartner &&
           other.aktenpraefix == this.aktenpraefix &&
           other.debitornummer == this.debitornummer &&
           other.notiz == this.notiz &&
@@ -993,6 +1075,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
   final Value<String?> website;
   final Value<String?> steuerNr;
   final Value<String?> ustId;
+  final Value<String?> hrb;
+  final Value<String?> ansprechpartner;
   final Value<String?> aktenpraefix;
   final Value<String?> debitornummer;
   final Value<String?> notiz;
@@ -1018,6 +1102,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
     this.website = const Value.absent(),
     this.steuerNr = const Value.absent(),
     this.ustId = const Value.absent(),
+    this.hrb = const Value.absent(),
+    this.ansprechpartner = const Value.absent(),
     this.aktenpraefix = const Value.absent(),
     this.debitornummer = const Value.absent(),
     this.notiz = const Value.absent(),
@@ -1044,6 +1130,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
     this.website = const Value.absent(),
     this.steuerNr = const Value.absent(),
     this.ustId = const Value.absent(),
+    this.hrb = const Value.absent(),
+    this.ansprechpartner = const Value.absent(),
     this.aktenpraefix = const Value.absent(),
     this.debitornummer = const Value.absent(),
     this.notiz = const Value.absent(),
@@ -1070,6 +1158,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
     Expression<String>? website,
     Expression<String>? steuerNr,
     Expression<String>? ustId,
+    Expression<String>? hrb,
+    Expression<String>? ansprechpartner,
     Expression<String>? aktenpraefix,
     Expression<String>? debitornummer,
     Expression<String>? notiz,
@@ -1096,6 +1186,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
       if (website != null) 'website': website,
       if (steuerNr != null) 'steuer_nr': steuerNr,
       if (ustId != null) 'ust_id': ustId,
+      if (hrb != null) 'hrb': hrb,
+      if (ansprechpartner != null) 'ansprechpartner': ansprechpartner,
       if (aktenpraefix != null) 'aktenpraefix': aktenpraefix,
       if (debitornummer != null) 'debitornummer': debitornummer,
       if (notiz != null) 'notiz': notiz,
@@ -1124,6 +1216,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
     Value<String?>? website,
     Value<String?>? steuerNr,
     Value<String?>? ustId,
+    Value<String?>? hrb,
+    Value<String?>? ansprechpartner,
     Value<String?>? aktenpraefix,
     Value<String?>? debitornummer,
     Value<String?>? notiz,
@@ -1150,6 +1244,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
       website: website ?? this.website,
       steuerNr: steuerNr ?? this.steuerNr,
       ustId: ustId ?? this.ustId,
+      hrb: hrb ?? this.hrb,
+      ansprechpartner: ansprechpartner ?? this.ansprechpartner,
       aktenpraefix: aktenpraefix ?? this.aktenpraefix,
       debitornummer: debitornummer ?? this.debitornummer,
       notiz: notiz ?? this.notiz,
@@ -1216,6 +1312,12 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
     if (ustId.present) {
       map['ust_id'] = Variable<String>(ustId.value);
     }
+    if (hrb.present) {
+      map['hrb'] = Variable<String>(hrb.value);
+    }
+    if (ansprechpartner.present) {
+      map['ansprechpartner'] = Variable<String>(ansprechpartner.value);
+    }
     if (aktenpraefix.present) {
       map['aktenpraefix'] = Variable<String>(aktenpraefix.value);
     }
@@ -1258,6 +1360,8 @@ class KundenCompanion extends UpdateCompanion<KundenData> {
           ..write('website: $website, ')
           ..write('steuerNr: $steuerNr, ')
           ..write('ustId: $ustId, ')
+          ..write('hrb: $hrb, ')
+          ..write('ansprechpartner: $ansprechpartner, ')
           ..write('aktenpraefix: $aktenpraefix, ')
           ..write('debitornummer: $debitornummer, ')
           ..write('notiz: $notiz, ')
@@ -23590,6 +23694,15 @@ class $BenutzerTable extends Benutzer
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hrbMeta = const VerificationMeta('hrb');
+  @override
+  late final GeneratedColumn<String> hrb = GeneratedColumn<String>(
+    'hrb',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _ibanMeta = const VerificationMeta('iban');
   @override
   late final GeneratedColumn<String> iban = GeneratedColumn<String>(
@@ -23789,6 +23902,7 @@ class $BenutzerTable extends Benutzer
     website,
     steuerNr,
     ustId,
+    hrb,
     iban,
     bic,
     bank,
@@ -23904,6 +24018,12 @@ class $BenutzerTable extends Benutzer
       context.handle(
         _ustIdMeta,
         ustId.isAcceptableOrUnknown(data['ust_id']!, _ustIdMeta),
+      );
+    }
+    if (data.containsKey('hrb')) {
+      context.handle(
+        _hrbMeta,
+        hrb.isAcceptableOrUnknown(data['hrb']!, _hrbMeta),
       );
     }
     if (data.containsKey('iban')) {
@@ -24101,6 +24221,10 @@ class $BenutzerTable extends Benutzer
         DriftSqlType.string,
         data['${effectivePrefix}ust_id'],
       ),
+      hrb: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hrb'],
+      ),
       iban: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}iban'],
@@ -24194,6 +24318,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
   final String? website;
   final String? steuerNr;
   final String? ustId;
+  final String? hrb;
   final String? iban;
   final String? bic;
   final String? bank;
@@ -24239,6 +24364,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     this.website,
     this.steuerNr,
     this.ustId,
+    this.hrb,
     this.iban,
     this.bic,
     this.bank,
@@ -24302,6 +24428,9 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     }
     if (!nullToAbsent || ustId != null) {
       map['ust_id'] = Variable<String>(ustId);
+    }
+    if (!nullToAbsent || hrb != null) {
+      map['hrb'] = Variable<String>(hrb);
     }
     if (!nullToAbsent || iban != null) {
       map['iban'] = Variable<String>(iban);
@@ -24390,6 +24519,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       ustId: ustId == null && nullToAbsent
           ? const Value.absent()
           : Value(ustId),
+      hrb: hrb == null && nullToAbsent ? const Value.absent() : Value(hrb),
       iban: iban == null && nullToAbsent ? const Value.absent() : Value(iban),
       bic: bic == null && nullToAbsent ? const Value.absent() : Value(bic),
       bank: bank == null && nullToAbsent ? const Value.absent() : Value(bank),
@@ -24451,6 +24581,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       website: serializer.fromJson<String?>(json['website']),
       steuerNr: serializer.fromJson<String?>(json['steuerNr']),
       ustId: serializer.fromJson<String?>(json['ustId']),
+      hrb: serializer.fromJson<String?>(json['hrb']),
       iban: serializer.fromJson<String?>(json['iban']),
       bic: serializer.fromJson<String?>(json['bic']),
       bank: serializer.fromJson<String?>(json['bank']),
@@ -24493,6 +24624,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       'website': serializer.toJson<String?>(website),
       'steuerNr': serializer.toJson<String?>(steuerNr),
       'ustId': serializer.toJson<String?>(ustId),
+      'hrb': serializer.toJson<String?>(hrb),
       'iban': serializer.toJson<String?>(iban),
       'bic': serializer.toJson<String?>(bic),
       'bank': serializer.toJson<String?>(bank),
@@ -24529,6 +24661,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     Value<String?> website = const Value.absent(),
     Value<String?> steuerNr = const Value.absent(),
     Value<String?> ustId = const Value.absent(),
+    Value<String?> hrb = const Value.absent(),
     Value<String?> iban = const Value.absent(),
     Value<String?> bic = const Value.absent(),
     Value<String?> bank = const Value.absent(),
@@ -24562,6 +24695,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     website: website.present ? website.value : this.website,
     steuerNr: steuerNr.present ? steuerNr.value : this.steuerNr,
     ustId: ustId.present ? ustId.value : this.ustId,
+    hrb: hrb.present ? hrb.value : this.hrb,
     iban: iban.present ? iban.value : this.iban,
     bic: bic.present ? bic.value : this.bic,
     bank: bank.present ? bank.value : this.bank,
@@ -24611,6 +24745,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       website: data.website.present ? data.website.value : this.website,
       steuerNr: data.steuerNr.present ? data.steuerNr.value : this.steuerNr,
       ustId: data.ustId.present ? data.ustId.value : this.ustId,
+      hrb: data.hrb.present ? data.hrb.value : this.hrb,
       iban: data.iban.present ? data.iban.value : this.iban,
       bic: data.bic.present ? data.bic.value : this.bic,
       bank: data.bank.present ? data.bank.value : this.bank,
@@ -24665,6 +24800,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
           ..write('website: $website, ')
           ..write('steuerNr: $steuerNr, ')
           ..write('ustId: $ustId, ')
+          ..write('hrb: $hrb, ')
           ..write('iban: $iban, ')
           ..write('bic: $bic, ')
           ..write('bank: $bank, ')
@@ -24703,6 +24839,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     website,
     steuerNr,
     ustId,
+    hrb,
     iban,
     bic,
     bank,
@@ -24740,6 +24877,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
           other.website == this.website &&
           other.steuerNr == this.steuerNr &&
           other.ustId == this.ustId &&
+          other.hrb == this.hrb &&
           other.iban == this.iban &&
           other.bic == this.bic &&
           other.bank == this.bank &&
@@ -24775,6 +24913,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
   final Value<String?> website;
   final Value<String?> steuerNr;
   final Value<String?> ustId;
+  final Value<String?> hrb;
   final Value<String?> iban;
   final Value<String?> bic;
   final Value<String?> bank;
@@ -24808,6 +24947,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     this.website = const Value.absent(),
     this.steuerNr = const Value.absent(),
     this.ustId = const Value.absent(),
+    this.hrb = const Value.absent(),
     this.iban = const Value.absent(),
     this.bic = const Value.absent(),
     this.bank = const Value.absent(),
@@ -24842,6 +24982,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     this.website = const Value.absent(),
     this.steuerNr = const Value.absent(),
     this.ustId = const Value.absent(),
+    this.hrb = const Value.absent(),
     this.iban = const Value.absent(),
     this.bic = const Value.absent(),
     this.bank = const Value.absent(),
@@ -24876,6 +25017,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     Expression<String>? website,
     Expression<String>? steuerNr,
     Expression<String>? ustId,
+    Expression<String>? hrb,
     Expression<String>? iban,
     Expression<String>? bic,
     Expression<String>? bank,
@@ -24910,6 +25052,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
       if (website != null) 'website': website,
       if (steuerNr != null) 'steuer_nr': steuerNr,
       if (ustId != null) 'ust_id': ustId,
+      if (hrb != null) 'hrb': hrb,
       if (iban != null) 'iban': iban,
       if (bic != null) 'bic': bic,
       if (bank != null) 'bank': bank,
@@ -24947,6 +25090,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     Value<String?>? website,
     Value<String?>? steuerNr,
     Value<String?>? ustId,
+    Value<String?>? hrb,
     Value<String?>? iban,
     Value<String?>? bic,
     Value<String?>? bank,
@@ -24981,6 +25125,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
       website: website ?? this.website,
       steuerNr: steuerNr ?? this.steuerNr,
       ustId: ustId ?? this.ustId,
+      hrb: hrb ?? this.hrb,
       iban: iban ?? this.iban,
       bic: bic ?? this.bic,
       bank: bank ?? this.bank,
@@ -25048,6 +25193,9 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     }
     if (ustId.present) {
       map['ust_id'] = Variable<String>(ustId.value);
+    }
+    if (hrb.present) {
+      map['hrb'] = Variable<String>(hrb.value);
     }
     if (iban.present) {
       map['iban'] = Variable<String>(iban.value);
@@ -25121,6 +25269,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
           ..write('website: $website, ')
           ..write('steuerNr: $steuerNr, ')
           ..write('ustId: $ustId, ')
+          ..write('hrb: $hrb, ')
           ..write('iban: $iban, ')
           ..write('bic: $bic, ')
           ..write('bank: $bank, ')
@@ -39984,6 +40133,8 @@ typedef $$KundenTableCreateCompanionBuilder =
       Value<String?> website,
       Value<String?> steuerNr,
       Value<String?> ustId,
+      Value<String?> hrb,
+      Value<String?> ansprechpartner,
       Value<String?> aktenpraefix,
       Value<String?> debitornummer,
       Value<String?> notiz,
@@ -40011,6 +40162,8 @@ typedef $$KundenTableUpdateCompanionBuilder =
       Value<String?> website,
       Value<String?> steuerNr,
       Value<String?> ustId,
+      Value<String?> hrb,
+      Value<String?> ansprechpartner,
       Value<String?> aktenpraefix,
       Value<String?> debitornummer,
       Value<String?> notiz,
@@ -40192,6 +40345,16 @@ class $$KundenTableFilterComposer
 
   ColumnFilters<String> get ustId => $composableBuilder(
     column: $table.ustId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hrb => $composableBuilder(
+    column: $table.hrb,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ansprechpartner => $composableBuilder(
+    column: $table.ansprechpartner,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -40425,6 +40588,16 @@ class $$KundenTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hrb => $composableBuilder(
+    column: $table.hrb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ansprechpartner => $composableBuilder(
+    column: $table.ansprechpartner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get aktenpraefix => $composableBuilder(
     column: $table.aktenpraefix,
     builder: (column) => ColumnOrderings(column),
@@ -40518,6 +40691,14 @@ class $$KundenTableAnnotationComposer
 
   GeneratedColumn<String> get ustId =>
       $composableBuilder(column: $table.ustId, builder: (column) => column);
+
+  GeneratedColumn<String> get hrb =>
+      $composableBuilder(column: $table.hrb, builder: (column) => column);
+
+  GeneratedColumn<String> get ansprechpartner => $composableBuilder(
+    column: $table.ansprechpartner,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get aktenpraefix => $composableBuilder(
     column: $table.aktenpraefix,
@@ -40693,6 +40874,8 @@ class $$KundenTableTableManager
                 Value<String?> website = const Value.absent(),
                 Value<String?> steuerNr = const Value.absent(),
                 Value<String?> ustId = const Value.absent(),
+                Value<String?> hrb = const Value.absent(),
+                Value<String?> ansprechpartner = const Value.absent(),
                 Value<String?> aktenpraefix = const Value.absent(),
                 Value<String?> debitornummer = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
@@ -40718,6 +40901,8 @@ class $$KundenTableTableManager
                 website: website,
                 steuerNr: steuerNr,
                 ustId: ustId,
+                hrb: hrb,
+                ansprechpartner: ansprechpartner,
                 aktenpraefix: aktenpraefix,
                 debitornummer: debitornummer,
                 notiz: notiz,
@@ -40745,6 +40930,8 @@ class $$KundenTableTableManager
                 Value<String?> website = const Value.absent(),
                 Value<String?> steuerNr = const Value.absent(),
                 Value<String?> ustId = const Value.absent(),
+                Value<String?> hrb = const Value.absent(),
+                Value<String?> ansprechpartner = const Value.absent(),
                 Value<String?> aktenpraefix = const Value.absent(),
                 Value<String?> debitornummer = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
@@ -40770,6 +40957,8 @@ class $$KundenTableTableManager
                 website: website,
                 steuerNr: steuerNr,
                 ustId: ustId,
+                hrb: hrb,
+                ansprechpartner: ansprechpartner,
                 aktenpraefix: aktenpraefix,
                 debitornummer: debitornummer,
                 notiz: notiz,
@@ -55617,6 +55806,7 @@ typedef $$BenutzerTableCreateCompanionBuilder =
       Value<String?> website,
       Value<String?> steuerNr,
       Value<String?> ustId,
+      Value<String?> hrb,
       Value<String?> iban,
       Value<String?> bic,
       Value<String?> bank,
@@ -55652,6 +55842,7 @@ typedef $$BenutzerTableUpdateCompanionBuilder =
       Value<String?> website,
       Value<String?> steuerNr,
       Value<String?> ustId,
+      Value<String?> hrb,
       Value<String?> iban,
       Value<String?> bic,
       Value<String?> bank,
@@ -55752,6 +55943,11 @@ class $$BenutzerTableFilterComposer
 
   ColumnFilters<String> get ustId => $composableBuilder(
     column: $table.ustId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hrb => $composableBuilder(
+    column: $table.hrb,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -55925,6 +56121,11 @@ class $$BenutzerTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hrb => $composableBuilder(
+    column: $table.hrb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get iban => $composableBuilder(
     column: $table.iban,
     builder: (column) => ColumnOrderings(column),
@@ -56065,6 +56266,9 @@ class $$BenutzerTableAnnotationComposer
   GeneratedColumn<String> get ustId =>
       $composableBuilder(column: $table.ustId, builder: (column) => column);
 
+  GeneratedColumn<String> get hrb =>
+      $composableBuilder(column: $table.hrb, builder: (column) => column);
+
   GeneratedColumn<String> get iban =>
       $composableBuilder(column: $table.iban, builder: (column) => column);
 
@@ -56179,6 +56383,7 @@ class $$BenutzerTableTableManager
                 Value<String?> website = const Value.absent(),
                 Value<String?> steuerNr = const Value.absent(),
                 Value<String?> ustId = const Value.absent(),
+                Value<String?> hrb = const Value.absent(),
                 Value<String?> iban = const Value.absent(),
                 Value<String?> bic = const Value.absent(),
                 Value<String?> bank = const Value.absent(),
@@ -56212,6 +56417,7 @@ class $$BenutzerTableTableManager
                 website: website,
                 steuerNr: steuerNr,
                 ustId: ustId,
+                hrb: hrb,
                 iban: iban,
                 bic: bic,
                 bank: bank,
@@ -56247,6 +56453,7 @@ class $$BenutzerTableTableManager
                 Value<String?> website = const Value.absent(),
                 Value<String?> steuerNr = const Value.absent(),
                 Value<String?> ustId = const Value.absent(),
+                Value<String?> hrb = const Value.absent(),
                 Value<String?> iban = const Value.absent(),
                 Value<String?> bic = const Value.absent(),
                 Value<String?> bank = const Value.absent(),
@@ -56280,6 +56487,7 @@ class $$BenutzerTableTableManager
                 website: website,
                 steuerNr: steuerNr,
                 ustId: ustId,
+                hrb: hrb,
                 iban: iban,
                 bic: bic,
                 bank: bank,

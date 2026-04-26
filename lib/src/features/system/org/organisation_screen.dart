@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/org_service.dart';
 import '../benutzer/modul_berechtigungen_dialog.dart';
@@ -59,7 +60,8 @@ class _Header extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
       child: Row(
         children: [
-          const Icon(Icons.business_outlined, size: 32),
+          const Icon(Icons.business_outlined,
+              size: 24, color: AwTokens.orange),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -161,13 +163,13 @@ class _MembersList extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFEF9C3),
-                              borderRadius: BorderRadius.circular(4),
+                              color: AwTokens.amberSoft,
+                              borderRadius:
+                                  BorderRadius.circular(AwTokens.radiusXs),
                             ),
                             child: const Text('Dummy',
                                 style: TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF854D0E))),
+                                    fontSize: 11, color: AwTokens.amber)),
                           ),
                         ],
                       ],

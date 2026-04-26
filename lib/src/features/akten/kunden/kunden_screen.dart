@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../shared/widgets/badges.dart';
+import '../auftraege/auftraege_repository.dart';
 import 'kunden_form.dart';
 import 'kunden_repository.dart';
 
@@ -61,39 +64,90 @@ class _ToolbarState extends ConsumerState<_Toolbar> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 720;
+    final search = TextField(
+      controller: _queryController,
+      decoration: InputDecoration(
+        isDense: true,
+        prefixIcon: const Icon(Icons.search, size: 20),
+        hintText: 'Suche Name, Firma, Ort, PLZ, E-Mail',
+        suffixIcon: widget.filter.query.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: () {
+                  _queryController.clear();
+                  ref
+                      .read(kundenFilterProvider.notifier)
+                      .update((f) => f.copyWith(query: ''));
+                },
+              ),
+      ),
+      onChanged: (v) => ref
+          .read(kundenFilterProvider.notifier)
+          .update((f) => f.copyWith(query: v)),
+    );
+
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.people_outline,
+                    size: 18, color: AwTokens.orange),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Auftraggeber',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                ),
+                FilledButton.icon(
+                  onPressed: () => showKundenFormDialog(context),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Neu'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            search,
+            const SizedBox(height: 8),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<KundenTyp?>(
+                isExpanded: true,
+                value: widget.filter.typ,
+                hint: const Text('Alle Typen'),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Alle Typen')),
+                  for (final t in KundenTyp.values)
+                    DropdownMenuItem(value: t, child: Text(t.label)),
+                ],
+                onChanged: (t) =>
+                    ref.read(kundenFilterProvider.notifier).update((f) =>
+                        t == null
+                            ? f.copyWith(clearTyp: true)
+                            : f.copyWith(typ: t)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Row(
         children: [
-          const Icon(Icons.people_outline, size: 28),
+          const Icon(Icons.people_outline, size: 22, color: AwTokens.orange),
           const SizedBox(width: 10),
           Text('Auftraggeber',
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(width: 24),
           SizedBox(
             width: 320,
-            child: TextField(
-              controller: _queryController,
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                hintText: 'Suche Name, Firma, Ort, PLZ, E-Mail',
-                suffixIcon: widget.filter.query.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _queryController.clear();
-                          ref
-                              .read(kundenFilterProvider.notifier)
-                              .update((f) => f.copyWith(query: ''));
-                        },
-                      ),
-              ),
-              onChanged: (v) => ref
-                  .read(kundenFilterProvider.notifier)
-                  .update((f) => f.copyWith(query: v)),
-            ),
+            child: search,
           ),
           const SizedBox(width: 12),
           DropdownButtonHideUnderline(
@@ -132,105 +186,117 @@ class _KundenTable extends ConsumerStatefulWidget {
 }
 
 class _KundenTableState extends ConsumerState<_KundenTable> {
-  int _sortCol = 1;
-  bool _sortAsc = true;
+  final Set<int> _expanded = {};
 
   List<KundenData> get _sorted {
     final list = [...widget.items];
-    int cmp<T extends Comparable>(T? a, T? b) {
-      if (a == null && b == null) return 0;
-      if (a == null) return 1;
-      if (b == null) return -1;
-      return a.compareTo(b);
-    }
-
-    list.sort((a, b) {
-      final c = switch (_sortCol) {
-        0 => cmp(a.typ, b.typ),
-        1 => cmp(kundeAnzeigename(a).toLowerCase(),
-            kundeAnzeigename(b).toLowerCase()),
-        2 => cmp([a.plz, a.ort].whereType<String>().join(' ').toLowerCase(),
-            [b.plz, b.ort].whereType<String>().join(' ').toLowerCase()),
-        3 => cmp(a.telefon, b.telefon),
-        4 => cmp(a.email?.toLowerCase(), b.email?.toLowerCase()),
-        _ => 0,
-      };
-      return _sortAsc ? c : -c;
-    });
+    list.sort((a, b) =>
+        kundeAnzeigename(a).toLowerCase().compareTo(
+            kundeAnzeigename(b).toLowerCase()));
     return list;
   }
 
   @override
   Widget build(BuildContext context) {
-    DataColumn sortCol(String label, int i) => DataColumn(
-          label: Text(label),
-          onSort: (col, asc) => setState(() {
-            _sortCol = col;
-            _sortAsc = asc;
-          }),
-        );
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side:
-                BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+    final sorted = _sorted;
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      itemCount: sorted.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 6),
+      itemBuilder: (_, i) {
+        final k = sorted[i];
+        final expanded = _expanded.contains(k.id);
+        return Container(
+          decoration: BoxDecoration(
+            color: AwTokens.white,
+            borderRadius: BorderRadius.circular(AwTokens.radiusLg),
+            border: Border.all(color: AwTokens.line),
           ),
-          child: DataTable(
-            sortColumnIndex: _sortCol,
-            sortAscending: _sortAsc,
-            showCheckboxColumn: false,
-            headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).colorScheme.surfaceContainerHighest,
-            ),
-            columns: [
-              sortCol('Typ', 0),
-              sortCol('Name / Firma', 1),
-              sortCol('Ort', 2),
-              sortCol('Telefon', 3),
-              sortCol('E-Mail', 4),
-              const DataColumn(label: Text('')),
-            ],
-            rows: [
-              for (final k in _sorted) _row(context, ref, k),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  DataRow _row(BuildContext context, WidgetRef ref, KundenData k) {
-    return DataRow(
-      onSelectChanged: (_) => showKundenFormDialog(context, kunde: k),
-      cells: [
-        DataCell(_TypBadge(typ: KundenTypX.fromDb(k.typ))),
-        DataCell(Text(kundeAnzeigename(k))),
-        DataCell(Text(
-          [k.plz, k.ort].whereType<String>().join(' ').trim(),
-        )),
-        DataCell(Text(k.telefon ?? '')),
-        DataCell(Text(k.email ?? '')),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              IconButton(
-                tooltip: 'Bearbeiten',
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () => showKundenFormDialog(context, kunde: k),
+              InkWell(
+                onTap: () => setState(() {
+                  if (expanded) {
+                    _expanded.remove(k.id);
+                  } else {
+                    _expanded.add(k.id);
+                  }
+                }),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(14, 12, 6, 12),
+                  child: Row(
+                    children: [
+                      _TypBadge(typ: KundenTypX.fromDb(k.typ)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              kundeAnzeigename(k),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AwTokens.ink,
+                                height: 1.2,
+                              ),
+                            ),
+                            if ((k.ort ?? '').isNotEmpty ||
+                                (k.plz ?? '').isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  [k.plz, k.ort]
+                                      .whereType<String>()
+                                      .where((s) => s.isNotEmpty)
+                                      .join(' '),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AwTokens.mute,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Bearbeiten',
+                        icon:
+                            const Icon(Icons.edit_outlined, size: 18),
+                        color: AwTokens.mute,
+                        onPressed: () =>
+                            showKundenFormDialog(context, kunde: k),
+                      ),
+                      IconButton(
+                        tooltip: 'Löschen',
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18),
+                        color: AwTokens.mute,
+                        onPressed: () => _confirmDelete(context, ref, k),
+                      ),
+                      AnimatedRotation(
+                        duration: const Duration(milliseconds: 180),
+                        turns: expanded ? 0.5 : 0,
+                        child: const Icon(
+                          Icons.expand_more,
+                          size: 20,
+                          color: AwTokens.mute,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                ),
               ),
-              IconButton(
-                tooltip: 'Löschen',
-                icon: const Icon(Icons.delete_outline, size: 20),
-                onPressed: () => _confirmDelete(context, ref, k),
-              ),
+              if (expanded)
+                _KundeDetail(kunde: k),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -266,6 +332,288 @@ class _KundenTableState extends ConsumerState<_KundenTable> {
         );
       }
     }
+  }
+}
+
+/// Aufklappbarer Detail-Bereich pro Auftraggeber: Adresse, Kontakt,
+/// Liste aller verknüpften Akten mit Kurzinfo + Sprung-Link.
+class _KundeDetail extends ConsumerWidget {
+  const _KundeDetail({required this.kunde});
+  final KundenData kunde;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final adresse = [
+      kunde.strasse,
+      [kunde.plz, kunde.ort]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(' '),
+      kunde.land,
+    ].whereType<String>().where((s) => s.isNotEmpty).join('\n');
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AwTokens.paper,
+        border: Border(top: BorderSide(color: AwTokens.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Adresse + Kontakt-Block (zweispaltig auf Desktop, gestapelt auf Mobile)
+          LayoutBuilder(builder: (ctx, c) {
+            final wide = c.maxWidth > 600;
+            final adresseW = _Block(
+              label: 'ANSCHRIFT',
+              child: Text(
+                adresse.isEmpty ? '—' : adresse,
+                style: const TextStyle(
+                    fontSize: 13, color: AwTokens.ink, height: 1.4),
+              ),
+            );
+            final kontaktW = _Block(
+              label: 'KONTAKT',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if ((kunde.telefon ?? '').isNotEmpty)
+                    _KontaktZeile(
+                        icon: Icons.phone_outlined, text: kunde.telefon!),
+                  if ((kunde.mobil ?? '').isNotEmpty)
+                    _KontaktZeile(
+                        icon: Icons.smartphone_outlined,
+                        text: kunde.mobil!),
+                  if ((kunde.email ?? '').isNotEmpty)
+                    _KontaktZeile(
+                        icon: Icons.mail_outline, text: kunde.email!),
+                  if ((kunde.telefon ?? '').isEmpty &&
+                      (kunde.mobil ?? '').isEmpty &&
+                      (kunde.email ?? '').isEmpty)
+                    const Text('—',
+                        style: TextStyle(
+                            fontSize: 13, color: AwTokens.mute)),
+                ],
+              ),
+            );
+            if (wide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: adresseW),
+                  const SizedBox(width: 16),
+                  Expanded(child: kontaktW),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                adresseW,
+                const SizedBox(height: 10),
+                kontaktW,
+              ],
+            );
+          }),
+          const SizedBox(height: 12),
+          // Akten-Liste
+          _AktenFuerKunde(kundeId: kunde.id),
+        ],
+      ),
+    );
+  }
+}
+
+class _Block extends StatelessWidget {
+  const _Block({required this.label, required this.child});
+  final String label;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 10 * 0.08,
+            color: AwTokens.mute,
+          ),
+        ),
+        const SizedBox(height: 4),
+        child,
+      ],
+    );
+  }
+}
+
+class _KontaktZeile extends StatelessWidget {
+  const _KontaktZeile({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 13, color: AwTokens.mute),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13, color: AwTokens.ink),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AktenFuerKunde extends ConsumerWidget {
+  const _AktenFuerKunde({required this.kundeId});
+  final int kundeId;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = ref.watch(auftraegeListProvider).valueOrNull ??
+        const <AuftragWithKunde>[];
+    final akten =
+        all.where((a) => a.auftrag.kundeId == kundeId).toList()
+          ..sort((a, b) =>
+              b.auftrag.createdAt.compareTo(a.auftrag.createdAt));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'AKTEN',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 10 * 0.08,
+                color: AwTokens.mute,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AwTokens.orangeSoft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${akten.length}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AwTokens.orange,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (akten.isEmpty)
+          const Text(
+            'Keine Akten verknüpft.',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AwTokens.mute,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else
+          for (final a in akten)
+            _AkteRow(eintrag: a),
+      ],
+    );
+  }
+}
+
+class _AkteRow extends StatelessWidget {
+  const _AkteRow({required this.eintrag});
+  final AuftragWithKunde eintrag;
+  @override
+  Widget build(BuildContext context) {
+    final a = eintrag.auftrag;
+    final betreff = (a.bezeichnung ?? '').isEmpty
+        ? '(ohne Betreff)'
+        : a.bezeichnung!;
+    final adr = [
+      a.objektStrasse,
+      [a.objektPlz, a.objektOrt]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(' '),
+    ].whereType<String>().where((s) => s.isNotEmpty).join(', ');
+    return InkWell(
+      onTap: () => context.go('/akte/${a.id}'),
+      borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AwTokens.white,
+          border: Border.all(color: AwTokens.line),
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 96,
+              child: Text(
+                a.aktenzeichen ?? '—',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AwTokens.orange,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    betreff,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AwTokens.ink,
+                    ),
+                  ),
+                  if (adr.isNotEmpty)
+                    Text(
+                      adr,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AwTokens.mute,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right,
+                size: 18, color: AwTokens.mute),
+          ],
+        ),
+      ),
+    );
   }
 }
 

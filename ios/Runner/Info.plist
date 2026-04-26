@@ -6,6 +6,18 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Aktenwerk nutzt die Kamera, um Fotos für Ortstermine und Belegerfassung aufzunehmen.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aktenwerk greift auf deine Fotos zu, um sie als Lichtbilder zur Akte oder als Belege hinzuzufügen.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Aktenwerk speichert generierte PDFs und Fotos in deiner Mediathek.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aktenwerk nimmt Sprachnotizen für Ortstermine auf, wenn du die Audio-Funktion nutzt.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aktenwerk verwendet deinen Standort, um Ortstermin-Adressen zu erfassen und Routen zu berechnen.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Aktenwerk speichert PDFs und Belege in deinem Dokumente-Ordner.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Aktenwerk</string>
 	<key>CFBundleExecutable</key>
@@ -49,6 +61,21 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>GIDClientID</key>
+	<string>370251812666-st8oqleun9g3mhpk3v22asvutdnde0ss.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.370251812666-st8oqleun9g3mhpk3v22asvutdnde0ss</string>
+			</array>
+		</dict>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

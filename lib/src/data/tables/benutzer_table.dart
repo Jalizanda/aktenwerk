@@ -21,6 +21,7 @@ class Benutzer extends Table {
 
   TextColumn get steuerNr => text().nullable()();
   TextColumn get ustId => text().nullable()();
+  TextColumn get hrb => text().nullable()();
   TextColumn get iban => text().nullable()();
   TextColumn get bic => text().nullable()();
   TextColumn get bank => text().nullable()();

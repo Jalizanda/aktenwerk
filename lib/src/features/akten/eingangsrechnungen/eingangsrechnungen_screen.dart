@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import '../../../core/ai/beleg_extraktion_service.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/sync/storage_service.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
@@ -241,7 +242,7 @@ class EingangsrechnungenScreen extends ConsumerWidget {
     final ungeprueft = !r.geprueft;
     return DataRow(
       color: ungeprueft
-          ? WidgetStateProperty.all(const Color(0xFFFFF7ED)) // amber-50
+          ? WidgetStateProperty.all(AwTokens.amberSoft)
           : null,
       onSelectChanged: (_) => _show(context, ref, e),
       cells: [
@@ -255,9 +256,7 @@ class EingangsrechnungenScreen extends ConsumerWidget {
             iconSize: 20,
             icon: Icon(
               r.geprueft ? Icons.check_circle : Icons.circle_outlined,
-              color: r.geprueft
-                  ? const Color(0xFF16A34A)
-                  : const Color(0xFFEA580C),
+              color: r.geprueft ? AwTokens.green : AwTokens.orange,
             ),
             onPressed: () => ref
                 .read(eingangsrechnungenRepositoryProvider)
@@ -305,7 +304,7 @@ class EingangsrechnungenScreen extends ConsumerWidget {
             style: const TextStyle(fontFamily: 'monospace', fontSize: 11))),
         DataCell(Text(r.netto.toStringAsFixed(2))),
         DataCell(Text(r.ustBetrag.toStringAsFixed(2),
-            style: const TextStyle(color: Color(0xFF1D4ED8)))),
+            style: const TextStyle(color: AwTokens.blue))),
         DataCell(Text(r.brutto.toStringAsFixed(2),
             style: const TextStyle(fontWeight: FontWeight.w700))),
         DataCell(_statusBadge(context, _effectiveStatus(r))),

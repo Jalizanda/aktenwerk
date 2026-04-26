@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/seed/demo_merge_importer.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/formel_text_field.dart';
 import '../../../shared/widgets/module_scaffold.dart';
@@ -78,6 +79,11 @@ class ArtikelScreen extends ConsumerWidget {
           title: 'Artikel / Leistungen',
           subtitle: 'Leistungskatalog für Angebote und Rechnungen',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cloud_download_outlined, size: 18),
+              label: const Text('Demo-Artikel laden'),
+              onPressed: () => _importDemoArtikel(context, ref),
+            ),
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neuer Artikel'),
@@ -214,6 +220,54 @@ class ArtikelScreen extends ConsumerWidget {
       context: context,
       builder: (_) => _ArtikelFormDialog(artikel: artikel),
     );
+  }
+
+  Future<void> _importDemoArtikel(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Demo-Artikel laden?'),
+        content: const Text(
+          'Die 25 Artikel/Leistungen aus den Demo-Daten werden zusätzlich '
+          'in deinen Mandanten importiert. Bestehende Artikel bleiben '
+          'unverändert; Artikel mit identischer Nummer (oder Bezeichnung '
+          'wenn keine Nummer vorhanden) werden übersprungen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Importieren'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final res = await ref.read(demoMergeImporterProvider).importArtikel();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res.skipped == 0
+                ? '${res.added} Artikel importiert.'
+                : '${res.added} neu angelegt · ${res.skipped} '
+                    'übersprungen (bereits vorhanden).'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import fehlgeschlagen: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirmDelete(
@@ -691,7 +745,10 @@ class _UnterpositionenTabelle extends StatelessWidget {
           ),
           for (var i = 0; i < positionen.length; i++)
             _UnterpositionZeile(
-              key: ValueKey(positionen[i]),
+              // GlobalObjectKey: Row-State (Controller + Fokus) bleibt
+              // erhalten, auch wenn Parent-Rebuild die Zeile in einen
+              // neuen Tree-Slot setzt.
+              key: GlobalObjectKey(positionen[i]),
               pos: positionen[i],
               onChanged: onChanged,
               onRemove: () => onRemove(i),

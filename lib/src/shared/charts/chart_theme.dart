@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 
 /// Zentrale Chart-Farbwerte — greift auf die Logo-/Accent-Palette der App
 /// zurück (Orange-Töne). Hover/Tooltip-Styling einheitlich.
@@ -39,7 +40,7 @@ class ChartStyle {
     return BarTouchData(
       enabled: true,
       touchTooltipData: BarTouchTooltipData(
-        getTooltipColor: (_) => const Color(0xFF1E293B), // slate-800
+        getTooltipColor: (_) => AwTokens.ink,
         tooltipPadding:
             const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         tooltipRoundedRadius: 6,

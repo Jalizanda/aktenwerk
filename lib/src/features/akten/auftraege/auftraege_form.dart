@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/geo/plz_autofill.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/system/benutzer/benutzer_repository.dart';
@@ -178,6 +179,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
         mimeType: 'image/jpeg',
       );
     }
+    _plzAutoFillDispose = attachPlzAutoFill(_objPlz, _objOrt);
     if (a == null) _prefill();
   }
 
@@ -200,8 +202,11 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
     }
   }
 
+  late final VoidCallback _plzAutoFillDispose;
+
   @override
   void dispose() {
+    _plzAutoFillDispose();
     _tabs.dispose();
     for (final c in [
       _aktenzeichen, _azExtern, _betreff, _bezeichnung,

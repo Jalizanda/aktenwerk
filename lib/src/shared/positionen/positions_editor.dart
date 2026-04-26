@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../data/database/app_database.dart';
 import '../../features/kalkulation/artikel/artikel_repository.dart';
 import '../../features/werkzeuge/textbausteine/textbausteine_repository.dart';
+import '../richtext/quill_editor.dart';
 import '../widgets/formel_text_field.dart';
 import 'position_model.dart';
 
@@ -53,9 +54,25 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
   @override
   void didUpdateWidget(covariant PositionsEditor old) {
     super.didUpdateWidget(old);
-    if (old.positions != widget.positions) {
+    // WICHTIG: IDs NICHT pauschal neu vergeben, wenn sich nur Inhalte
+    // geändert haben. Bei jedem Tastendruck baut _emit() eine neue Liste
+    // mit copyWith-Instanzen — die Position-Objekte sind dann referenziell
+    // verschieden, obwohl Reihenfolge und Anzahl gleich bleiben. Wenn wir
+    // hier neue _ids generieren, wechselt der ValueKey jeder Zeile, der
+    // _PositionRow-State (inkl. TextController + Fokus) wird verworfen,
+    // und der Cursor springt nach jedem Zeichen aus dem Feld.
+    //
+    // Nur die Items selbst aktualisieren — IDs bleiben stabil. Bei
+    // Längen-Änderungen (Hinzufügen/Entfernen) gleichen wir die ID-Liste
+    // nur am Ende an.
+    if (!identical(old.positions, widget.positions)) {
       _items = List.of(widget.positions);
-      _ids = List.generate(_items.length, (_) => _nextId++);
+      while (_ids.length < _items.length) {
+        _ids.add(_nextId++);
+      }
+      while (_ids.length > _items.length) {
+        _ids.removeLast();
+      }
     }
   }
 
@@ -332,6 +349,24 @@ class _PositionRowState extends State<_PositionRow> {
     ));
   }
 
+  Future<void> _openLangtextPopup(BuildContext context) async {
+    final initial = _lang.text;
+    final result = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => _LangtextEditorDialog(
+        initialDeltaJson: initial,
+        bezeichnung: _bez.text,
+      ),
+    );
+    if (result == null) return;
+    setState(() {
+      _lang.text = result;
+    });
+    _emit();
+  }
+
   InputDecoration _dec({String? hint}) => InputDecoration(
         isDense: true,
         hintText: hint,
@@ -392,16 +427,78 @@ class _PositionRowState extends State<_PositionRow> {
                   onChanged: (_) => _emit(),
                 ),
                 const SizedBox(height: 4),
-                TextField(
-                  controller: _lang,
-                  decoration: _dec(
-                      hint:
-                          'optionaler Langtext (wird unter Kurztext im Dokument gezeigt)'),
-                  minLines: 2,
-                  maxLines: 3,
-                  onChanged: (_) => _emit(),
-                  style: const TextStyle(fontSize: 12),
-                ),
+                // Doppelklick öffnet einen Quill-Rich-Text-Editor in einem
+                // Popup; der Inline-TextField bleibt für schnelle Plain-
+                // Text-Eingaben. Sobald der Inhalt eine Quill-Delta (JSON-
+                // Array) ist, wird er hier readonly gerendert (Plain-Text-
+                // Vorschau) und kann nur noch über das Popup editiert
+                // werden — sonst würde Tippen die Formatierung zerstören.
+                Builder(builder: (context) {
+                  final isDelta = _lang.text.trim().startsWith('[');
+                  final preview = isDelta
+                      ? plainTextFromDeltaJson(_lang.text)
+                      : null;
+                  return GestureDetector(
+                    onDoubleTap: () => _openLangtextPopup(context),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        TextField(
+                          controller: _lang,
+                          decoration: _dec(
+                              hint: isDelta
+                                  ? null
+                                  : 'optionaler Langtext (Doppelklick → Rich-Text-Editor)'),
+                          minLines: 2,
+                          maxLines: 4,
+                          readOnly: isDelta,
+                          onChanged: (_) => _emit(),
+                          style: const TextStyle(fontSize: 12),
+                          // Bei delta zeigen wir den extrahierten Plain-Text;
+                          // den realen Delta-JSON behalten wir im Controller
+                          // verborgen — geht nicht direkt mit TextEditing-
+                          // Controller, daher Overlay-Vorschau:
+                        ),
+                        if (isDelta)
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: Container(
+                                color: Theme.of(context)
+                                    .scaffoldBackgroundColor,
+                                padding: const EdgeInsets.fromLTRB(
+                                    8, 6, 36, 6),
+                                child: Text(
+                                  preview ?? '',
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          top: 2,
+                          right: 4,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              iconSize: 16,
+                              constraints: const BoxConstraints(
+                                  minWidth: 28, minHeight: 28),
+                              tooltip:
+                                  'Rich-Text-Editor öffnen (oder Doppelklick)',
+                              icon: const Icon(
+                                  Icons.edit_note_outlined),
+                              onPressed: () =>
+                                  _openLangtextPopup(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -889,3 +986,112 @@ class _TextbausteinPickerDialogState
   }
 }
 
+/// Vollwertiger Quill-Rich-Text-Editor in einem Modal-Dialog. Wird per
+/// Doppelklick auf das Langtext-Feld einer Position geöffnet. Speichert
+/// den Inhalt als Quill-Delta-JSON (Array) zurück.
+class _LangtextEditorDialog extends StatefulWidget {
+  const _LangtextEditorDialog({
+    required this.initialDeltaJson,
+    required this.bezeichnung,
+  });
+  final String initialDeltaJson;
+  final String bezeichnung;
+
+  @override
+  State<_LangtextEditorDialog> createState() =>
+      _LangtextEditorDialogState();
+}
+
+class _LangtextEditorDialogState extends State<_LangtextEditorDialog> {
+  late String _current = widget.initialDeltaJson;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
+              child: Row(
+                children: [
+                  Icon(Icons.edit_note_outlined,
+                      color: theme.colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Langtext bearbeiten',
+                            style: theme.textTheme.titleLarge),
+                        if (widget.bezeichnung.trim().isNotEmpty)
+                          Text(
+                            widget.bezeichnung,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color:
+                                  theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Schließen',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(null),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: RichTextEditor(
+                  initialDeltaJson: widget.initialDeltaJson,
+                  onChanged: (v) => _current = v,
+                  minHeight: 360,
+                  placeholder:
+                      'Beschreibe die Position ausführlich. '
+                      'Formatierungen (Fett/Kursiv/Listen) werden im PDF '
+                      'übernommen.',
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Langtext leeren'),
+                    onPressed: () =>
+                        Navigator.of(context).pop(''),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(null),
+                    child: const Text('Abbrechen'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.check),
+                    label: const Text('Übernehmen'),
+                    onPressed: () => Navigator.of(context).pop(_current),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

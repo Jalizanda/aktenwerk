@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
@@ -116,10 +117,10 @@ class _AktenScreenState extends ConsumerState<AktenScreen> {
                           DataCell(Text(
                             a.auftrag.aktenzeichen ?? '',
                             style: const TextStyle(
-                                fontFamily: 'monospace',
                                 fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.accent700),
+                                fontWeight: FontWeight.w500,
+                                color: AwTokens.orange,
+                                fontFeatures: [FontFeature.tabularFigures()]),
                           )),
                           DataCell(SizedBox(
                             width: 180,

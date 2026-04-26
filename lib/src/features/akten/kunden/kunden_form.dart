@@ -1,11 +1,66 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/geo/plz_autofill.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/seed/gerichte.dart';
 import '../../system/konten/debitor_service.dart';
 import 'kunden_repository.dart';
+
+/// Ein zusätzlicher Ansprechpartner. Wird als JSON-Liste in
+/// `Kunden.ansprechpartner` gespeichert.
+class _Ansprechpartner {
+  _Ansprechpartner({
+    String? name,
+    String? rolle,
+    String? telefon,
+    String? mobil,
+    String? email,
+    String? notiz,
+  })  : name = TextEditingController(text: name ?? ''),
+        rolle = TextEditingController(text: rolle ?? ''),
+        telefon = TextEditingController(text: telefon ?? ''),
+        mobil = TextEditingController(text: mobil ?? ''),
+        email = TextEditingController(text: email ?? ''),
+        notiz = TextEditingController(text: notiz ?? '');
+
+  final TextEditingController name;
+  final TextEditingController rolle;
+  final TextEditingController telefon;
+  final TextEditingController mobil;
+  final TextEditingController email;
+  final TextEditingController notiz;
+
+  Map<String, String> toJson() => {
+        'name': name.text.trim(),
+        'rolle': rolle.text.trim(),
+        'telefon': telefon.text.trim(),
+        'mobil': mobil.text.trim(),
+        'email': email.text.trim(),
+        'notiz': notiz.text.trim(),
+      };
+
+  bool get isEmpty =>
+      name.text.trim().isEmpty &&
+      rolle.text.trim().isEmpty &&
+      telefon.text.trim().isEmpty &&
+      mobil.text.trim().isEmpty &&
+      email.text.trim().isEmpty &&
+      notiz.text.trim().isEmpty;
+
+  void dispose() {
+    name.dispose();
+    rolle.dispose();
+    telefon.dispose();
+    mobil.dispose();
+    email.dispose();
+    notiz.dispose();
+  }
+}
 
 /// Dialog zum Anlegen/Bearbeiten eines Kunden.
 ///
@@ -55,24 +110,57 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
   late final _mobil = TextEditingController(text: widget.kunde?.mobil ?? '');
   late final _email = TextEditingController(text: widget.kunde?.email ?? '');
   late final _ustId = TextEditingController(text: widget.kunde?.ustId ?? '');
+  late final _steuerNr =
+      TextEditingController(text: widget.kunde?.steuerNr ?? '');
+  late final _hrb = TextEditingController(text: widget.kunde?.hrb ?? '');
   late final _aktenpraefix = TextEditingController(text: widget.kunde?.aktenpraefix ?? '');
   late final _notiz = TextEditingController(text: widget.kunde?.notiz ?? '');
 
+  final List<_Ansprechpartner> _ansprechpartner = [];
+
   bool _saving = false;
+
+  late final VoidCallback _plzAutoFillDispose;
 
   @override
   void initState() {
     super.initState();
     _typ = KundenTypX.fromDb(widget.kunde?.typ);
+    _plzAutoFillDispose = attachPlzAutoFill(_plz, _ort);
+    final raw = widget.kunde?.ansprechpartner;
+    if (raw != null && raw.trim().isNotEmpty) {
+      try {
+        final list = jsonDecode(raw);
+        if (list is List) {
+          for (final item in list) {
+            if (item is Map) {
+              _ansprechpartner.add(_Ansprechpartner(
+                name: item['name']?.toString(),
+                rolle: item['rolle']?.toString(),
+                telefon: item['telefon']?.toString(),
+                mobil: item['mobil']?.toString(),
+                email: item['email']?.toString(),
+                notiz: item['notiz']?.toString(),
+              ));
+            }
+          }
+        }
+      } catch (_) {/* ignore — alte/kaputte Daten */}
+    }
   }
 
   @override
   void dispose() {
+    _plzAutoFillDispose();
     for (final c in [
       _anrede, _titel, _vorname, _nachname, _firma, _strasse,
-      _plz, _ort, _telefon, _mobil, _email, _ustId, _aktenpraefix, _notiz,
+      _plz, _ort, _telefon, _mobil, _email, _ustId, _steuerNr, _hrb,
+      _aktenpraefix, _notiz,
     ]) {
       c.dispose();
+    }
+    for (final a in _ansprechpartner) {
+      a.dispose();
     }
     super.dispose();
   }
@@ -91,6 +179,10 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
           .read(debitorKreditorServiceProvider)
           .nextDebitornummer();
     }
+    final cleanAps = _ansprechpartner.where((a) => !a.isEmpty).toList();
+    final apsJson = cleanAps.isEmpty
+        ? null
+        : jsonEncode(cleanAps.map((a) => a.toJson()).toList());
     final companion = KundenCompanion(
       id: _isEdit ? Value(widget.kunde!.id) : const Value.absent(),
       typ: Value(_typ.dbValue),
@@ -106,6 +198,9 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
       mobil: _nullableText(_mobil),
       email: _nullableText(_email),
       ustId: _nullableText(_ustId),
+      steuerNr: _nullableText(_steuerNr),
+      hrb: _nullableText(_hrb),
+      ansprechpartner: Value(apsJson),
       aktenpraefix: _nullableText(_aktenpraefix),
       debitornummer: Value(debitor),
       notiz: _nullableText(_notiz),
@@ -276,20 +371,47 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _LabeledField(
+                    label: 'E-Mail',
+                    child: TextFormField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Steuerliche Daten',
+                      style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 8),
                   _Row2(
                     left: _LabeledField(
-                      label: 'E-Mail',
-                      child: TextFormField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                    ),
-                    right: _LabeledField(
                       label: 'USt-ID',
                       child: TextFormField(controller: _ustId),
                     ),
+                    right: _LabeledField(
+                      label: 'Steuernummer',
+                      child: TextFormField(controller: _steuerNr),
+                    ),
                   ),
                   const SizedBox(height: 12),
+                  _LabeledField(
+                    label: 'HRB / Handelsregister',
+                    child: TextFormField(
+                      controller: _hrb,
+                      decoration: const InputDecoration(
+                        hintText: 'z. B. HRB 12345 (AG Düsseldorf)',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _AnsprechpartnerSection(
+                    items: _ansprechpartner,
+                    onAdd: () =>
+                        setState(() => _ansprechpartner.add(_Ansprechpartner())),
+                    onRemove: (i) => setState(() {
+                      _ansprechpartner.removeAt(i).dispose();
+                    }),
+                  ),
+                  const SizedBox(height: 16),
                   _LabeledField(
                     label: 'Aktenzeichen-Präfix (z. B. "12 OH 4/26")',
                     child: TextFormField(controller: _aktenpraefix),
@@ -369,17 +491,17 @@ class _TypChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     return Material(
-      color: selected ? accent : const Color(0xFFF1F5F9),
-      borderRadius: BorderRadius.circular(8),
+      color: selected ? accent : AwTokens.paper,
+      borderRadius: BorderRadius.circular(AwTokens.radiusMd),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AwTokens.radiusMd),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AwTokens.radiusMd),
             border: Border.all(
-              color: selected ? accent : const Color(0xFFE2E8F0),
+              color: selected ? accent : AwTokens.line,
             ),
           ),
           child: Text(
@@ -387,7 +509,7 @@ class _TypChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF334155),
+              color: selected ? AwTokens.white : AwTokens.ink,
             ),
           ),
         ),
@@ -560,6 +682,132 @@ class _GerichtePickerDialogState extends State<_GerichtePickerDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Sektion zum Anlegen mehrerer Ansprechpartner pro Auftraggeber.
+/// Eine Karte pro Person mit Name, Rolle, Telefon, Mobil, E-Mail, Notiz.
+class _AnsprechpartnerSection extends StatelessWidget {
+  const _AnsprechpartnerSection({
+    required this.items,
+    required this.onAdd,
+    required this.onRemove,
+  });
+  final List<_Ansprechpartner> items;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Weitere Ansprechpartner', style: theme.textTheme.titleSmall),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Hinzufügen'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              'Keine weiteren Ansprechpartner hinterlegt.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          )
+        else
+          ...List.generate(items.length, (i) {
+            final a = items[i];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+              decoration: BoxDecoration(
+                color: AwTokens.paper,
+                borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+                border: Border.all(color: AwTokens.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('Person ${i + 1}',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                          )),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: 'Entfernen',
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        onPressed: () => onRemove(i),
+                      ),
+                    ],
+                  ),
+                  _Row2(
+                    left: _LabeledField(
+                      label: 'Name',
+                      child: TextFormField(controller: a.name),
+                    ),
+                    right: _LabeledField(
+                      label: 'Rolle / Funktion',
+                      child: TextFormField(
+                        controller: a.rolle,
+                        decoration: const InputDecoration(
+                          hintText: 'Geschäftsführer, Sachbearbeiter, …',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _Row2(
+                    left: _LabeledField(
+                      label: 'Telefon',
+                      child: TextFormField(
+                        controller: a.telefon,
+                        keyboardType: TextInputType.phone,
+                      ),
+                    ),
+                    right: _LabeledField(
+                      label: 'Mobil',
+                      child: TextFormField(
+                        controller: a.mobil,
+                        keyboardType: TextInputType.phone,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _LabeledField(
+                    label: 'E-Mail',
+                    child: TextFormField(
+                      controller: a.email,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _LabeledField(
+                    label: 'Notiz',
+                    child: TextFormField(
+                      controller: a.notiz,
+                      minLines: 1,
+                      maxLines: 3,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
     );
   }
 }

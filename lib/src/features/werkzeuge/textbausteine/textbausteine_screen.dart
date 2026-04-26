@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/seed/demo_merge_importer.dart';
 import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
@@ -32,6 +33,11 @@ class TextbausteineScreen extends ConsumerWidget {
               icon: const Icon(Icons.library_books_outlined, size: 18),
               label: const Text('SV-Vorlagen laden'),
               onPressed: () => _importSvVorlagen(context, ref),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cloud_download_outlined, size: 18),
+              label: const Text('Demo-Bausteine laden'),
+              onPressed: () => _importDemoBausteine(context, ref),
             ),
             FilledButton.icon(
               icon: const Icon(Icons.add),
@@ -235,6 +241,56 @@ class TextbausteineScreen extends ConsumerWidget {
                 ? '${report.neu} SV-Vorlagen importiert.'
                 : '${report.neu} neu angelegt · '
                     '${report.bereitsVorhanden} bereits vorhanden (übersprungen).'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import fehlgeschlagen: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importDemoBausteine(
+      BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Demo-Textbausteine laden?'),
+        content: const Text(
+          'Die 95 Textbausteine aus den Demo-Daten werden zusätzlich '
+          'in deinen Mandanten importiert. Bestehende Bausteine bleiben '
+          'unverändert; Bausteine mit identischem Titel werden '
+          'übersprungen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Importieren'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final res =
+          await ref.read(demoMergeImporterProvider).importTextbausteine();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res.skipped == 0
+                ? '${res.added} Textbausteine importiert.'
+                : '${res.added} neu angelegt · ${res.skipped} '
+                    'übersprungen (bereits vorhanden).'),
           ),
         );
       }

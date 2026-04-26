@@ -6,13 +6,14 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/storage_service.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:web/web.dart' as web;
+import '../../../core/web/web_compat.dart' as web;
 
 import 'normen_chat_dialog.dart';
 import 'normen_import.dart';
@@ -206,10 +207,10 @@ class NormenScreen extends ConsumerWidget {
   void _oeffneKiChat(BuildContext context) {
     if (kIsWeb) {
       // Eigenes Fenster — Aktenwerk bleibt parallel bedienbar.
-      web.window.open(
-        '${web.window.location.origin}/normen/chat',
-        'aktenwerk_ki_chat',
-        'popup=yes,width=900,height=760,resizable=yes,scrollbars=yes',
+      web.openInNewWindow(
+        '${web.appOrigin}/normen/chat',
+        name: 'aktenwerk_ki_chat',
+        features: 'popup=yes,width=900,height=760,resizable=yes,scrollbars=yes',
       );
       return;
     }
@@ -503,7 +504,7 @@ class _AktualitaetsPill extends StatelessWidget {
           Icons.check_circle
         ),
       'veraltet' => (
-          const Color(0xFFDC2626),
+          AwTokens.red,
           'veraltet',
           Icons.cancel
         ),
@@ -548,7 +549,7 @@ class _PdfCell extends StatelessWidget {
     return IconButton(
       tooltip: norm.pdfDateiname ?? 'PDF öffnen',
       icon: const Icon(Icons.picture_as_pdf,
-          size: 20, color: Color(0xFFDC2626)),
+          size: 20, color: AwTokens.red),
       onPressed: () async {
         final uri = Uri.tryParse(url);
         if (uri != null) {
@@ -703,7 +704,7 @@ class _AktualitaetsRow extends ConsumerWidget {
           IconButton(
             tooltip: 'Als veraltet markieren',
             icon: const Icon(Icons.cancel,
-                size: 22, color: Color(0xFFDC2626)),
+                size: 22, color: AwTokens.red),
             onPressed: () => _markVeraltet(context, ref, norm),
           ),
         ],
@@ -1196,7 +1197,7 @@ class _AktualitaetsSection extends StatelessWidget {
             const SizedBox(width: 8),
             _StatusButton(
               label: 'veraltet',
-              color: const Color(0xFFDC2626),
+              color: AwTokens.red,
               icon: Icons.cancel,
               active: status == 'veraltet',
               onPressed: () => onStatusChanged('veraltet'),
@@ -1315,7 +1316,7 @@ class _PdfSection extends StatelessWidget {
             child: Row(
               children: [
                 const Icon(Icons.picture_as_pdf,
-                    color: Color(0xFFDC2626), size: 28),
+                    color: AwTokens.red, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

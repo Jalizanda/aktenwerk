@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
@@ -341,7 +342,7 @@ class _OposZahlungDialogState extends ConsumerState<_OposZahlungDialog> {
                     icon: const Icon(Icons.check, size: 16),
                     label: const Text('Voll bezahlt'),
                     style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A)),
+                        backgroundColor: AwTokens.green),
                   ),
                 ],
               ),

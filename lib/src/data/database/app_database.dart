@@ -107,7 +107,7 @@ class AppDatabase extends _$AppDatabase {
         ));
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -282,6 +282,17 @@ class AppDatabase extends _$AppDatabase {
           // pro Gutachten-Block).
           if (from < 23) {
             await m.addColumn(fotos, fotos.gutachtenAbschnitt);
+          }
+
+          // v23 → v24: HRB + weitere Ansprechpartner für Auftraggeber.
+          if (from < 24) {
+            await m.addColumn(kunden, kunden.hrb);
+            await m.addColumn(kunden, kunden.ansprechpartner);
+          }
+
+          // v24 → v25: HRB für den Sachverständigen-Absender selbst.
+          if (from < 25) {
+            await m.addColumn(benutzer, benutzer.hrb);
           }
         },
       );

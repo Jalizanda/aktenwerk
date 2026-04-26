@@ -306,7 +306,7 @@ class _KategoriePunkt extends StatelessWidget {
       case 'Frist':
         return BadgeColors.redFg;
       case 'Erläuterung':
-        return const Color(0xFF2563EB);
+        return BadgeColors.blueFg;
       case 'Wiedervorlage':
         return BadgeColors.amberFg;
     }

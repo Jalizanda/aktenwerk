@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/aw_tokens.dart';
 
 /// Modaler Hilfe-Dialog mit Arbeitsablauf, Shortcuts, Modul-Übersicht
 /// und Tipps — 1:1 aus der SV-Software (an Aktenwerk angepasst).
@@ -417,20 +418,19 @@ class _TippsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      color: const Color(0xFFFFFBEB),
-      borderColor: const Color(0xFFFDE68A),
+      color: AwTokens.amberSoft,
+      borderColor: AwTokens.line,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(children: [
-            Icon(Icons.lightbulb_outline,
-                size: 18, color: Color(0xFFB45309)),
+            Icon(Icons.lightbulb_outline, size: 18, color: AwTokens.amber),
             SizedBox(width: 8),
             Text('Tipps für neue Nutzer',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF92400E))),
+                    color: AwTokens.amber)),
           ]),
           const SizedBox(height: 10),
           const Text(
@@ -605,14 +605,13 @@ class _MobileCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(children: [
-            Icon(Icons.phone_iphone,
-                size: 18, color: Color(0xFF1D4ED8)),
+            Icon(Icons.phone_iphone, size: 18, color: AwTokens.blue),
             SizedBox(width: 8),
             Text('Mobile Arbeit',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E3A8A))),
+                    color: AwTokens.blue)),
           ]),
           const SizedBox(height: 10),
           const Text(
@@ -631,8 +630,8 @@ class _MobileCard extends StatelessWidget {
 }
 
 class BadgeColorsConst {
-  static const blueBg = Color(0xFFEFF6FF);
-  static const blueBorder = Color(0xFFBFDBFE);
+  static const blueBg = AwTokens.blueSoft;
+  static const blueBorder = AwTokens.line;
 }
 
 class _Card extends StatelessWidget {

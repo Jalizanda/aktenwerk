@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 
 /// In-App-Vorschau eines PDFs mit Zoom +/− und "Drucken / speichern"-Button.
 /// Alternative zum nativen [Printing.layoutPdf] wenn ein integrierter Dialog
@@ -89,7 +90,7 @@ class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
                 useActions: false,
                 maxPageWidth: 800,
                 scrollViewDecoration: const BoxDecoration(
-                  color: Color(0xFFE5E7EB),
+                  color: AwTokens.paper,
                 ),
               ),
             ),

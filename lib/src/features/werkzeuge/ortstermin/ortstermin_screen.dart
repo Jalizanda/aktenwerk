@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/ai/audio_transkript_service.dart';
 import '../../../core/ai/rechtschreibung_service.dart';
+import '../../../core/geo/geo_service.dart';
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../data/sync/auth_service.dart';
@@ -68,6 +70,128 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   /// Menge der gerade transkribierten Audios (für Spinner-Anzeige in der
   /// Journal-Zeile), geschlüsselt auf den Entry-Zeitstempel.
   final Set<DateTime> _transkribiereLaeuft = {};
+
+  /// Spinner-Flag für den „Hier bin ich"-Button.
+  bool _geoSucheLaeuft = false;
+
+  /// Holt die aktuelle GPS-Position und wählt die nächstgelegene Akte
+  /// (nur Akten mit objektLat/Lon; Radius bis 5 km). Auf größerer
+  /// Distanz erscheint ein Dialog mit den Top-3-Kandidaten.
+  Future<void> _akteUeberGpsFinden() async {
+    setState(() => _geoSucheLaeuft = true);
+    try {
+      final pos = await aktuellePosition();
+      if (pos == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Standort nicht verfügbar — bitte Berechtigung prüfen.'),
+          ));
+        }
+        return;
+      }
+      final db = ref.read(appDatabaseProvider);
+      final auftraege = await db.select(db.auftraege).get();
+      final kandidaten = <(AuftraegeData, double)>[];
+      for (final a in auftraege) {
+        if (a.objektLat == null || a.objektLon == null) continue;
+        final d = distanzKm(pos, LatLon(a.objektLat!, a.objektLon!));
+        kandidaten.add((a, d));
+      }
+      kandidaten.sort((x, y) => x.$2.compareTo(y.$2));
+      if (kandidaten.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Keine Akten mit Geo-Daten gefunden. Adresse in der Akte hinterlegen.'),
+          ));
+        }
+        return;
+      }
+      final naechste = kandidaten.first;
+      // Bis 0.3 km automatisch wählen — mehr Distanz → User bestätigen.
+      if (naechste.$2 <= 0.3) {
+        setState(() => _auftragId = naechste.$1.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Akte „${naechste.$1.aktenzeichen ?? naechste.$1.id}" '
+                'gewählt (≈${(naechste.$2 * 1000).round()} m entfernt).'),
+          ));
+        }
+        return;
+      }
+      // Auswahl-Dialog mit Top-3.
+      if (!mounted) return;
+      final picked = await showDialog<int>(
+        context: context,
+        useRootNavigator: true,
+        builder: (_) => SimpleDialog(
+          title: const Text('Akte in der Nähe wählen'),
+          children: [
+            for (final (a, km) in kandidaten.take(3))
+              SimpleDialogOption(
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).pop(a.id),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 18, color: AwTokens.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            a.aktenzeichen ?? '(o. A.)',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AwTokens.orange,
+                            ),
+                          ),
+                          if ((a.bezeichnung ?? '').isNotEmpty)
+                            Text(a.bezeichnung!,
+                                style: const TextStyle(fontSize: 12)),
+                          Text(
+                            [
+                              a.objektStrasse,
+                              [a.objektPlz, a.objektOrt]
+                                  .whereType<String>()
+                                  .where((s) => s.isNotEmpty)
+                                  .join(' '),
+                            ]
+                                .whereType<String>()
+                                .where((s) => s.isNotEmpty)
+                                .join(', '),
+                            style: const TextStyle(
+                                fontSize: 11, color: AwTokens.mute),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      km < 1
+                          ? '${(km * 1000).round()} m'
+                          : '${km.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AwTokens.mute,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+      if (picked != null) setState(() => _auftragId = picked);
+    } finally {
+      if (mounted) setState(() => _geoSucheLaeuft = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -404,6 +528,11 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
           title: 'Ortstermin-Modus',
           subtitle: 'Vor Ort: Fotos mit Text, Notizen, Audio, Zeiterfassung',
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.my_location, size: 16),
+              label: const Text('Hier bin ich'),
+              onPressed: _geoSucheLaeuft ? null : _akteUeberGpsFinden,
+            ),
             FilledButton.icon(
               icon: const Icon(Icons.fact_check_outlined),
               label: const Text('Protokoll erfassen'),

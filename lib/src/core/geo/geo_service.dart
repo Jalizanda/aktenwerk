@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 /// Ein Koordinatenpaar (WGS84).
@@ -20,6 +22,48 @@ class Strecke {
 }
 
 const _userAgent = 'Aktenwerk/1.0 (hello@aktenwerk.app)';
+
+/// Liefert die aktuelle GPS-Position. Fragt Permission an, falls nötig.
+/// Gibt `null` zurück, wenn der User ablehnt, kein GPS verfügbar ist
+/// oder ein Fehler auftritt.
+Future<LatLon?> aktuellePosition() async {
+  try {
+    final dienst = await Geolocator.isLocationServiceEnabled();
+    if (!dienst) return null;
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm == LocationPermission.denied ||
+        perm == LocationPermission.deniedForever) {
+      return null;
+    }
+    final pos = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 8),
+      ),
+    );
+    return LatLon(pos.latitude, pos.longitude);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Distanz in km zwischen zwei Punkten via Haversine-Formel.
+double distanzKm(LatLon a, LatLon b) {
+  const r = 6371.0;
+  final dLat = _rad(b.lat - a.lat);
+  final dLon = _rad(b.lon - a.lon);
+  final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(_rad(a.lat)) *
+          math.cos(_rad(b.lat)) *
+          math.sin(dLon / 2) *
+          math.sin(dLon / 2);
+  return 2 * r * math.asin(math.min(1.0, math.sqrt(h)));
+}
+
+double _rad(double deg) => deg * math.pi / 180.0;
 
 /// Wandelt eine Adresse in Lat/Lon um. Nutzt Nominatim (OpenStreetMap).
 /// Ein User-Agent-Header ist von Nominatim verpflichtend.

@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/aw_tokens.dart';
+import '../../../data/database/app_database.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../kunden/kunden_repository.dart';
 import 'auftraege_repository.dart';
+
+/// Objekt-Adresse als ein-Zeiler für ListTiles und Suggestions.
+String _objektAdresse(AuftraegeData a) {
+  final teile = [
+    a.objektStrasse,
+    [a.objektPlz, a.objektOrt]
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .join(' '),
+  ].whereType<String>().where((s) => s.isNotEmpty).toList();
+  return teile.join(', ');
+}
 
 /// Picker-Button für einen Auftrag mit Such-Dialog (Aktenzeichen + Bezeichnung + Kunde).
 class AuftragPickerField extends ConsumerStatefulWidget {
@@ -61,7 +75,9 @@ class _AuftragPickerFieldState extends ConsumerState<AuftragPickerField> {
     final bez = (r.auftrag.bezeichnung ?? '').isEmpty
         ? ''
         : ' · ${r.auftrag.bezeichnung}';
-    return '$az$kunde$bez';
+    final adr = _objektAdresse(r.auftrag);
+    final adrTeil = adr.isEmpty ? '' : ' · $adr';
+    return '$az$kunde$bez$adrTeil';
   }
 
   @override
@@ -170,18 +186,55 @@ class _AuftragPickerDialogState
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (_, i) {
                       final r = items[i];
+                      final adr = _objektAdresse(r.auftrag);
+                      final meta = [
+                        r.kunde == null ? '' : kundeAnzeigename(r.kunde!),
+                        r.auftrag.bezeichnung ?? '',
+                      ].where((s) => s.isNotEmpty).join(' · ');
                       return ListTile(
                         dense: true,
-                        title: Text(r.auftrag.aktenzeichen ?? '(o. A.)'),
-                        subtitle: Text([
-                          r.kunde == null ? '' : kundeAnzeigename(r.kunde!),
-                          r.auftrag.bezeichnung ?? '',
-                        ].where((s) => s.isNotEmpty).join(' · ')),
+                        title: Text(
+                          r.auftrag.aktenzeichen ?? '(o. A.)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AwTokens.orange,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (meta.isNotEmpty) Text(meta),
+                            if (adr.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.location_on_outlined,
+                                        size: 12, color: AwTokens.mute),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        adr,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AwTokens.mute,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
                         trailing: Text(
                           AuftragStatusX.fromDb(r.auftrag.status).label,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        onTap: () => Navigator.of(context, rootNavigator: true).pop(r),
+                        onTap: () =>
+                            Navigator.of(context, rootNavigator: true).pop(r),
                       );
                     },
                   );

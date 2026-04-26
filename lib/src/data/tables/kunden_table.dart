@@ -26,6 +26,11 @@ class Kunden extends Table {
 
   TextColumn get steuerNr => text().nullable()();
   TextColumn get ustId => text().nullable()();
+  TextColumn get hrb => text().nullable()();
+
+  /// Weitere Ansprechpartner als JSON-Liste:
+  /// `[{name, rolle, telefon, mobil, email, notiz}]`
+  TextColumn get ansprechpartner => text().nullable()();
 
   /// Aktenzeichen-Präfix (z.B. "12 OH 4/26" bei Gerichten).
   TextColumn get aktenpraefix => text().nullable()();

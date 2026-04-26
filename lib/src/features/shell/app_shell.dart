@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../../shared/widgets/aw_logo.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/icons/heroicons.dart';
 import '../../core/router/nav_destinations.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 import '../../data/sync/auth_service.dart';
 import '../../data/sync/auto_sync_service.dart';
 import '../../data/sync/org_service.dart';
@@ -93,25 +94,110 @@ class _AppShellState extends ConsumerState<AppShell> {
       backgroundColor: scheme.surfaceContainerLow,
       drawer: showSidebar
           ? null
-          : Drawer(child: _Sidebar(currentPath: currentPath)),
-      body: Row(
-        children: [
-          if (showSidebar)
-            SizedBox(
-              width: sidebarWidth,
-              child: _Sidebar(currentPath: currentPath),
+          : Drawer(
+              backgroundColor: AwTokens.white,
+              // SafeArea, damit Logo + Mandant-Block nicht unter
+              // dem Notch / Dynamic Island sitzen.
+              child: SafeArea(
+                top: true,
+                bottom: false,
+                child: _Sidebar(currentPath: currentPath),
+              ),
             ),
-          Expanded(
-            child: Column(
-              children: [
-                const _TopBar(),
-                Expanded(
-                  child: Container(
-                    color: scheme.surfaceContainerLow,
-                    child: widget.child,
+      bottomNavigationBar: showSidebar
+          ? null
+          : _MobileBottomNav(currentPath: currentPath),
+      body: SafeArea(
+        // Top: Notch/Dynamic-Island. Bottom + Sides regelt Scaffold via
+        // bottomNavigationBar bzw. der Drawer.
+        top: true,
+        bottom: false,
+        child: Row(
+          children: [
+            if (showSidebar)
+              SizedBox(
+                width: sidebarWidth,
+                child: _Sidebar(currentPath: currentPath),
+              ),
+            Expanded(
+              child: Column(
+                children: [
+                  const _TopBar(),
+                  Expanded(
+                    child: Container(
+                      color: scheme.surfaceContainerLow,
+                      child: widget.child,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-Navigation für Mobile. Zeigt die 5 meistbenutzten Bereiche:
+/// Home, Akten, Kalender, Kontakte, Ortstermin (prominent in Orange).
+class _MobileBottomNav extends StatelessWidget {
+  const _MobileBottomNav({required this.currentPath});
+  final String currentPath;
+
+  static const _items = <({String path, IconData icon, String label})>[
+    (path: '/', icon: Icons.home_outlined, label: 'Home'),
+    (path: '/akten', icon: Icons.folder_open_outlined, label: 'Akten'),
+    (path: '/ortstermin', icon: Icons.location_on_outlined, label: 'Ortstermin'),
+    (path: '/termine', icon: Icons.calendar_month_outlined, label: 'Kalender'),
+    (path: '/kunden', icon: Icons.people_outline, label: 'Kontakte'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AwTokens.white,
+        border: Border(top: BorderSide(color: AwTokens.line)),
+      ),
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom),
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            for (final it in _items) Expanded(child: _tab(context, it)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tab(
+      BuildContext context,
+      ({String path, IconData icon, String label}) it) {
+    final active = currentPath == it.path ||
+        (it.path != '/' && currentPath.startsWith(it.path));
+    final isOrtstermin = it.path == '/ortstermin';
+    return InkWell(
+      onTap: () => GoRouter.of(context).go(it.path),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            it.icon,
+            size: 22,
+            color: isOrtstermin
+                ? AwTokens.orange
+                : (active ? AwTokens.orange : AwTokens.mute),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            it.label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+              color: active ? AwTokens.ink : AwTokens.mute,
             ),
           ),
         ],
@@ -128,69 +214,172 @@ class _TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
+    // AW-Guideline §5 „Topbar": 56 px, weiß, Line-Border unten.
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < AppShell._collapsedBreakpoint;
+
     return Container(
       height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 20),
+      decoration: const BoxDecoration(
+        color: AwTokens.white,
+        border: Border(bottom: BorderSide(color: AwTokens.line)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SearchField(
-              onSubmit: (_) => showGlobalSearch(context),
-              onTap: () => showGlobalSearch(context),
+      child: isMobile
+          ? _buildMobile(context, ref)
+          : _buildDesktop(context, ref),
+    );
+  }
+
+  Widget _buildMobile(BuildContext context, WidgetRef ref) {
+    final loggedIn = ref.watch(authStateProvider).valueOrNull != null;
+    final w = MediaQuery.sizeOf(context).width;
+    // Auf sehr schmalen Phones (< 400 px) das Lockup auf 26 reduzieren —
+    // sonst kollidiert es mit Suche + Avatar.
+    final logoSize = w < 400 ? 26.0 : 30.0;
+    return Row(
+      children: [
+        Builder(
+          builder: (btnCtx) => IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Menü',
+            icon: const Icon(Icons.menu, color: AwTokens.ink),
+            onPressed: () => Scaffold.of(btnCtx).openDrawer(),
+          ),
+        ),
+        const SizedBox(width: 2),
+        Flexible(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => GoRouter.of(context).go('/'),
+            child: Tooltip(
+              message: 'Zur Übersicht',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: AwLogo(size: logoSize, variant: AwLogoVariant.lockup),
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          const KalenderBadge(),
-          const SizedBox(width: 12),
-          const TimerWidget(),
-          const SizedBox(width: 4),
+        ),
+        const Spacer(),
+        // Suche bleibt im Topbar (nicht in der Bottom-Nav). Ortstermin
+        // ist redundant — den Bottom-Nav-Tab gibt's separat.
+        if (loggedIn)
           IconButton(
-            tooltip: 'Ortstermin-Modus öffnen',
-            onPressed: () => GoRouter.of(context).go('/ortstermin'),
-            icon: Icon(Icons.location_on_outlined,
-                color: scheme.onSurfaceVariant),
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Suche',
+            icon: const Icon(Icons.search, color: AwTokens.mute),
+            onPressed: () => showGlobalSearch(context),
           ),
-          const SizedBox(width: 8),
-          const OrgSwitcher(),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: 'Hilfe & Anleitung',
-            onPressed: () => showHelpDialog(context),
-            icon: Icon(Icons.help_outline,
-                color: scheme.onSurfaceVariant),
+        _UserMenu(),
+      ],
+    );
+  }
+
+  Widget _buildDesktop(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        Expanded(
+          child: _SearchField(
+            onSubmit: (_) => showGlobalSearch(context),
+            onTap: () => showGlobalSearch(context),
           ),
-          IconButton(
-            tooltip: 'Release-Notes',
-            onPressed: () => showReleaseNotesDialog(context),
-            icon: Icon(Icons.campaign_outlined,
-                color: scheme.onSurfaceVariant),
-          ),
-          const AutoSyncBadge(),
-          IconButton(
-            tooltip: 'Einstellungen',
-            onPressed: () => GoRouter.of(context).go('/einstellungen'),
-            icon: Icon(Icons.settings_outlined,
-                color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(width: 4),
-          _UserMenu(),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        const KalenderBadge(),
+        const SizedBox(width: 12),
+        const TimerWidget(),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: 'Ortstermin-Modus öffnen',
+          onPressed: () => GoRouter.of(context).go('/ortstermin'),
+          icon: const Icon(Icons.location_on_outlined, color: AwTokens.mute),
+        ),
+        const SizedBox(width: 8),
+        const OrgSwitcher(),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: 'Hilfe & Anleitung',
+          onPressed: () => showHelpDialog(context),
+          icon: const Icon(Icons.help_outline, color: AwTokens.mute),
+        ),
+        IconButton(
+          tooltip: 'Release-Notes',
+          onPressed: () => showReleaseNotesDialog(context),
+          icon: const Icon(Icons.campaign_outlined, color: AwTokens.mute),
+        ),
+        const AutoSyncBadge(),
+        IconButton(
+          tooltip: 'Einstellungen',
+          onPressed: () => GoRouter.of(context).go('/einstellungen'),
+          icon: const Icon(Icons.settings_outlined, color: AwTokens.mute),
+        ),
+        const SizedBox(width: 4),
+        _UserMenu(),
+      ],
     );
   }
 }
 
-/// Popup-Menü mit Avatar: Nutzername/E-Mail + Abmelden.
+Future<bool> _confirmOrgWechsel(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => AlertDialog(
+      title: const Text('Mandant wechseln?'),
+      content: const Text(
+          'Beim Wechsel wird die App neu geladen und alle Listen ziehen '
+          'die Daten des neuen Mandanten. Ungespeicherte Eingaben in '
+          'offenen Dialogen gehen verloren.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Wechseln'),
+        ),
+      ],
+    ),
+  );
+  return ok == true;
+}
+
+/// Popup-Menü mit Avatar: Nutzername/E-Mail + Mandanten-Wechsel +
+/// Einstellungen + Abmelden.
 class _UserMenu extends ConsumerWidget {
+  static const _orgPrefix = 'org:';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).valueOrNull;
-    if (user == null) return const SizedBox.shrink();
+    // Wenn (noch) niemand eingeloggt ist → Anmelden-Pille statt Avatar.
+    // Tap startet die normale Auth-Flow via AuthGate (Logout → LoginScreen).
+    if (user == null) {
+      return TextButton.icon(
+        icon: const Icon(Icons.login, size: 16, color: AwTokens.orange),
+        label: const Text(
+          'Anmelden',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AwTokens.orange,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: () async {
+          try {
+            await ref.read(authServiceProvider).signOut();
+          } catch (_) {}
+        },
+      );
+    }
 
     final initials = (user.displayName ?? user.email ?? '?')
         .trim()
@@ -201,11 +390,25 @@ class _UserMenu extends ConsumerWidget {
         .join()
         .toUpperCase();
 
+    final orgs = ref.watch(myOrgsProvider).valueOrNull ?? const [];
+    final currentOrgId = ref.watch(currentOrgIdProvider).valueOrNull;
+
     return PopupMenuButton<String>(
       tooltip: 'Konto',
       position: PopupMenuPosition.under,
       onSelected: (value) async {
-        if (value == 'einstellungen') {
+        if (value.startsWith(_orgPrefix)) {
+          final newId = value.substring(_orgPrefix.length);
+          if (newId == currentOrgId) return;
+          final ok = await _confirmOrgWechsel(context);
+          if (!ok) return;
+          await ref.read(currentOrgIdProvider.notifier).set(newId);
+          ref.invalidate(myOrgsProvider);
+        } else if (value == 'mandant_neu') {
+          await showOrgOnboardingDialog(context);
+        } else if (value == 'mandant_verwalten') {
+          if (context.mounted) GoRouter.of(context).go('/organisation');
+        } else if (value == 'einstellungen') {
           if (context.mounted) GoRouter.of(context).go('/einstellungen');
         } else if (value == 'abmelden') {
           final ok = await showDialog<bool>(
@@ -245,9 +448,83 @@ class _UserMenu extends ConsumerWidget {
               if ((user.email ?? '').isNotEmpty)
                 Text(user.email!,
                     style: const TextStyle(
-                        fontSize: 11, color: AppTheme.slate500)),
+                        fontSize: 11, color: AwTokens.mute)),
             ],
           ),
+        ),
+        const PopupMenuDivider(),
+        // Mandanten-Bereich (nur wenn Orgs vorhanden).
+        const PopupMenuItem<String>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            'MANDANT',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 10 * 0.08,
+              color: AwTokens.mute,
+            ),
+          ),
+        ),
+        if (orgs.isEmpty)
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: Text(
+              'Noch keine Organisation',
+              style: TextStyle(fontSize: 12, color: AwTokens.mute),
+            ),
+          ),
+        for (final o in orgs)
+          PopupMenuItem<String>(
+            value: '$_orgPrefix${o.id}',
+            child: Row(
+              children: [
+                Icon(
+                  o.id == currentOrgId
+                      ? Icons.check_circle
+                      : Icons.circle_outlined,
+                  size: 16,
+                  color: o.id == currentOrgId
+                      ? AwTokens.orange
+                      : AwTokens.muteSoft,
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(o.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13)),
+                      Text(o.role.label,
+                          style: const TextStyle(
+                              fontSize: 11, color: AwTokens.mute)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const PopupMenuItem<String>(
+          value: 'mandant_neu',
+          child: Row(children: [
+            Icon(Icons.add_business_outlined,
+                size: 16, color: AwTokens.mute),
+            SizedBox(width: 10),
+            Text('Mandant anlegen', style: TextStyle(fontSize: 13)),
+          ]),
+        ),
+        const PopupMenuItem<String>(
+          value: 'mandant_verwalten',
+          child: Row(children: [
+            Icon(Icons.business_outlined, size: 16, color: AwTokens.mute),
+            SizedBox(width: 10),
+            Text('Mandant verwalten', style: TextStyle(fontSize: 13)),
+          ]),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem<String>(
@@ -296,52 +573,62 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    // AW-Topbar-Suche: Paper-BG, Line-Border, 34 px Höhe, 8 px Radius.
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
       child: Material(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: AwTokens.paper,
+        borderRadius: BorderRadius.circular(AwTokens.radiusMd),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AwTokens.radiusMd),
           onTap: onTap,
           child: Container(
-            height: 36,
+            height: 34,
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+              border: Border.all(color: AwTokens.line),
+            ),
+            child: const Row(
               children: [
-                Icon(Icons.search,
-                    size: 18, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 8),
+                Icon(Icons.search, size: 16, color: AwTokens.mute),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Global suchen … (Kunden, Aufträge, Rechnungen, Normen …)',
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: AwTokens.mute, fontSize: 12.5),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: scheme.surface,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: scheme.outlineVariant),
-                  ),
-                  child: Text(
-                    '⌘K',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
+                _Kbd('⌘K'),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kleiner Keyboard-Shortcut-Chip (z. B. ⌘K) — weiße Box, Line-Border.
+class _Kbd extends StatelessWidget {
+  const _Kbd(this.label);
+  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AwTokens.white,
+        borderRadius: BorderRadius.circular(AwTokens.radiusXs),
+        border: Border.all(color: AwTokens.line),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          color: AwTokens.mute,
+          fontFamily: AwTokens.fontMono,
         ),
       ),
     );
@@ -354,15 +641,14 @@ class _Sidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final isSuperAdmin =
         ref.watch(currentUserDocProvider).valueOrNull?.isSuperAdmin ?? false;
+    // AW-Guideline §5: Sidebar weißer BG, Line-Border rechts — Paper
+    // bleibt dem Main-Bereich vorbehalten.
     return Container(
-      decoration: BoxDecoration(
-        // Gleicher Ton wie der Modul-Bereich (surfaceContainerLow = slate50)
-        // — Kacheln und Cards setzen sich dadurch in Weiß klar ab.
-        color: scheme.surfaceContainerLow,
-        border: Border(right: BorderSide(color: scheme.outlineVariant)),
+      decoration: const BoxDecoration(
+        color: AwTokens.white,
+        border: Border(right: BorderSide(color: AwTokens.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -393,24 +679,186 @@ class _Sidebar extends ConsumerWidget {
   }
 }
 
+/// Mandant-Block oben in der Sidebar / im Drawer: zeigt den aktuellen
+/// Mandanten + öffnet bei Klick einen Wechsel-Dialog mit allen Orgs.
+class _MandantBlock extends ConsumerWidget {
+  const _MandantBlock();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final orgs = ref.watch(myOrgsProvider).valueOrNull ?? const [];
+    final currentId = ref.watch(currentOrgIdProvider).valueOrNull;
+    final current =
+        orgs.where((o) => o.id == currentId).cast<OrgSummary?>().firstOrNull;
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AwTokens.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AwTokens.radiusMd),
+        onTap: () => _openMandantPicker(context, ref, orgs, currentId),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            children: [
+              const Icon(Icons.business_outlined,
+                  size: 16, color: AwTokens.orange),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'MANDANT',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 10 * 0.08,
+                        color: AwTokens.mute,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      current?.name ??
+                          (orgs.isEmpty
+                              ? 'Anmelden für Mandanten'
+                              : 'Mandant wählen'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AwTokens.ink,
+                        height: 1.15,
+                      ),
+                    ),
+                    if (current != null)
+                      Text(
+                        current.role.label,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AwTokens.mute,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.unfold_more,
+                  size: 16, color: AwTokens.mute),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMandantPicker(BuildContext context, WidgetRef ref,
+      List<OrgSummary> orgs, String? currentId) async {
+    final picked = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => SimpleDialog(
+        title: const Text('Mandant'),
+        children: [
+          if (orgs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                'Noch kein Mandant. Du kannst entweder einen anlegen oder '
+                'dem Demo-Mandanten beitreten.',
+                style: TextStyle(fontSize: 12.5, color: AwTokens.mute),
+              ),
+            ),
+          for (final o in orgs)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, o.id),
+              child: Row(
+                children: [
+                  Icon(
+                    o.id == currentId
+                        ? Icons.check_circle
+                        : Icons.circle_outlined,
+                    size: 18,
+                    color: o.id == currentId
+                        ? AwTokens.orange
+                        : AwTokens.muteSoft,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(o.name,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(o.role.label,
+                            style: const TextStyle(
+                                fontSize: 11, color: AwTokens.mute)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (orgs.isNotEmpty) const Divider(),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(context);
+              showOrgOnboardingDialog(context);
+            },
+            child: const Row(children: [
+              Icon(Icons.add_business_outlined,
+                  size: 18, color: AwTokens.mute),
+              SizedBox(width: 12),
+              Text('Mandant anlegen'),
+            ]),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(context);
+              GoRouter.of(context).go('/organisation');
+            },
+            child: const Row(children: [
+              Icon(Icons.business_outlined, size: 18, color: AwTokens.mute),
+              SizedBox(width: 12),
+              Text('Mandant verwalten'),
+            ]),
+          ),
+        ],
+      ),
+    );
+    if (picked != null && picked != currentId) {
+      if (!context.mounted) return;
+      final ok = await _confirmOrgWechsel(context);
+      if (!ok) return;
+      await ref.read(currentOrgIdProvider.notifier).set(picked);
+      ref.invalidate(myOrgsProvider);
+    }
+  }
+}
+
 class _BrandHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AwTokens.line)),
       ),
       child: InkWell(
         onTap: () => GoRouter.of(context).go('/'),
-        // Logo nimmt die volle Spaltenbreite ein und skaliert proportional.
-        child: SizedBox(
-          width: double.infinity,
-          child: SvgPicture.asset(
-            'assets/images/logo.svg',
-            fit: BoxFit.contain,
-            alignment: Alignment.centerLeft,
+        // Lockup (Mark + „Aktenwerk"-Wortmarke) + Claim-Subline darunter.
+        // Höhe 44 px → ca. +40 % ggü. der ersten Fassung (32 px).
+        child: const Align(
+          alignment: Alignment.centerLeft,
+          child: AwLogo(
+            size: 48,
+            variant: AwLogoVariant.lockup,
+            // Wortmarke +20 % ggü. SVG-Proportion — nur in der Sidebar.
+            wortmarkeScale: 0.528,
           ),
         ),
       ),
@@ -423,15 +871,16 @@ class _SectionLabel extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) {
+    // AW-Guideline §3 „micro": 10 px 600 uppercase, letter-spacing 0.12em.
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Text(
         text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.08 * 10.5,
-          color: AppTheme.slate400,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 10 * 0.12,
+          color: AwTokens.muteSoft,
         ),
       ),
     );
@@ -452,21 +901,24 @@ class _NavItemState extends State<_NavItem> {
   @override
   Widget build(BuildContext context) {
     final active = widget.active;
+    // AW-Guideline §5 „Sidebar": Aktiv = orange-soft BG, Icon orange,
+    // Text Ink 500, 2.5-px-Akzent-Bar links. Hover = Paper, inaktiv =
+    // transparent.
     final bg = active
-        ? AppTheme.accent50
+        ? AwTokens.orangeSoft
         : _hover
-            ? AppTheme.slate100
+            ? AwTokens.paper
             : Colors.transparent;
     final textColor = active
-        ? AppTheme.accent700
+        ? AwTokens.ink
         : _hover
-            ? AppTheme.slate900
-            : AppTheme.slate600;
+            ? AwTokens.ink
+            : AwTokens.mute;
     final iconColor = active
-        ? AppTheme.accent600
+        ? AwTokens.orange
         : _hover
-            ? AppTheme.slate900
-            : AppTheme.slate500;
+            ? AwTokens.ink
+            : AwTokens.mute;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -483,8 +935,8 @@ class _NavItemState extends State<_NavItem> {
             color: bg,
             border: Border(
               left: BorderSide(
-                color: active ? AppTheme.accent600 : Colors.transparent,
-                width: 3,
+                color: active ? AwTokens.orange : Colors.transparent,
+                width: 2.5,
               ),
             ),
           ),
@@ -515,8 +967,8 @@ class _VersionFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.slate200)),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AwTokens.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,17 +979,17 @@ class _VersionFooter extends StatelessWidget {
                 width: 6,
                 height: 6,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF10B981), // emerald-500
+                  color: AwTokens.green,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
+              const Text(
                 'Aktenwerk v1.0',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.slate500),
+                    color: AwTokens.mute),
               ),
             ],
           ),

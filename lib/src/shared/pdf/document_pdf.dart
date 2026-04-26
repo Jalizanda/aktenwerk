@@ -11,6 +11,7 @@ import 'package:printing/printing.dart';
 
 import '../../data/database/app_database.dart';
 import '../positionen/position_model.dart';
+import '../richtext/quill_editor.dart';
 
 /// Gemeinsame Struktur für Rechnungs-/Angebots-/AB-PDFs.
 /// Das Layout orientiert sich 1:1 an den Originalen aus der SV-Software
@@ -68,6 +69,10 @@ class PdfDocumentData {
   /// Skonto-Frist in Tagen (gerechnet ab [datum]).
   final int? skontoTage;
 
+  /// Zahlungs-/Geschäftsbedingungen — wird links neben dem Summen-Block
+  /// in dezentem Grau ausgegeben (z. B. AGB-Hinweis, Zahlungsziel).
+  final String? zahlungsbedingungen;
+
   /// Barzahlung — erzeugt eine Quittungs-Zeile „in bar erhalten am ___"
   /// mit Unterschriftsfeld.
   final bool barzahlung;
@@ -96,6 +101,7 @@ class PdfDocumentData {
     this.gerichtsAktenzeichen,
     this.klaeger,
     this.beklagter,
+    this.zahlungsbedingungen,
   });
 }
 
@@ -120,7 +126,7 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
       // Unten 0mm → die Fußzeile sitzt direkt am Papierende (1 cm tiefer
       // als vorher, wie von Anwendern gewünscht).
       margin:
-          pw.EdgeInsets.fromLTRB(_mm(18), _mm(10), _mm(18), 0),
+          pw.EdgeInsets.fromLTRB(_mm(18), _mm(10), _mm(9), _mm(5)),
       theme: pw.ThemeData.withFont(
         base: await PdfGoogleFonts.interRegular(),
         bold: await PdfGoogleFonts.interBold(),
@@ -132,14 +138,11 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
       // Footer rendert auf JEDER Seite mit dünnem Strich darüber.
       footer: (ctx) => _footer(data.absender),
       build: (ctx) => [
-        // Kein zusätzlicher Spacer nötig — der Header ist jetzt 44mm
-        // hoch (Logo 20mm tiefer), und das Adressfeld soll unmittelbar
-        // unter dem Logo ins DIN-Sichtfenster rücken.
-        pw.SizedBox(height: _mm(2)),
-        // Erste-Seite-Block: Empfänger mit Absender-Mini (Sichtfenster-Höhe)
-        // + Metadaten rechts. Nur auf Seite 1.
+        // Anschriftsfeld 3 cm tiefer ins Sichtfenster (war 2 cm).
+        pw.SizedBox(height: _mm(20)),
         _ersteSeiteKopf(data, dateFmt),
-        pw.SizedBox(height: _mm(8)),
+        // Direkt zum Vorgangs-Titel ohne extra Lücke (Titel rückt 1 cm hoch).
+        pw.SizedBox(height: 0),
         pw.Text(
           data.dokumentTyp,
           style:
@@ -150,7 +153,8 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
         pw.SizedBox(height: _mm(6)),
         _positionenTabelle(data.positionen, money),
         pw.SizedBox(height: _mm(4)),
-        _summenBlock(totals, money, data.dokumentTyp),
+        _summenBlock(totals, money, data.dokumentTyp,
+            zahlungsbedingungen: data.zahlungsbedingungen),
         if ((data.fusstext ?? '').isNotEmpty) ...[
           pw.SizedBox(height: _mm(6)),
           pw.Text(data.fusstext!,
@@ -169,6 +173,136 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
 
 Future<void> previewDocumentPdf(PdfDocumentData data) async {
   await Printing.layoutPdf(onLayout: (_) => buildDocumentPdf(data));
+}
+
+/// Daten für ein freies Anschreiben (Brief). Anders als
+/// [PdfDocumentData] enthält ein Anschreiben keine Positionen und keine
+/// Summen; statt dessen Anrede + Brieftext + Grußformel und optional einen
+/// Betreff/Sachverhalt sowie einen "In-Sachen"-Block für gerichtliche
+/// Aktenzeichen.
+class AnschreibenPdfData {
+  const AnschreibenPdfData({
+    this.dokumentTyp = 'Anschreiben',
+    this.dokumentNr,
+    this.datum,
+    this.betreff,
+    this.aktenzeichen,
+    this.anrede,
+    this.briefText,
+    this.gruss,
+    this.absender,
+    this.empfaenger,
+    this.gericht,
+    this.gerichtsAktenzeichen,
+    this.klaeger,
+    this.beklagter,
+  });
+
+  final String dokumentTyp;
+  final String? dokumentNr;
+  final DateTime? datum;
+  final String? betreff;
+  final String? aktenzeichen;
+  final String? anrede;
+  final String? briefText;
+  final String? gruss;
+  final BenutzerData? absender;
+  final KundenData? empfaenger;
+  final String? gericht;
+  final String? gerichtsAktenzeichen;
+  final String? klaeger;
+  final String? beklagter;
+}
+
+/// Erzeugt ein Brief-PDF (Anschreiben). Layout: Logo-Header + Footer (wie
+/// bei Rechnung/Angebot), Empfänger im DIN-Sichtfenster, kompakter Meta-
+/// Block (Datum/Aktenzeichen) rechts, Betreff fett, Anrede, Brieftext,
+/// Grußformel und Unterschriftsplatz.
+Future<Uint8List> buildAnschreibenPdf(AnschreibenPdfData data) async {
+  final doc = pw.Document();
+  final dateFmt = DateFormat('d.M.yyyy', 'de');
+  final druckDatum = DateFormat('dd.MM.yyyy').format(DateTime.now());
+  final logo = await _loadLogo(data.absender?.logoPfad);
+
+  // Wir mappen die Anschreiben-Daten auf eine PdfDocumentData mit leeren
+  // Positionen, um die existierenden Header-/Footer-/Empfänger-Helper
+  // wiederverwenden zu können.
+  final mapped = PdfDocumentData(
+    dokumentTyp: data.dokumentTyp,
+    dokumentNr: data.dokumentNr,
+    datum: data.datum,
+    betreff: data.betreff,
+    aktenzeichen: data.aktenzeichen,
+    absender: data.absender,
+    empfaenger: data.empfaenger,
+    gericht: data.gericht,
+    gerichtsAktenzeichen: data.gerichtsAktenzeichen,
+    klaeger: data.klaeger,
+    beklagter: data.beklagter,
+    nummerLabel: 'Brief-Nr.',
+  );
+
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.fromLTRB(_mm(18), _mm(10), _mm(9), _mm(5)),
+      theme: pw.ThemeData.withFont(
+        base: await PdfGoogleFonts.interRegular(),
+        bold: await PdfGoogleFonts.interBold(),
+        italic: await PdfGoogleFonts.interMedium(),
+      ),
+      header: (ctx) => _pageHeader(mapped, logo, ctx, druckDatum),
+      footer: (ctx) => _footer(mapped.absender),
+      build: (ctx) => [
+        pw.SizedBox(height: _mm(20)),
+        _ersteSeiteKopf(mapped, dateFmt),
+        pw.SizedBox(height: _mm(8)),
+        if ((data.betreff ?? '').trim().isNotEmpty) ...[
+          pw.Text(
+            data.betreff!,
+            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: _mm(6)),
+        ],
+        if ((data.anrede ?? '').trim().isNotEmpty)
+          pw.Text(
+            data.anrede!,
+            style: const pw.TextStyle(fontSize: 11),
+          ),
+        if ((data.anrede ?? '').trim().isNotEmpty)
+          pw.SizedBox(height: _mm(4)),
+        if ((data.briefText ?? '').trim().isNotEmpty)
+          pw.Text(
+            data.briefText!,
+            style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.4),
+          ),
+        pw.SizedBox(height: _mm(10)),
+        if ((data.gruss ?? '').trim().isNotEmpty) ...[
+          pw.Text(
+            data.gruss!,
+            style: const pw.TextStyle(fontSize: 11),
+          ),
+          pw.SizedBox(height: _mm(14)),
+        ],
+        // Unterschrifts-Platz (Name darunter, falls Absender vorhanden)
+        if (data.absender != null)
+          pw.Text(
+            [data.absender!.titel, data.absender!.vorname,
+                    data.absender!.nachname]
+                .where((e) => e != null && e.trim().isNotEmpty)
+                .join(' '),
+            style: pw.TextStyle(
+                fontSize: 11, fontWeight: pw.FontWeight.bold),
+          ),
+      ],
+    ),
+  );
+
+  return doc.save();
+}
+
+Future<void> previewAnschreibenPdf(AnschreibenPdfData data) async {
+  await Printing.layoutPdf(onLayout: (_) => buildAnschreibenPdf(data));
 }
 
 /// Baut EIN gebündeltes PDF aus mehreren [PdfDocumentData]. Jeder Beleg
@@ -216,7 +350,8 @@ Future<Uint8List> buildMergedDocumentsPdf(
           pw.SizedBox(height: _mm(6)),
           _positionenTabelle(data.positionen, money),
           pw.SizedBox(height: _mm(4)),
-          _summenBlock(totals, money, data.dokumentTyp),
+          _summenBlock(totals, money, data.dokumentTyp,
+            zahlungsbedingungen: data.zahlungsbedingungen),
           if ((data.fusstext ?? '').isNotEmpty) ...[
             pw.SizedBox(height: _mm(6)),
             pw.Text(data.fusstext!,
@@ -319,28 +454,92 @@ Future<Uint8List?> _rasterSvgToPng(Uint8List svgBytes,
 pw.Widget _pageHeader(PdfDocumentData d, pw.ImageProvider? logo,
     pw.Context ctx, String druckDatum) {
   final isFirst = ctx.pageNumber == 1;
+  // Bestellungstext aufsplitten — zwei Zeilen rechts neben dem Logo.
+  final bestellung = (d.absender?.bestellungsText ?? '').trim();
+  final bestellParts = bestellung.split(RegExp(r'\n\s*\n'));
+  final bestellung1 =
+      bestellParts.isNotEmpty ? bestellParts[0].trim() : '';
+  final bestellung2 =
+      bestellParts.length > 1 ? bestellParts[1].trim() : '';
+  final name = [d.absender?.vorname, d.absender?.nachname]
+      .whereType<String>()
+      .where((s) => s.trim().isNotEmpty)
+      .join(' ');
+  final titel = (d.absender?.titel ?? '').trim();
+
   return pw.Container(
-    // Höhe inkl. 20 mm Logo-Top-Offset — sonst wird der Inhalt unter
-    // dem Header verschoben.
-    height: _mm(44),
+    // Folgeseiten 1 cm flacher (28 → 18 mm) — Positions-Tabelle rückt
+    // dadurch oben näher heran.
+    height: isFirst ? _mm(28) : _mm(18),
     margin: pw.EdgeInsets.only(bottom: _mm(4)),
     child: pw.Stack(
       children: [
         if (!isFirst)
           pw.Positioned(
             left: 0,
-            top: 0,
+            top: _mm(2),
             child: _folgeseiteInfo(d, druckDatum),
           ),
-        if (logo != null)
+        // Logo links auf Seite 1, weitere 20 % größer
+        // (52.8→63.36 mm Breite, 23.04→27.648 mm Höhe).
+        if (logo != null && isFirst)
           pw.Positioned(
-            // Logo 1 cm nach rechts (in die Seiten-Margin), 2 cm tiefer.
-            right: -_mm(10),
-            top: _mm(20),
+            left: 0,
+            top: 0,
+            child: pw.ConstrainedBox(
+              constraints: pw.BoxConstraints(
+                  maxWidth: _mm(63.36), maxHeight: _mm(27.648)),
+              child: pw.Image(logo, fit: pw.BoxFit.contain),
+            ),
+          ),
+        // Logo rechts oben auf Folgeseiten — leicht kleiner (max 18 mm),
+        // damit es in den 18-mm-Header passt.
+        if (logo != null && !isFirst)
+          pw.Positioned(
+            right: 0,
+            top: 0,
             child: pw.ConstrainedBox(
               constraints:
-                  pw.BoxConstraints(maxWidth: _mm(55), maxHeight: _mm(24)),
+                  pw.BoxConstraints(maxWidth: _mm(40), maxHeight: _mm(18)),
               child: pw.Image(logo, fit: pw.BoxFit.contain),
+            ),
+          ),
+        // Rechter Block auf Seite 1: Titel · Name (fett) · Bestellung 1 + 2
+        if (isFirst &&
+            (titel.isNotEmpty ||
+                name.isNotEmpty ||
+                bestellung1.isNotEmpty ||
+                bestellung2.isNotEmpty))
+          pw.Positioned(
+            right: 0,
+            top: 0,
+            child: pw.SizedBox(
+              width: _mm(85),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  if (titel.isNotEmpty)
+                    pw.Text(titel,
+                        style: const pw.TextStyle(
+                            fontSize: 9, color: PdfColors.grey700)),
+                  if (name.isNotEmpty)
+                    pw.Text(
+                      name,
+                      style: pw.TextStyle(
+                          fontSize: 11, fontWeight: pw.FontWeight.bold),
+                    ),
+                  if (bestellung1.isNotEmpty)
+                    pw.Text(bestellung1,
+                        textAlign: pw.TextAlign.right,
+                        style: const pw.TextStyle(
+                            fontSize: 8.5, color: PdfColors.grey700)),
+                  if (bestellung2.isNotEmpty)
+                    pw.Text(bestellung2,
+                        textAlign: pw.TextAlign.right,
+                        style: const pw.TextStyle(
+                            fontSize: 8.5, color: PdfColors.grey700)),
+                ],
+              ),
             ),
           ),
       ],
@@ -405,7 +604,10 @@ pw.Widget _infoLine(String label, String value) {
 /// abweichenden Sichtfenstern sicher passt.
 pw.Widget _ersteSeiteKopf(PdfDocumentData d, DateFormat dateFmt) {
   return pw.Container(
-    height: _mm(55),
+    // Container 1 cm flacher (50 → 40 mm) — Vorgangs-Titel rückt 1 cm
+    // hoch. Meta-Block ebenfalls 1 cm hoch (top 30 → 20 mm), damit er
+    // weiterhin im Container Platz findet.
+    height: _mm(40),
     child: pw.Stack(
       children: [
         pw.Positioned(
@@ -423,11 +625,9 @@ pw.Widget _ersteSeiteKopf(PdfDocumentData d, DateFormat dateFmt) {
             ),
           ),
         ),
-        // Metadaten rechts — unterhalb des (jetzt 2cm tiefer sitzenden)
-        // Logos, auf gleicher Höhe wie das Adressfeld.
         pw.Positioned(
           right: 0,
-          top: 0,
+          top: _mm(20),
           child: pw.SizedBox(
             width: _mm(75),
             child: _metaTabelle(d, dateFmt),
@@ -507,15 +707,15 @@ pw.Widget _metaTabelle(PdfDocumentData d, DateFormat dateFmt) {
       };
   if ((d.dokumentNr ?? '').isNotEmpty) rows.add([nummerLabel, d.dokumentNr!]);
   if (d.datum != null) rows.add(['Datum', dateFmt.format(d.datum!)]);
-  if (d.faelligBis != null) {
-    final label = d.dokumentTyp.contains('Angebot') ||
-            d.dokumentTyp.contains('Auftragsbestätigung')
-        ? 'Gültig bis'
-        : 'Fällig am';
-    rows.add([label, dateFmt.format(d.faelligBis!)]);
+  // „Gültig bis" auf Wunsch aus dem Angebot/AB-Block entfernt — bleibt nur
+  // bei Rechnungen als „Fällig am" erhalten.
+  final istAngebot = d.dokumentTyp.contains('Angebot') ||
+      d.dokumentTyp.contains('Auftragsbestätigung');
+  if (d.faelligBis != null && !istAngebot) {
+    rows.add(['Fällig am', dateFmt.format(d.faelligBis!)]);
   }
-  if ((d.aktenzeichen ?? '').isNotEmpty) {
-    rows.add(['Akte', d.aktenzeichen!]);
+  if ((d.aktenzeichen ?? '').trim().isNotEmpty) {
+    rows.add(['Akte', d.aktenzeichen!.trim()]);
   }
   return pw.Column(
     children: [
@@ -585,16 +785,25 @@ pw.Widget _gerichtsblock(PdfDocumentData d) {
 }
 
 pw.Widget _introText(PdfDocumentData d) {
-  final einleitung = d.kopftext?.trim().isNotEmpty == true
-      ? d.kopftext!
-      : _defaultEinleitung(d.dokumentTyp);
+  // Wenn der Nutzer einen eigenen Kopftext gesetzt hat, drucken wir
+  // ausschließlich diesen — die hartkodierte Anrede „Sehr geehrte
+  // Damen und Herren," entfällt dann (sie ist meist Bestandteil des
+  // eigenen Kopftexts). Nur ohne Kopftext wird die Standard-Anrede
+  // mit Default-Einleitungstext gedruckt.
+  final hatEigenenKopf = (d.kopftext ?? '').trim().isNotEmpty;
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
-      pw.Text('Sehr geehrte Damen und Herren,',
-          style: const pw.TextStyle(fontSize: 11)),
-      pw.SizedBox(height: _mm(3)),
-      pw.Text(einleitung, style: const pw.TextStyle(fontSize: 11)),
+      if (hatEigenenKopf)
+        pw.Text(d.kopftext!.trim(),
+            style: const pw.TextStyle(fontSize: 11))
+      else ...[
+        pw.Text('Sehr geehrte Damen und Herren,',
+            style: const pw.TextStyle(fontSize: 11)),
+        pw.SizedBox(height: _mm(3)),
+        pw.Text(_defaultEinleitung(d.dokumentTyp),
+            style: const pw.TextStyle(fontSize: 11)),
+      ],
       if ((d.sachverhalt ?? d.betreff ?? '').trim().isNotEmpty) ...[
         pw.SizedBox(height: _mm(4)),
         pw.RichText(
@@ -662,37 +871,42 @@ pw.Widget _positionenTabelle(List<Position> items, NumberFormat money) {
     return pw.Text('Keine Positionen.',
         style: const pw.TextStyle(fontSize: 10));
   }
-  final headers = ['Pos.', 'Bezeichnung', 'Menge', 'Einh.', 'EP €', 'Betrag €'];
-  // Spalten-Breiten wie im Original (8/44/10/10/14/14).
+  final headers = ['Pos', 'Bezeichnung', 'M.', 'Einh.', 'EP €', 'Betrag €'];
+  // Bezeichnung 1 cm breiter — Platz aus Einh./EP/Betrag genommen.
   final colWidths = {
-    0: const pw.FlexColumnWidth(8),
-    1: const pw.FlexColumnWidth(44),
-    2: const pw.FlexColumnWidth(10),
-    3: const pw.FlexColumnWidth(10),
-    4: const pw.FlexColumnWidth(14),
-    5: const pw.FlexColumnWidth(14),
+    0: const pw.FlexColumnWidth(7),    // Pos.
+    1: const pw.FlexColumnWidth(66),   // Bezeichnung (war 58)
+    2: const pw.FlexColumnWidth(9),    // M.
+    3: const pw.FlexColumnWidth(8),    // Einh. (war 10)
+    4: const pw.FlexColumnWidth(12),   // EP (war 14)
+    5: const pw.FlexColumnWidth(12),   // Betrag (war 14)
   };
   return pw.Table(
     columnWidths: colWidths,
-    border: const pw.TableBorder(
-      horizontalInside: pw.BorderSide(color: PdfColors.grey300, width: 0.4),
-      top: pw.BorderSide(color: PdfColors.grey400, width: 0.6),
-      bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.6),
-    ),
+    // Keine Außenrahmen-Linien (über der ersten und unter der letzten
+    // Position auf Wunsch entfernt). Trennlinien zwischen Daten-Zeilen
+    // werden manuell pro Zeile gerendert (siehe `_posRow`), damit es
+    // KEINE Linie zwischen Header und erster Position gibt.
+    border: null,
     children: [
-      // Kopfzeile
+      // Kopfzeile — repeat:true sorgt dafür, dass sich die Header-Zeile
+      // bei mehrseitigen Tabellen auf Folgeseiten oben wiederholt.
       pw.TableRow(
+        repeat: true,
         decoration: const pw.BoxDecoration(color: PdfColors.grey100),
         children: [
           for (var i = 0; i < headers.length; i++)
             pw.Padding(
               padding: const pw.EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 6),
+                  horizontal: 1, vertical: 5),
               child: pw.Text(
                 headers[i],
                 textAlign: (i >= 2) ? pw.TextAlign.right : pw.TextAlign.left,
                 style: pw.TextStyle(
-                    fontSize: 10, fontWeight: pw.FontWeight.bold),
+                    fontSize: 9, fontWeight: pw.FontWeight.bold),
+                maxLines: 1,
+                softWrap: false,
+                overflow: pw.TextOverflow.visible,
               ),
             ),
         ],
@@ -704,15 +918,28 @@ pw.Widget _positionenTabelle(List<Position> items, NumberFormat money) {
 
 pw.TableRow _posRow(int idx, Position p, NumberFormat money) {
   final kurz = p.bezeichnung;
-  final langtext = p.langtext.trim();
+  // Langtext kann reiner Plain-Text sein oder ein Quill-Delta-JSON
+  // (Array, beginnt mit `[`). Beim Drucken wollen wir den Lesetext, nicht
+  // das Roh-JSON.
+  final langtext = plainTextFromDeltaJson(p.langtext).trim();
   final posNr = p.posNr.isNotEmpty ? p.posNr : '${idx + 1}';
   final betragText = money.format(p.nettoBetrag);
   final einzelText = money.format(p.einzelpreis);
+  // Top-Trennlinie nur ab der zweiten Position — keine Linie über der
+  // ersten Position (idx == 0).
+  final decoration = idx == 0
+      ? null
+      : const pw.BoxDecoration(
+          border: pw.Border(
+            top: pw.BorderSide(color: PdfColors.grey300, width: 0.4),
+          ),
+        );
   return pw.TableRow(
+    decoration: decoration,
     children: [
       _cell(p.optional ? '($posNr)' : posNr, alignRight: false),
       pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 1, vertical: 6),
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -762,7 +989,7 @@ pw.TableRow _posRow(int idx, Position p, NumberFormat money) {
 
 pw.Widget _cell(String text, {required bool alignRight}) {
   return pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+    padding: const pw.EdgeInsets.symmetric(horizontal: 1, vertical: 6),
     child: pw.Text(
       text,
       style: const pw.TextStyle(fontSize: 10),
@@ -776,7 +1003,8 @@ String _fmtMenge(double m) {
   return fmt.format(m);
 }
 
-pw.Widget _summenBlock(PositionsTotals t, NumberFormat money, String typ) {
+pw.Widget _summenBlock(PositionsTotals t, NumberFormat money, String typ,
+    {String? zahlungsbedingungen}) {
   String gesamtLabel;
   if (typ == 'Angebot' || typ == 'Auftragsbestätigung') {
     gesamtLabel = 'Angebotssumme';
@@ -785,13 +1013,11 @@ pw.Widget _summenBlock(PositionsTotals t, NumberFormat money, String typ) {
   } else {
     gesamtLabel = 'Rechnungsbetrag';
   }
-  return pw.Align(
-    alignment: pw.Alignment.centerRight,
-    child: pw.Container(
-      width: _mm(90),
-      child: pw.Column(
-        children: [
-          _summenZeile('Zwischensumme (netto)', money.format(t.netto)),
+  final summen = pw.Container(
+    width: _mm(90),
+    child: pw.Column(
+      children: [
+        _summenZeile('Zwischensumme (netto)', money.format(t.netto)),
           if (t.ust > 0)
             _summenZeile(
               'zzgl. ${_fmtMenge(t.netto > 0 ? (t.ust / t.netto * 100) : 19).replaceAll(',00', '')}\u00a0% USt.',
@@ -810,7 +1036,26 @@ pw.Widget _summenBlock(PositionsTotals t, NumberFormat money, String typ) {
           ),
         ],
       ),
-    ),
+    );
+  final bedingungen = (zahlungsbedingungen ?? '').trim();
+  if (bedingungen.isEmpty) {
+    return pw.Align(alignment: pw.Alignment.centerRight, child: summen);
+  }
+  return pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Expanded(
+        child: pw.Padding(
+          padding: pw.EdgeInsets.only(right: _mm(6), top: _mm(1)),
+          child: pw.Text(
+            bedingungen,
+            style: const pw.TextStyle(
+                fontSize: 9, color: PdfColors.grey600, lineSpacing: 1.3),
+          ),
+        ),
+      ),
+      summen,
+    ],
   );
 }
 
@@ -1047,57 +1292,53 @@ String _formatIban(String iban) {
 /// Schrift 7.5pt grau.
 pw.Widget _footer(BenutzerData? a) {
   if (a == null) return pw.SizedBox.shrink();
-  final name = [a.vorname, a.nachname]
-      .whereType<String>()
-      .where((s) => s.isNotEmpty)
-      .join(' ');
-  // Bestellungstext aus Einstellungen — wird in absenderFromSettings
-  // aus firmaBestellung1 + firmaBestellung2 zu einem String zusammengebaut
-  // ("\n\n" als Trenner).
-  final bestellung = (a.bestellungsText ?? '').trim();
-  final bestellParts = bestellung.split(RegExp(r'\n\s*\n'));
-  final bestellung1 = bestellParts.isNotEmpty ? bestellParts[0] : '';
-  final bestellung2 = bestellParts.length > 1 ? bestellParts[1] : '';
 
-  final col1Lines = <String>[
-    if ((a.titel ?? '').isNotEmpty) a.titel!,
-    if (name.isNotEmpty) name, // bold im rendering
-    if (bestellung1.isNotEmpty) bestellung1,
+  // Spalte 1 (ANSCHRIFT): nur Strasse + PLZ Ort, kein Name.
+  final anschriftBody = <String>[
+    if ((a.strasse ?? '').trim().isNotEmpty) a.strasse!.trim(),
+    if (((a.plz ?? '').trim().isNotEmpty) ||
+        ((a.ort ?? '').trim().isNotEmpty))
+      '${(a.plz ?? '').trim()} ${(a.ort ?? '').trim()}'.trim(),
   ];
-  final col2Lines = <String>[
-    if (bestellung2.isNotEmpty) bestellung2,
-    if ((a.ustId ?? '').isNotEmpty) 'USt-IdNr.: ${a.ustId}',
-    if ((a.steuerNr ?? '').isNotEmpty) 'Steuer-Nr.: ${a.steuerNr}',
+  final kontaktBody = <String>[
+    if ((a.telefon ?? '').trim().isNotEmpty) a.telefon!.trim(),
+    if ((a.mobil ?? '').trim().isNotEmpty) a.mobil!.trim(),
+    if ((a.email ?? '').trim().isNotEmpty) a.email!.trim(),
+    if ((a.website ?? '').trim().isNotEmpty) a.website!.trim(),
   ];
-  final col3Lines = <String>[
-    if ((a.strasse ?? '').isNotEmpty) a.strasse!,
-    if (((a.plz ?? '').isNotEmpty) || ((a.ort ?? '').isNotEmpty))
-      '${a.plz ?? ''} ${a.ort ?? ''}'.trim(),
-    if ((a.telefon ?? '').isNotEmpty) 'Tel: ${a.telefon}',
-    if ((a.mobil ?? '').isNotEmpty) 'Mobil: ${a.mobil}',
-    if ((a.email ?? '').isNotEmpty) a.email!,
-    if ((a.website ?? '').isNotEmpty) a.website!,
+  final bankBody = <String>[
+    if ((a.bank ?? '').trim().isNotEmpty) a.bank!.trim(),
+    if ((a.iban ?? '').trim().isNotEmpty) 'IBAN ${a.iban!.trim()}',
+    if ((a.bic ?? '').trim().isNotEmpty) 'BIC ${a.bic!.trim()}',
   ];
-  final col4Lines = <String>[
-    if ((a.bank ?? '').isNotEmpty) a.bank!,
-    if ((a.iban ?? '').isNotEmpty) 'IBAN: ${a.iban}',
-    if ((a.bic ?? '').isNotEmpty) 'BIC: ${a.bic}',
+  final hrbWert = (a.hrb ?? '').trim();
+  final steuerBody = <String>[
+    if ((a.ustId ?? '').trim().isNotEmpty) 'USt-IdNr. ${a.ustId!.trim()}',
+    if ((a.steuerNr ?? '').trim().isNotEmpty)
+      'St-Nr. ${a.steuerNr!.trim()}',
+    if (hrbWert.isNotEmpty) hrbWert,
   ];
 
-  pw.Widget col(List<String> lines, {int boldLineIndex = -1}) =>
-      pw.Expanded(
+  pw.Widget col(String header, List<String> lines) => pw.Expanded(
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            for (var i = 0; i < lines.length; i++)
+            pw.Text(
+              header,
+              style: pw.TextStyle(
+                fontSize: 7,
+                color: PdfColors.grey700,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 0.6,
+              ),
+            ),
+            pw.SizedBox(height: _mm(1.2)),
+            for (final l in lines)
               pw.Text(
-                lines[i],
+                l,
                 style: pw.TextStyle(
                   fontSize: 7.5,
-                  color: PdfColors.grey600,
-                  fontWeight: i == boldLineIndex
-                      ? pw.FontWeight.bold
-                      : pw.FontWeight.normal,
+                  color: PdfColors.grey700,
                   height: 1.35,
                 ),
               ),
@@ -1115,14 +1356,13 @@ pw.Widget _footer(BenutzerData? a) {
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Spalte 1: Titel / Name (bold) / Bestellungstext 1
-        col(col1Lines, boldLineIndex: col1Lines.indexOf(name)),
+        col('ANSCHRIFT', anschriftBody),
         pw.SizedBox(width: _mm(2)),
-        col(col2Lines),
+        col('KONTAKT', kontaktBody),
         pw.SizedBox(width: _mm(2)),
-        col(col3Lines),
+        col('BANK', bankBody),
         pw.SizedBox(width: _mm(2)),
-        col(col4Lines),
+        col('STEUER', steuerBody),
       ],
     ),
   );

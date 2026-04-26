@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/aw_tokens.dart';
 import '../../data/database/app_database.dart';
 import '../akten/auftraege/auftraege_repository.dart';
 import '../kalkulation/stunden/stunden_repository.dart';
@@ -145,7 +146,7 @@ class _TimerWidgetState extends ConsumerState<TimerWidget> {
     final running = state.running;
 
     return Material(
-      color: running ? const Color(0xFFDCFCE7) : AppTheme.slate100,
+      color: running ? AwTokens.greenSoft : AppTheme.slate100,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -164,7 +165,7 @@ class _TimerWidgetState extends ConsumerState<TimerWidget> {
                         : Icons.timer_outlined),
                 size: 16,
                 color: running
-                    ? const Color(0xFF166534)
+                    ? AwTokens.green
                     : AppTheme.slate500,
               ),
               const SizedBox(width: 6),
@@ -175,7 +176,7 @@ class _TimerWidgetState extends ConsumerState<TimerWidget> {
                   fontFeatures: const [FontFeature.tabularFigures()],
                   fontWeight: FontWeight.w600,
                   color: running
-                      ? const Color(0xFF166534)
+                      ? AwTokens.green
                       : AppTheme.slate700,
                 ),
               ),
@@ -267,7 +268,7 @@ class _TimerDialogState extends ConsumerState<_TimerDialog> {
                     fontWeight: FontWeight.w800,
                     fontFeatures: const [FontFeature.tabularFigures()],
                     color: state.running
-                        ? const Color(0xFF166534)
+                        ? AwTokens.green
                         : AppTheme.slate700,
                   ),
                 ),

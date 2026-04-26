@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:web/web.dart' as web;
+import '../../core/web/web_compat.dart' as web;
 
 import 'sync_service.dart';
 
@@ -87,17 +87,11 @@ class AutoSyncService {
     _timer = Timer.periodic(
         Duration(minutes: minuten.clamp(1, 240)), (_) => _trigger());
 
-    // 3) Browser-Events (Web-only; auf Mobile-Platforms noop)
+    // 3) Browser-Events (Web-only; auf Mobile-Platforms leere Streams)
     if (kIsWeb) {
-      _focusSub = web.EventStreamProviders.focusEvent
-          .forTarget(web.window)
-          .listen((_) => _trigger());
-      _onlineSub = web.EventStreamProviders.onlineEvent
-          .forTarget(web.window)
-          .listen((_) => _trigger());
-      _offlineSub = web.EventStreamProviders.offlineEvent
-          .forTarget(web.window)
-          .listen((_) {
+      _focusSub = web.windowFocusStream.listen((_) => _trigger());
+      _onlineSub = web.windowOnlineStream.listen((_) => _trigger());
+      _offlineSub = web.windowOfflineStream.listen((_) {
         status.value = status.value.copyWith(
             phase: AutoSyncPhase.offline, fehler: 'offline');
       });
@@ -122,7 +116,7 @@ class AutoSyncService {
     if (!sync.enabled) return;
 
     // Offline-Check (Web): wenn das Fenster offline ist, abbrechen.
-    if (kIsWeb && !web.window.navigator.onLine) {
+    if (kIsWeb && !web.isBrowserOnline) {
       status.value = status.value.copyWith(phase: AutoSyncPhase.offline);
       return;
     }

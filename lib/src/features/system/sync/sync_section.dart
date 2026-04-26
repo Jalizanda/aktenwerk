@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/aw_tokens.dart';
 import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/auto_sync_service.dart';
 import '../../../data/sync/firebase_init.dart';
@@ -118,10 +119,9 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
           children: [
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF1F2937),
-                side: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant),
+                backgroundColor: AwTokens.white,
+                foregroundColor: AwTokens.ink,
+                side: const BorderSide(color: AwTokens.line),
               ),
               onPressed: _busy
                   ? null

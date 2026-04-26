@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../../shared/widgets/aw_logo.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/sync/auth_service.dart';
@@ -37,7 +37,7 @@ class WaitingForApprovalScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SvgPicture.asset('assets/images/logo.svg', height: 48),
+                  const AwLogo(size: 67, variant: AwLogoVariant.lockup),
                   const SizedBox(height: 24),
                   Container(
                     width: 56,

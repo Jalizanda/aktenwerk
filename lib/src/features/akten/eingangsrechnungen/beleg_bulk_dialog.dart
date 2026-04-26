@@ -92,7 +92,7 @@ class _BelegBulkDialogState extends ConsumerState<BelegBulkDialog> {
             ref: ref, bytes: bytes, mimeType: mime,
           );
         } catch (e) {
-          _protokoll.add('❌ ${f.name}: KI-Fehler: $e');
+          _protokoll.add('FEHLER — ${f.name}: KI-Fehler: $e');
           _fehler++;
           continue;
         }
@@ -140,10 +140,10 @@ class _BelegBulkDialogState extends ConsumerState<BelegBulkDialog> {
         await db.into(db.eingangsrechnungen).insert(companion);
         _erfolg++;
         _protokoll.add(
-            '✓ ${f.name}: ${extr.lieferantName ?? "Lieferant unbekannt"} · ${brutto.toStringAsFixed(2)} €');
+            'OK — ${f.name}: ${extr.lieferantName ?? "Lieferant unbekannt"} · ${brutto.toStringAsFixed(2)} €');
       } catch (e) {
         _fehler++;
-        _protokoll.add('❌ ${f.name}: $e');
+        _protokoll.add('FEHLER — ${f.name}: $e');
       }
       setState(() {}); // Progress-UI refresh
     }
