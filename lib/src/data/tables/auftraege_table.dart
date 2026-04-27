@@ -102,6 +102,8 @@ class Auftraege extends Table {
   TextColumn get objektFotoDateiname => text().nullable()();
 
   TextColumn get notiz => text().nullable()();
+  /// Standard-Zahlungsbedingung für aus diesem Auftrag erstellte Rechnungen.
+  TextColumn get zahlungsbedingung => text().nullable()();
   TextColumn get extras => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

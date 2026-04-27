@@ -184,17 +184,14 @@ class _ModuleHeaderState extends State<ModuleHeader> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(child: titleBlock),
+              Flexible(child: titleBlock),
               if (searchField != null) ...[
-                const SizedBox(width: 16),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: searchField,
-                ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 24),
+                SizedBox(width: 320, child: searchField),
               ],
+              const Spacer(),
               for (final a in widget.actions) ...[
                 const SizedBox(width: 8),
                 a

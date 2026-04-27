@@ -107,7 +107,7 @@ class AppDatabase extends _$AppDatabase {
         ));
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -293,6 +293,11 @@ class AppDatabase extends _$AppDatabase {
           // v24 → v25: HRB für den Sachverständigen-Absender selbst.
           if (from < 25) {
             await m.addColumn(benutzer, benutzer.hrb);
+          }
+
+          // v25 → v26: Standard-Zahlungsbedingung pro Akte.
+          if (from < 26) {
+            await m.addColumn(auftraege, auftraege.zahlungsbedingung);
           }
         },
       );

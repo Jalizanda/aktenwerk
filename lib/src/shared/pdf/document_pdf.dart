@@ -922,6 +922,48 @@ pw.TableRow _posRow(int idx, Position p, NumberFormat money) {
   // (Array, beginnt mit `[`). Beim Drucken wollen wir den Lesetext, nicht
   // das Roh-JSON.
   final langtext = plainTextFromDeltaJson(p.langtext).trim();
+
+  // Textbaustein: Zeile ohne Pos-Nr/Menge/EP/Betrag — nur Text in voller
+  // Breite. Wir füllen die Spalten mit leeren Zellen und setzen den Inhalt
+  // in die Bezeichnungs-Spalte mit `colSpan`-Effekt (PDF unterstützt kein
+  // direkter colSpan; wir lassen die Zahlen-Zellen leer).
+  if (p.istTextbaustein) {
+    final decoration = idx == 0
+        ? null
+        : const pw.BoxDecoration(
+            border: pw.Border(
+              top: pw.BorderSide(color: PdfColors.grey300, width: 0.4),
+            ),
+          );
+    return pw.TableRow(
+      decoration: decoration,
+      children: [
+        _cell('', alignRight: false),
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 1, vertical: 6),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              if (kurz.trim().isNotEmpty)
+                pw.Text(kurz,
+                    style: pw.TextStyle(
+                        fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              if (langtext.isNotEmpty) ...[
+                if (kurz.trim().isNotEmpty) pw.SizedBox(height: 2),
+                pw.Text(langtext,
+                    style: const pw.TextStyle(fontSize: 10)),
+              ],
+            ],
+          ),
+        ),
+        _cell('', alignRight: true),
+        _cell('', alignRight: true),
+        _cell('', alignRight: true),
+        _cell('', alignRight: true),
+      ],
+    );
+  }
+
   final posNr = p.posNr.isNotEmpty ? p.posNr : '${idx + 1}';
   final betragText = money.format(p.nettoBetrag);
   final einzelText = money.format(p.einzelpreis);

@@ -109,6 +109,8 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
       TextEditingController(text: widget.kunde?.telefon ?? '');
   late final _mobil = TextEditingController(text: widget.kunde?.mobil ?? '');
   late final _email = TextEditingController(text: widget.kunde?.email ?? '');
+  late final _website =
+      TextEditingController(text: widget.kunde?.website ?? '');
   late final _ustId = TextEditingController(text: widget.kunde?.ustId ?? '');
   late final _steuerNr =
       TextEditingController(text: widget.kunde?.steuerNr ?? '');
@@ -154,7 +156,7 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
     _plzAutoFillDispose();
     for (final c in [
       _anrede, _titel, _vorname, _nachname, _firma, _strasse,
-      _plz, _ort, _telefon, _mobil, _email, _ustId, _steuerNr, _hrb,
+      _plz, _ort, _telefon, _mobil, _email, _website, _ustId, _steuerNr, _hrb,
       _aktenpraefix, _notiz,
     ]) {
       c.dispose();
@@ -197,6 +199,7 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
       telefon: _nullableText(_telefon),
       mobil: _nullableText(_mobil),
       email: _nullableText(_email),
+      website: _nullableText(_website),
       ustId: _nullableText(_ustId),
       steuerNr: _nullableText(_steuerNr),
       hrb: _nullableText(_hrb),
@@ -371,11 +374,23 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _LabeledField(
-                    label: 'E-Mail',
-                    child: TextFormField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
+                  _Row2(
+                    left: _LabeledField(
+                      label: 'E-Mail',
+                      child: TextFormField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                    right: _LabeledField(
+                      label: 'Website',
+                      child: TextFormField(
+                        controller: _website,
+                        keyboardType: TextInputType.url,
+                        decoration: const InputDecoration(
+                          hintText: 'z. B. www.beispiel.de',
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),

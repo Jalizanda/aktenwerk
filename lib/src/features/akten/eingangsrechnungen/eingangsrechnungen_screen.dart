@@ -638,6 +638,47 @@ class _EingangsrechnungFormState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              FormSection('Beleg hochladen', children: [
+                MultiFileUploadSection(
+                  title: 'Beleg-Scans',
+                  storagePrefix: 'eingangsrechnungen',
+                  kind: UploadKind.any,
+                  files: _belege,
+                  hint:
+                      'PDF oder Foto der Original-Rechnung hochladen — KI liest die Felder automatisch aus.',
+                  onChanged: (list) {
+                    final wasEmpty = _belege.isEmpty;
+                    setState(() => _belege = list);
+                    if (wasEmpty && list.isNotEmpty && !_kiLaeuft) {
+                      _felderAusKiFuellen();
+                    }
+                  },
+                ),
+                if (_kiLaeuft)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                        SizedBox(width: 8),
+                        Text('KI liest Beleg …',
+                            style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                if (!_kiLaeuft && _belege.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.auto_awesome, size: 16),
+                      label: const Text('Nochmal per KI auslesen'),
+                      onPressed: _felderAusKiFuellen,
+                    ),
+                  ),
+              ]),
               FormSection('Lieferant', children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -855,40 +896,10 @@ class _EingangsrechnungFormState
                       'Kostenstelle', TextFormField(controller: _datevKost)),
                 ),
               ]),
-              FormSection('Beleg & Notiz', children: [
+              FormSection('Notiz', children: [
                 LabeledField(
                   'Beschreibung',
                   TextFormField(controller: _beschreibung),
-                ),
-                const SizedBox(height: 12),
-                MultiFileUploadSection(
-                  title: 'Beleg-Scans',
-                  storagePrefix: 'eingangsrechnungen',
-                  kind: UploadKind.any,
-                  files: _belege,
-                  hint:
-                      'PDF oder Foto der Original-Rechnung. Mehrere Seiten möglich.',
-                  onChanged: (list) => setState(() => _belege = list),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton.icon(
-                    icon: _kiLaeuft
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2),
-                          )
-                        : const Icon(Icons.auto_awesome, size: 16),
-                    label: Text(_kiLaeuft
-                        ? 'KI liest Beleg …'
-                        : 'Felder per KI aus erstem Beleg ausfüllen'),
-                    onPressed: (_belege.isEmpty || _kiLaeuft)
-                        ? null
-                        : _felderAusKiFuellen,
-                  ),
                 ),
                 const SizedBox(height: 12),
                 LabeledField(

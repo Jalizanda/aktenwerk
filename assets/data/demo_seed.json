@@ -61,6 +61,18 @@
       "id": 1
     },
     {
+      "key": "nummernkreis.auftragsbestaetigung",
+      "wert": "AB{YYYY}-{NNN}"
+    },
+    {
+      "key": "nummernkreis.auftragsbestaetigung.naechste",
+      "wert": "1"
+    },
+    {
+      "key": "nummernkreis.auftragsbestaetigung.reset",
+      "wert": "nie"
+    },
+    {
       "key": "nummernkreis.aktenzeichen",
       "wert": "AW-{NNNN}"
     },

@@ -24,9 +24,10 @@ const navSections = <NavSection>[
   NavSection('', [
     NavItem('Dashboard', 'dashboard', '/'),
     NavItem('Akten', 'akten', '/akten'),
+    NavItem('Kalender', 'kalender', '/termine'),
   ]),
   NavSection('Akten', [
-    NavItem('Auftraggeber', 'kunden', '/kunden'),
+    NavItem('Kontakte', 'kunden', '/kunden'),
     NavItem('Angebote', 'angebote', '/angebote'),
     NavItem('Aufträge', 'auftraege', '/auftraege'),
     NavItem('Gutachten', 'gutachten', '/gutachten'),
@@ -34,8 +35,6 @@ const navSections = <NavSection>[
     NavItem('Rechnungen', 'rechnungen', '/rechnungen'),
     NavItem('Eingangsrechnungen', 'eingangsrechnungen', '/eingangsrechnungen'),
     NavItem('Dokumente', 'dokumente', '/dokumente'),
-    NavItem('Lieferanten', 'lieferanten', '/lieferanten'),
-    NavItem('Partner / Subunternehmer', 'partner', '/partner'),
   ]),
   NavSection('Werkzeuge', [
     NavItem('Artikel / Leistungen', 'artikel', '/artikel'),
@@ -52,14 +51,11 @@ const navSections = <NavSection>[
     NavItem('Kalender', 'kalender', '/termine'),
     NavItem('Wiedervorlagen', 'wiedervorlagen', '/wiedervorlagen'),
     NavItem('Ortstermin-Modus', 'ortstermin', '/ortstermin'),
-    NavItem('JVEG-Rechner', 'jveg', '/jveg'),
-    NavItem('Qualifikationen', 'qualifikationen', '/qualifikationen'),
   ]),
   NavSection('Auswertung', [
     NavItem('OPOS / Mahnwesen', 'opos', '/opos'),
     NavItem('Steuer & Statistik', 'steuer', '/steuer'),
     NavItem('Jahresbericht', 'jahresbericht', '/jahresbericht'),
-    NavItem('Fortbildungen', 'fortbildungen', '/fortbildungen'),
     NavItem('CO₂-Tracker', 'co2', '/co2'),
   ]),
   NavSection('System', [

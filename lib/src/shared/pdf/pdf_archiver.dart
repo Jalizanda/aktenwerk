@@ -164,6 +164,71 @@ Future<UploadedFile?> freezeAngebotAsBeleg(
   return uploaded;
 }
 
+/// Speichert das PDF sofort lokal in der Dokumente-Tabelle (Bytes in `daten`)
+/// und versucht danach den Cloud-Upload im Hintergrund.
+///
+/// Gibt immer true zurück, sobald die lokale Ablage erfolgreich war.
+/// Ohne verknüpfte [auftragId] wird nur der Cloud-Upload versucht.
+Future<bool> archivePdfLokalUndCloud(
+  WidgetRef ref,
+  PdfDocumentData data, {
+  required int? auftragId,
+  required String prefix,
+}) async {
+  final db = ref.read(appDatabaseProvider);
+  final bytes = await buildDocumentPdf(data);
+  final az = await _aktenzeichenFor(db, auftragId);
+  final dateiname = _buildFilename(data, az);
+  final safe = dateiname.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+  final storagePfad = '$prefix/$safe';
+
+  // 1. Sofort lokal in DB ablegen — funktioniert ohne Netz.
+  int? dokumentId;
+  if (auftragId != null) {
+    dokumentId = await ref.read(dokumenteRepositoryProvider).upsert(
+          DokumenteCompanion.insert(
+            titel: Value(dateiname),
+            mimeType: const Value('application/pdf'),
+            dateigroesse: Value(bytes.length),
+            daten: Value(bytes),
+            storagePfad: Value(storagePfad),
+            auftragId: Value(auftragId),
+            kategorie: Value(data.dokumentTyp),
+            datum: Value(data.datum ?? DateTime.now()),
+          ),
+        );
+  }
+
+  // 2. Cloud-Upload im Hintergrund — best-effort, kein Abbruch bei Fehler.
+  _uploadImHintergrund(ref, db, bytes, storagePfad, dateiname, dokumentId);
+  return true;
+}
+
+void _uploadImHintergrund(
+  WidgetRef ref,
+  AppDatabase db,
+  Uint8List bytes,
+  String pfad,
+  String dateiname,
+  int? dokumentId,
+) async {
+  try {
+    final storage = ref.read(storageServiceProvider);
+    final auth = ref.read(authServiceProvider);
+    if (!storage.enabled || auth.currentUser == null) return;
+    final url = await storage.uploadBytes(
+      pfad,
+      bytes: bytes,
+      contentType: 'application/pdf',
+    );
+    if (url == null || dokumentId == null) return;
+    await (db.update(db.dokumente)..where((t) => t.id.equals(dokumentId)))
+        .write(DokumenteCompanion(storageUrl: Value(url)));
+  } catch (_) {
+    // Cloud-Fehler sind nicht kritisch — lokale Kopie ist bereits gesichert.
+  }
+}
+
 Future<String?> _aktenzeichenFor(AppDatabase db, int? auftragId) async {
   if (auftragId == null) return null;
   final row = await (db.select(db.auftraege)

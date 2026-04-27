@@ -8,6 +8,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../features/akten/workflow/dokument_workflow.dart';
 import '../../../features/system/benutzer/benutzer_repository.dart';
@@ -478,6 +479,11 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
   late final _bezahlt = TextEditingController(
       text: widget.eintrag?.rechnung.bezahlt.toStringAsFixed(2) ?? '0.00');
   bool _saving = false;
+  DateTime? _pdfErstelltAm;
+  int? _savedId;
+  String? _zahlungsbedingungKey;
+
+  bool get _eingefroren => _pdfErstelltAm != null;
 
   @override
   void initState() {
@@ -495,6 +501,8 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     _typ = r?.typ ?? 'privat';
     _kleinunternehmer = r?.kleinunternehmerHinweis ?? false;
     _positionen = positionsFromJson(r?.positionenJson);
+    _pdfErstelltAm = r?.pdfErstelltAm;
+    _savedId = r?.id;
     if (widget.eintrag == null) _prefill();
   }
 
@@ -539,6 +547,68 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     }
   }
 
+  /// Baut die Briefanrede für einen Kunden — z. B. „Sehr geehrte Frau Müller,"
+  /// oder „Sehr geehrter Herr Dr. Schmidt,". Bei Firma/Gericht ohne
+  /// persönliche Anrede: „Sehr geehrte Damen und Herren,".
+  String _briefanredeFuer(KundenData k) {
+    final anrede = (k.anrede ?? '').trim();
+    final titel = (k.titel ?? '').trim();
+    final nachname = (k.nachname ?? '').trim();
+    if (nachname.isEmpty || k.typ == 'gericht') {
+      return 'Sehr geehrte Damen und Herren,';
+    }
+    final start = anrede.toLowerCase().contains('frau')
+        ? 'Sehr geehrte Frau'
+        : (anrede.toLowerCase().contains('herr')
+            ? 'Sehr geehrter Herr'
+            : 'Sehr geehrte/r');
+    final mitTitel = titel.isEmpty ? nachname : '$titel $nachname';
+    return '$start $mitTitel,';
+  }
+
+  /// Wendet eine Zahlungsziel-Vorlage an, indem sie die zugehörigen Felder
+  /// (Tage, Fälligkeit, Skonto, Schlusstext) entsprechend setzt.
+  Future<void> _applyZahlungsbedingungKey(String key) async {
+    final list = await ref.read(zahlungszielVorlagenProvider.future);
+    final v = list.firstWhere(
+      (x) => x.key == key,
+      orElse: () => list.isEmpty
+          ? const ZahlungszielVorlage(
+              key: '', label: '', tage: 14, text: '')
+          : list.first,
+    );
+    if (!mounted || v.key.isEmpty) return;
+    setState(() {
+      _zahlungsbedingungKey = v.key;
+      _zahlungsziel.text = v.tage.toString();
+      _faelligAm = (_rechnungsdatum ?? DateTime.now())
+          .add(Duration(days: v.tage));
+      _skontoProzent = v.skontoProzent;
+      _skontoTage = v.skontoTage;
+      _barzahlung = v.bar;
+      if (v.text.trim().isNotEmpty) _fuss.text = v.text.trim();
+    });
+  }
+
+  /// Setzt die Anrede im Kopftext, wenn das Feld noch leer ist oder den
+  /// generischen Default-Text enthält. Damit überschreiben wir keine
+  /// manuell angepasste Anrede.
+  Future<void> _autoAnredeFuerKunde(int? kundeId) async {
+    if (kundeId == null) return;
+    final kunde =
+        await ref.read(kundenRepositoryProvider).byId(kundeId);
+    if (kunde == null || !mounted) return;
+    final neue = _briefanredeFuer(kunde);
+    final aktuell = _kopf.text.trim();
+    final istLeer = aktuell.isEmpty;
+    final istDefault = aktuell.startsWith('Sehr geehrte Damen und Herren');
+    if (istLeer || istDefault) {
+      // Hänge den Standard-Folgesatz an
+      final folge = '\n\nfür meine sachverständigen Leistungen erlaube ich mir zu berechnen:';
+      setState(() => _kopf.text = '$neue$folge');
+    }
+  }
+
   String _applyPattern(String pattern, int seq) {
     final now = DateTime.now();
     var out = pattern
@@ -569,8 +639,13 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
   bool get _isEdit => widget.eintrag != null;
 
-  Future<void> _save() async {
+  Future<void> _save({bool close = true}) async {
     if (!_formKey.currentState!.validate()) return;
+    if (_kundeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Bitte zuerst einen Auftraggeber auswählen.')));
+      return;
+    }
     setState(() => _saving = true);
 
     // Nummernkreis: wenn neue Rechnung + Nummer leer → automatisch vergeben.
@@ -644,14 +719,58 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
       kontonummer: Value(_kontonummer),
     );
     try {
-      await ref.read(rechnungenRepositoryProvider).upsert(companion);
-      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
+      final id = await ref.read(rechnungenRepositoryProvider).upsert(companion);
+      if (mounted) setState(() => _savedId = id);
+      if (close && mounted) {
+        Navigator.of(context, rootNavigator: true).pop(true);
+      } else if (mounted) {
+        setState(() => _saving = false);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Fehler: $e')));
       }
+    }
+  }
+
+  Future<void> _druckenUndEinfrieren() async {
+    if (!_formKey.currentState!.validate()) return;
+    await _save(close: false);
+    if (!mounted) return;
+    final id = _savedId;
+    if (id == null) return;
+    final data = await _buildPdfData();
+    // Vorschau + Druckmöglichkeit
+    await previewDocumentPdf(data);
+    if (!mounted) return;
+    // Einfrieren in DB
+    final db = ref.read(appDatabaseProvider);
+    final now = DateTime.now();
+    await (db.update(db.rechnungen)..where((t) => t.id.equals(id))).write(
+      RechnungenCompanion(
+        pdfErstelltAm: Value(now),
+        status: _status == 'entwurf' ? const Value('versendet') : const Value.absent(),
+        updatedAt: Value(now),
+      ),
+    );
+    if (mounted) {
+      setState(() {
+        _pdfErstelltAm = now;
+        if (_status == 'entwurf') _status = 'versendet';
+      });
+    }
+    // PDF sofort lokal ablegen + Cloud-Upload im Hintergrund
+    await archivePdfLokalUndCloud(
+      ref,
+      data,
+      auftragId: _auftragId,
+      prefix: 'belege/rechnungen',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Dokument eingefroren und in der Akte abgelegt.')));
     }
   }
 
@@ -785,25 +904,6 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     }
   }
 
-  Future<void> _archivePdfFromDialog() async {
-    if (!_isEdit) return;
-    final data = await _buildPdfData();
-    final uploaded = await freezeRechnungAsBeleg(
-        ref, widget.eintrag!.rechnung, data);
-    if (uploaded == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Upload nicht möglich — bitte anmelden / Cloud prüfen.')));
-      }
-      return;
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Beleg archiviert: ${uploaded.dateiname}')));
-    }
-  }
-
   String _pdfTitleFor(String typ) => switch (typ) {
         'jveg' => 'Rechnung gemäß JVEG',
         'akonto' => 'Akontoanforderung',
@@ -828,17 +928,19 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
   Widget build(BuildContext context) {
     final archiviert = widget.eintrag?.rechnung.pdfStorageUrl != null &&
         widget.eintrag!.rechnung.pdfStorageUrl!.isNotEmpty;
-    final archivTitle = archiviert
-        ? 'Rechnung (festgeschrieben)'
-        : (_isEdit ? 'Rechnung bearbeiten' : 'Neue Rechnung');
+    final titleStr = _eingefroren
+        ? '${_pdfTitleFor(_typ)} (eingefroren)'
+        : (archiviert
+            ? 'Rechnung (festgeschrieben)'
+            : (_isEdit ? 'Rechnung bearbeiten' : 'Neue Rechnung'));
     return StandardFormDialog(
-      title: archivTitle,
+      title: titleStr,
       saving: _saving,
       maxWidth: 1100,
       maxHeight: 900,
       onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
-      onSave: _save,
-      onDelete: _isEdit
+      onSave: _eingefroren ? null : _save,
+      onDelete: _isEdit && !_eingefroren
           ? () async => ref
               .read(rechnungenRepositoryProvider)
               .delete(widget.eintrag!.rechnung.id)
@@ -846,24 +948,34 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
       footerLeading: Wrap(
         spacing: 6,
         children: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-            label: const Text('Vorschau / Drucken'),
-            onPressed: _previewPdf,
-          ),
-          if (_isEdit)
+          if (_eingefroren)
             OutlinedButton.icon(
-              icon: const Icon(Icons.cloud_upload_outlined, size: 16),
-              label: const Text('PDF archivieren'),
-              onPressed: _archivePdfFromDialog,
+              icon: const Icon(Icons.print_outlined, size: 16),
+              label: const Text('Erneut drucken'),
+              onPressed: () async {
+                final data = await _buildPdfData();
+                await previewDocumentPdf(data);
+              },
+            )
+          else ...[
+            OutlinedButton.icon(
+              icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+              label: const Text('Vorschau'),
+              onPressed: _previewPdf,
             ),
-          if (_isEdit && _typ != 'gutschrift')
+            FilledButton.icon(
+              icon: const Icon(Icons.print_outlined, size: 16),
+              label: const Text('Drucken & einfrieren'),
+              onPressed: _druckenUndEinfrieren,
+            ),
+          ],
+          if (_isEdit && !_eingefroren && _typ != 'gutschrift')
             OutlinedButton.icon(
               icon: const Icon(Icons.undo_outlined, size: 16),
               label: const Text('→ Gutschrift'),
               onPressed: _convertToGutschrift,
             ),
-          if (_isEdit) ...[
+          if (_isEdit && !_eingefroren) ...[
             OutlinedButton.icon(
               icon: const Icon(Icons.description_outlined, size: 16),
               label: const Text('X-Rechnung (XML)'),
@@ -881,11 +993,18 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding:
+                  EdgeInsets.fromLTRB(20, _eingefroren ? 52 : 20, 20, 20),
+              child: AbsorbPointer(
+                absorbing: _eingefroren,
+                child: Opacity(
+                  opacity: _eingefroren ? 0.6 : 1.0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               if (archiviert) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -913,7 +1032,7 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                 ),
                 const SizedBox(height: 14),
               ],
-              // Reihe 1: Rechnungstyp · Auftrag · Status
+              // Reihe 1: Rechnungstyp · Status
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -932,26 +1051,6 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                         onChanged: (v) =>
                             setState(() => _typ = v ?? 'privat'),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 5,
-                    child: AuftragPickerField(
-                      auftragId: _auftragId,
-                      label: 'Auftrag *',
-                      onChanged: (id) async {
-                        setState(() => _auftragId = id);
-                        // Kunde aus dem Auftrag mit-übernehmen (1:1).
-                        if (id != null) {
-                          final a = await ref
-                              .read(auftraegeRepositoryProvider)
-                              .byId(id);
-                          if (mounted && a?.kundeId != null) {
-                            setState(() => _kundeId = a!.kundeId);
-                          }
-                        }
-                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -978,6 +1077,47 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                               setState(() => _status = v ?? 'entwurf'),
                         );
                       }),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // Reihe 2: Auftraggeber · Auftrag (optional)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: KundenPickerField(
+                      kundeId: _kundeId,
+                      label: 'Auftraggeber *',
+                      onChanged: (id) async {
+                        setState(() => _kundeId = id);
+                        await _autoAnredeFuerKunde(id);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AuftragPickerField(
+                      auftragId: _auftragId,
+                      label: 'Akte (optional)',
+                      onChanged: (id) async {
+                        setState(() => _auftragId = id);
+                        if (id != null) {
+                          final a = await ref
+                              .read(auftraegeRepositoryProvider)
+                              .byId(id);
+                          if (a == null || !mounted) return;
+                          if (a.kundeId != null) {
+                            setState(() => _kundeId = a.kundeId);
+                            await _autoAnredeFuerKunde(a.kundeId);
+                          }
+                          if (a.zahlungsbedingung != null && mounted) {
+                            await _applyZahlungsbedingungKey(
+                                a.zahlungsbedingung!);
+                          }
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -1061,20 +1201,6 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              _ZahlungszielAuswahl(
-                onApply: (vorlage) {
-                  setState(() {
-                    _zahlungsziel.text = vorlage.tage.toString();
-                    _faelligAm = (_rechnungsdatum ?? DateTime.now())
-                        .add(Duration(days: vorlage.tage));
-                    _skontoProzent = vorlage.skontoProzent;
-                    _skontoTage = vorlage.skontoTage;
-                    _barzahlung = vorlage.bar;
-                    _fuss.text = vorlage.text.trim();
-                  });
-                },
-              ),
               const SizedBox(height: 20),
               if (_typ == 'akonto' ||
                   _typ == 'teilrechnung' ||
@@ -1084,6 +1210,20 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                 const SizedBox(height: 12),
                 _SchlussrechnungAbzuege(auftragId: _auftragId!),
               ],
+              const SizedBox(height: 14),
+              // Anrede / Einleitungstext (Kopftext im PDF) — VOR den Positionen.
+              LabeledField(
+                'Anrede',
+                TextFormField(
+                  controller: _kopf,
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    hintText:
+                        'Sehr geehrte Damen und Herren,\n\nfür meine sachverständigen Leistungen erlaube ich mir zu berechnen:',
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
               // Positionen mit Action-Chips (Honorar/JVEG/Artikel/+Position)
               PositionsEditor(
@@ -1119,57 +1259,59 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              // Anrede / Einleitungstext (Kopftext im PDF) — analog Angebot.
-              LabeledField(
-                'Anrede',
-                TextFormField(
-                  controller: _kopf,
-                  minLines: 3,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    hintText:
-                        'Sehr geehrte Damen und Herren,\n\nfür meine sachverständigen Leistungen erlaube ich mir zu berechnen:',
-                  ),
-                ),
-              ),
               const SizedBox(height: 20),
-              // Schlusstext links · Summen-Karte rechts (wie im Original)
+              // Rechnungssumme links · Zahlungsbedingung rechts
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     flex: 3,
-                    child: LabeledField(
-                      'Schlusstext / Zahlungshinweis',
-                      TextFormField(
-                        controller: _fuss,
-                        minLines: 4,
-                        maxLines: 8,
-                      ),
+                    child: PositionsSummaryCard(
+                      positions: _positionen,
+                      ustSatz: _ustSatz,
+                      onUstSatzChanged: (v) => setState(
+                          () => _ust.text = v.toStringAsFixed(0)),
+                      summenLabel: 'Rechnungsbetrag',
+                      kleinunternehmer: _kleinunternehmer,
+                      onKleinunternehmerChanged: (v) =>
+                          setState(() => _kleinunternehmer = v),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     flex: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 22),
-                      child: PositionsSummaryCard(
-                        positions: _positionen,
-                        ustSatz: _ustSatz,
-                        onUstSatzChanged: (v) => setState(
-                            () => _ust.text = v.toStringAsFixed(0)),
-                        summenLabel: 'Rechnungsbetrag',
-                        kleinunternehmer: _kleinunternehmer,
-                        onKleinunternehmerChanged: (v) =>
-                            setState(() => _kleinunternehmer = v),
-                      ),
+                    child: _ZahlungszielAuswahlControlled(
+                      activeKey: _zahlungsbedingungKey,
+                      onApply: (vorlage) {
+                        setState(() {
+                          _zahlungsbedingungKey = vorlage.key;
+                          _zahlungsziel.text = vorlage.tage.toString();
+                          _faelligAm = (_rechnungsdatum ?? DateTime.now())
+                              .add(Duration(days: vorlage.tage));
+                          _skontoProzent = vorlage.skontoProzent;
+                          _skontoTage = vorlage.skontoTage;
+                          _barzahlung = vorlage.bar;
+                          if (vorlage.text.trim().isNotEmpty) {
+                            _fuss.text = vorlage.text.trim();
+                          }
+                        });
+                      },
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              // Zusatzfelder: Bezahlt-am / Betrag / Notiz
+              // Schlusstext in voller Breite unter der Rechnungssumme.
+              LabeledField(
+                'Schlusstext / Zahlungshinweis',
+                TextFormField(
+                  controller: _fuss,
+                  minLines: 4,
+                  maxLines: 8,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Bezahlt-Status (zwei Felder, gleich breit)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1191,19 +1333,28 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: LabeledField(
-                      'Interne Notiz',
-                      TextFormField(
-                          controller: _notiz, minLines: 1, maxLines: 2),
-                    ),
-                  ),
                 ],
               ),
-            ],
-          ),
+              const SizedBox(height: 14),
+              // Interne Notiz ganz unten in voller Breite.
+              LabeledField(
+                'Interne Notiz',
+                TextFormField(
+                    controller: _notiz, minLines: 2, maxLines: 4),
+              ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_eingefroren)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: _FrozenBanner(_pdfErstelltAm!),
+              ),
+          ],
         ),
       ),
     );
@@ -1304,11 +1455,40 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
 }
 
-/// Dropdown zur Auswahl einer Zahlungsziel-Vorlage. Beim Auswählen
-/// werden Zahlungsziel-Tage, Fälligkeitsdatum und Schlusstext auf
-/// dem aufrufenden Editor gesetzt (Callback).
-class _ZahlungszielAuswahl extends ConsumerWidget {
-  const _ZahlungszielAuswahl({required this.onApply});
+class _FrozenBanner extends StatelessWidget {
+  const _FrozenBanner(this.seit);
+  final DateTime seit;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = DateFormat('dd.MM.yyyy – HH:mm', 'de');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: Colors.amber.shade100,
+      child: Row(
+        children: [
+          const Icon(Icons.lock_outline, size: 16, color: Colors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Gedruckt und eingefroren am ${fmt.format(seit)} · Dokument ist nur noch lesbar.',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Wie [_ZahlungszielAuswahl], aber mit aktivem Wert (controlled), damit der
+/// aktuell gewählte Eintrag im Dropdown sichtbar bleibt.
+class _ZahlungszielAuswahlControlled extends ConsumerWidget {
+  const _ZahlungszielAuswahlControlled({
+    required this.activeKey,
+    required this.onApply,
+  });
+  final String? activeKey;
   final void Function(ZahlungszielVorlage) onApply;
 
   @override
@@ -1317,32 +1497,34 @@ class _ZahlungszielAuswahl extends ConsumerWidget {
     return async.when(
       loading: () => const SizedBox.shrink(),
       error: (e, _) => Text('Zahlungsziel-Vorlagen: Fehler $e'),
-      data: (list) => LabeledField(
-        'Zahlungsbedingung (Vorlage übernehmen)',
-        DropdownButtonFormField<String>(
-          initialValue: null,
-          isDense: true,
-          hint: const Text('Vorlage wählen …'),
-          items: [
-            for (final v in list)
-              DropdownMenuItem(
-                value: v.key,
-                child: Text(v.label,
-                    overflow: TextOverflow.ellipsis),
-              ),
-          ],
-          onChanged: (key) {
-            if (key == null) return;
-            final v = list.firstWhere((x) => x.key == key,
-                orElse: () => list.first);
-            onApply(v);
-          },
-        ),
-      ),
+      data: (list) {
+        final value = list.any((v) => v.key == activeKey) ? activeKey : null;
+        return LabeledField(
+          'Zahlungsbedingung',
+          DropdownButtonFormField<String>(
+            initialValue: value,
+            isDense: true,
+            isExpanded: true,
+            hint: const Text('Vorlage wählen …'),
+            items: [
+              for (final v in list)
+                DropdownMenuItem(
+                  value: v.key,
+                  child: Text(v.label, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (key) {
+              if (key == null) return;
+              final v = list.firstWhere((x) => x.key == key,
+                  orElse: () => list.first);
+              onApply(v);
+            },
+          ),
+        );
+      },
     );
   }
 }
-
 
 /// Hinweis-Kachel beim Rechnungstyp „Akonto", „Teilrechnung" oder
 /// „Schlussrechnung". Erklärt die USt-Besonderheit und wie Aktenwerk das

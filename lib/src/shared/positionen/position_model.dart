@@ -21,6 +21,11 @@ class Position {
   /// eingerechnet, sondern im PDF in Klammern `(…)` ausgewiesen.
   final bool optional;
 
+  /// Reine Text-Zeile (Textbaustein). Wird im Editor und PDF in voller
+  /// Breite ohne Menge/Einheit/EP/Betrag dargestellt; trägt nicht zur
+  /// Summe bei.
+  final bool istTextbaustein;
+
   const Position({
     this.bezeichnung = '',
     this.langtext = '',
@@ -30,6 +35,7 @@ class Position {
     this.ustSatz = 19,
     this.posNr = '',
     this.optional = false,
+    this.istTextbaustein = false,
   });
 
   double get nettoBetrag => menge * einzelpreis;
@@ -45,6 +51,7 @@ class Position {
     double? ustSatz,
     String? posNr,
     bool? optional,
+    bool? istTextbaustein,
   }) =>
       Position(
         bezeichnung: bezeichnung ?? this.bezeichnung,
@@ -55,6 +62,7 @@ class Position {
         ustSatz: ustSatz ?? this.ustSatz,
         posNr: posNr ?? this.posNr,
         optional: optional ?? this.optional,
+        istTextbaustein: istTextbaustein ?? this.istTextbaustein,
       );
 
   Map<String, dynamic> toJson() => {
@@ -66,6 +74,7 @@ class Position {
         'ustSatz': ustSatz,
         if (posNr.isNotEmpty) 'posNr': posNr,
         if (optional) 'optional': true,
+        if (istTextbaustein) 'istTextbaustein': true,
       };
 
   factory Position.fromJson(Map<String, dynamic> j) {
@@ -87,6 +96,7 @@ class Position {
       ustSatz: (j['ustSatz'] as num?)?.toDouble() ?? 19,
       posNr: (j['posNr'] as String?) ?? '',
       optional: j['optional'] == true,
+      istTextbaustein: j['istTextbaustein'] == true,
     );
   }
 }
@@ -116,7 +126,7 @@ class PositionsTotals {
     double n = 0;
     double u = 0;
     for (final p in list) {
-      if (p.optional) continue;
+      if (p.optional || p.istTextbaustein) continue;
       n += p.nettoBetrag;
       u += p.ustBetrag;
     }

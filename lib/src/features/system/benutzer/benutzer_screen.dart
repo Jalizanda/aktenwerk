@@ -11,18 +11,139 @@ import '../../../core/geo/plz_autofill.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../shared/widgets/signature_pad.dart';
+import '../../auswertung/fortbildungen/fortbildungen_screen.dart';
+import '../../werkzeuge/qualifikationen/qualifikationen_screen.dart';
 import 'benutzer_repository.dart';
 
-class BenutzerScreen extends ConsumerWidget {
+class BenutzerScreen extends ConsumerStatefulWidget {
   const BenutzerScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(activeBenutzerProvider);
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Fehler: $e')),
-      data: (b) => _BenutzerForm(key: ValueKey(b?.id ?? 'neu'), benutzer: b),
+  ConsumerState<BenutzerScreen> createState() => _BenutzerScreenState();
+}
+
+class _BenutzerScreenState extends ConsumerState<BenutzerScreen>
+    with SingleTickerProviderStateMixin {
+  late final _tabCtrl = TabController(length: 3, vsync: this);
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _BenutzerTabBar(controller: _tabCtrl),
+        const Divider(height: 1),
+        Expanded(
+          child: TabBarView(
+            controller: _tabCtrl,
+            children: [
+              Builder(builder: (ctx) {
+                final async = ref.watch(activeBenutzerProvider);
+                return async.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Fehler: $e')),
+                  data: (b) =>
+                      _BenutzerForm(key: ValueKey(b?.id ?? 'neu'), benutzer: b),
+                );
+              }),
+              const QualifikationenScreen(),
+              const FortbildungenScreen(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BenutzerTabBar extends StatelessWidget {
+  const _BenutzerTabBar({required this.controller});
+  final TabController controller;
+
+  static const _tabs = <(String, IconData)>[
+    ('Benutzerdaten', Icons.account_circle_outlined),
+    ('Qualifikationen', Icons.school_outlined),
+    ('Fortbildungen', Icons.workspace_premium_outlined),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.colorScheme.surfaceContainerLowest,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (_, _) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < _tabs.length; i++)
+                _BenutzerReiter(
+                  label: _tabs[i].$1,
+                  icon: _tabs[i].$2,
+                  active: controller.index == i,
+                  onTap: () => controller.animateTo(i),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BenutzerReiter extends StatelessWidget {
+  const _BenutzerReiter({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: active ? AwTokens.orange : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 15,
+                color: active ? AwTokens.orange : AwTokens.mute),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                color: active ? AwTokens.orange : AwTokens.mute,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

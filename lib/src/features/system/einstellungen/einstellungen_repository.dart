@@ -21,6 +21,8 @@ class SettingsKeys {
   static const firmaWebsite = 'firma.website';
   static const firmaLogoBase64 = 'firma.logo_base64';
   static const firmaLogoMime = 'firma.logo_mime';
+  static const firmaLogo2Base64 = 'firma.logo2_base64';
+  static const firmaLogo2Mime = 'firma.logo2_mime';
   static const firmaBestellung1 = 'firma.bestellung1';
   static const firmaBestellung2 = 'firma.bestellung2';
 

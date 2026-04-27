@@ -2010,6 +2010,18 @@ class $AuftraegeTable extends Auftraege
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _zahlungsbedingungMeta = const VerificationMeta(
+    'zahlungsbedingung',
+  );
+  @override
+  late final GeneratedColumn<String> zahlungsbedingung =
+      GeneratedColumn<String>(
+        'zahlungsbedingung',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
   @override
   late final GeneratedColumn<String> extras = GeneratedColumn<String>(
@@ -2102,6 +2114,7 @@ class $AuftraegeTable extends Auftraege
     objektFotoStorageUrl,
     objektFotoDateiname,
     notiz,
+    zahlungsbedingung,
     extras,
     createdAt,
     updatedAt,
@@ -2562,6 +2575,15 @@ class $AuftraegeTable extends Auftraege
         notiz.isAcceptableOrUnknown(data['notiz']!, _notizMeta),
       );
     }
+    if (data.containsKey('zahlungsbedingung')) {
+      context.handle(
+        _zahlungsbedingungMeta,
+        zahlungsbedingung.isAcceptableOrUnknown(
+          data['zahlungsbedingung']!,
+          _zahlungsbedingungMeta,
+        ),
+      );
+    }
     if (data.containsKey('extras')) {
       context.handle(
         _extrasMeta,
@@ -2817,6 +2839,10 @@ class $AuftraegeTable extends Auftraege
         DriftSqlType.string,
         data['${effectivePrefix}notiz'],
       ),
+      zahlungsbedingung: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}zahlungsbedingung'],
+      ),
       extras: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}extras'],
@@ -2928,6 +2954,9 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
   final String? objektFotoStorageUrl;
   final String? objektFotoDateiname;
   final String? notiz;
+
+  /// Standard-Zahlungsbedingung für aus diesem Auftrag erstellte Rechnungen.
+  final String? zahlungsbedingung;
   final String? extras;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -2989,6 +3018,7 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     this.objektFotoStorageUrl,
     this.objektFotoDateiname,
     this.notiz,
+    this.zahlungsbedingung,
     this.extras,
     required this.createdAt,
     required this.updatedAt,
@@ -3167,6 +3197,9 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     if (!nullToAbsent || notiz != null) {
       map['notiz'] = Variable<String>(notiz);
     }
+    if (!nullToAbsent || zahlungsbedingung != null) {
+      map['zahlungsbedingung'] = Variable<String>(zahlungsbedingung);
+    }
     if (!nullToAbsent || extras != null) {
       map['extras'] = Variable<String>(extras);
     }
@@ -3343,6 +3376,9 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
       notiz: notiz == null && nullToAbsent
           ? const Value.absent()
           : Value(notiz),
+      zahlungsbedingung: zahlungsbedingung == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zahlungsbedingung),
       extras: extras == null && nullToAbsent
           ? const Value.absent()
           : Value(extras),
@@ -3440,6 +3476,9 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
         json['objektFotoDateiname'],
       ),
       notiz: serializer.fromJson<String?>(json['notiz']),
+      zahlungsbedingung: serializer.fromJson<String?>(
+        json['zahlungsbedingung'],
+      ),
       extras: serializer.fromJson<String?>(json['extras']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -3512,6 +3551,7 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
       'objektFotoStorageUrl': serializer.toJson<String?>(objektFotoStorageUrl),
       'objektFotoDateiname': serializer.toJson<String?>(objektFotoDateiname),
       'notiz': serializer.toJson<String?>(notiz),
+      'zahlungsbedingung': serializer.toJson<String?>(zahlungsbedingung),
       'extras': serializer.toJson<String?>(extras),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -3576,6 +3616,7 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     Value<String?> objektFotoStorageUrl = const Value.absent(),
     Value<String?> objektFotoDateiname = const Value.absent(),
     Value<String?> notiz = const Value.absent(),
+    Value<String?> zahlungsbedingung = const Value.absent(),
     Value<String?> extras = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -3685,6 +3726,9 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
         ? objektFotoDateiname.value
         : this.objektFotoDateiname,
     notiz: notiz.present ? notiz.value : this.notiz,
+    zahlungsbedingung: zahlungsbedingung.present
+        ? zahlungsbedingung.value
+        : this.zahlungsbedingung,
     extras: extras.present ? extras.value : this.extras,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -3820,6 +3864,9 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
           ? data.objektFotoDateiname.value
           : this.objektFotoDateiname,
       notiz: data.notiz.present ? data.notiz.value : this.notiz,
+      zahlungsbedingung: data.zahlungsbedingung.present
+          ? data.zahlungsbedingung.value
+          : this.zahlungsbedingung,
       extras: data.extras.present ? data.extras.value : this.extras,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -3886,6 +3933,7 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
           ..write('objektFotoStorageUrl: $objektFotoStorageUrl, ')
           ..write('objektFotoDateiname: $objektFotoDateiname, ')
           ..write('notiz: $notiz, ')
+          ..write('zahlungsbedingung: $zahlungsbedingung, ')
           ..write('extras: $extras, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3952,6 +4000,7 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
     objektFotoStorageUrl,
     objektFotoDateiname,
     notiz,
+    zahlungsbedingung,
     extras,
     createdAt,
     updatedAt,
@@ -4017,6 +4066,7 @@ class AuftraegeData extends DataClass implements Insertable<AuftraegeData> {
           other.objektFotoStorageUrl == this.objektFotoStorageUrl &&
           other.objektFotoDateiname == this.objektFotoDateiname &&
           other.notiz == this.notiz &&
+          other.zahlungsbedingung == this.zahlungsbedingung &&
           other.extras == this.extras &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -4080,6 +4130,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
   final Value<String?> objektFotoStorageUrl;
   final Value<String?> objektFotoDateiname;
   final Value<String?> notiz;
+  final Value<String?> zahlungsbedingung;
   final Value<String?> extras;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -4141,6 +4192,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     this.objektFotoStorageUrl = const Value.absent(),
     this.objektFotoDateiname = const Value.absent(),
     this.notiz = const Value.absent(),
+    this.zahlungsbedingung = const Value.absent(),
     this.extras = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4203,6 +4255,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     this.objektFotoStorageUrl = const Value.absent(),
     this.objektFotoDateiname = const Value.absent(),
     this.notiz = const Value.absent(),
+    this.zahlungsbedingung = const Value.absent(),
     this.extras = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4265,6 +4318,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     Expression<String>? objektFotoStorageUrl,
     Expression<String>? objektFotoDateiname,
     Expression<String>? notiz,
+    Expression<String>? zahlungsbedingung,
     Expression<String>? extras,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -4335,6 +4389,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
       if (objektFotoDateiname != null)
         'objekt_foto_dateiname': objektFotoDateiname,
       if (notiz != null) 'notiz': notiz,
+      if (zahlungsbedingung != null) 'zahlungsbedingung': zahlungsbedingung,
       if (extras != null) 'extras': extras,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4399,6 +4454,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     Value<String?>? objektFotoStorageUrl,
     Value<String?>? objektFotoDateiname,
     Value<String?>? notiz,
+    Value<String?>? zahlungsbedingung,
     Value<String?>? extras,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -4465,6 +4521,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
       objektFotoStorageUrl: objektFotoStorageUrl ?? this.objektFotoStorageUrl,
       objektFotoDateiname: objektFotoDateiname ?? this.objektFotoDateiname,
       notiz: notiz ?? this.notiz,
+      zahlungsbedingung: zahlungsbedingung ?? this.zahlungsbedingung,
       extras: extras ?? this.extras,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4659,6 +4716,9 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
     if (notiz.present) {
       map['notiz'] = Variable<String>(notiz.value);
     }
+    if (zahlungsbedingung.present) {
+      map['zahlungsbedingung'] = Variable<String>(zahlungsbedingung.value);
+    }
     if (extras.present) {
       map['extras'] = Variable<String>(extras.value);
     }
@@ -4731,6 +4791,7 @@ class AuftraegeCompanion extends UpdateCompanion<AuftraegeData> {
           ..write('objektFotoStorageUrl: $objektFotoStorageUrl, ')
           ..write('objektFotoDateiname: $objektFotoDateiname, ')
           ..write('notiz: $notiz, ')
+          ..write('zahlungsbedingung: $zahlungsbedingung, ')
           ..write('extras: $extras, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -41160,6 +41221,7 @@ typedef $$AuftraegeTableCreateCompanionBuilder =
       Value<String?> objektFotoStorageUrl,
       Value<String?> objektFotoDateiname,
       Value<String?> notiz,
+      Value<String?> zahlungsbedingung,
       Value<String?> extras,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -41223,6 +41285,7 @@ typedef $$AuftraegeTableUpdateCompanionBuilder =
       Value<String?> objektFotoStorageUrl,
       Value<String?> objektFotoDateiname,
       Value<String?> notiz,
+      Value<String?> zahlungsbedingung,
       Value<String?> extras,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -42018,6 +42081,11 @@ class $$AuftraegeTableFilterComposer
 
   ColumnFilters<String> get notiz => $composableBuilder(
     column: $table.notiz,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get zahlungsbedingung => $composableBuilder(
+    column: $table.zahlungsbedingung,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -42949,6 +43017,11 @@ class $$AuftraegeTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get zahlungsbedingung => $composableBuilder(
+    column: $table.zahlungsbedingung,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get extras => $composableBuilder(
     column: $table.extras,
     builder: (column) => ColumnOrderings(column),
@@ -43236,6 +43309,11 @@ class $$AuftraegeTableAnnotationComposer
 
   GeneratedColumn<String> get notiz =>
       $composableBuilder(column: $table.notiz, builder: (column) => column);
+
+  GeneratedColumn<String> get zahlungsbedingung => $composableBuilder(
+    column: $table.zahlungsbedingung,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get extras =>
       $composableBuilder(column: $table.extras, builder: (column) => column);
@@ -43983,6 +44061,7 @@ class $$AuftraegeTableTableManager
                 Value<String?> objektFotoStorageUrl = const Value.absent(),
                 Value<String?> objektFotoDateiname = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
+                Value<String?> zahlungsbedingung = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -44044,6 +44123,7 @@ class $$AuftraegeTableTableManager
                 objektFotoStorageUrl: objektFotoStorageUrl,
                 objektFotoDateiname: objektFotoDateiname,
                 notiz: notiz,
+                zahlungsbedingung: zahlungsbedingung,
                 extras: extras,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -44107,6 +44187,7 @@ class $$AuftraegeTableTableManager
                 Value<String?> objektFotoStorageUrl = const Value.absent(),
                 Value<String?> objektFotoDateiname = const Value.absent(),
                 Value<String?> notiz = const Value.absent(),
+                Value<String?> zahlungsbedingung = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -44168,6 +44249,7 @@ class $$AuftraegeTableTableManager
                 objektFotoStorageUrl: objektFotoStorageUrl,
                 objektFotoDateiname: objektFotoDateiname,
                 notiz: notiz,
+                zahlungsbedingung: zahlungsbedingung,
                 extras: extras,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

@@ -34,25 +34,37 @@ class KontenRepository {
       (_db.delete(_db.konten)..where((t) => t.id.equals(id))).go();
 
   Future<void> seedDefaults() async {
+    // 1) Bestehende Duplikate (nummer, skr) bereinigen — bei jeder Org
+    //    mehrfach geseedet kann es sonst zu Mehrfacheinträgen kommen.
     final existing = await _db.select(_db.konten).get();
-    if (existing.isNotEmpty) return;
-    for (final k in _defaultSkr03) {
+    final seen = <String>{};
+    for (final k in existing) {
+      final key = '${k.skr}|${k.nummer}';
+      if (seen.contains(key)) {
+        await (_db.delete(_db.konten)..where((t) => t.id.equals(k.id))).go();
+      } else {
+        seen.add(key);
+      }
+    }
+    // 2) Defaults nur einfügen, wenn (nummer, skr) noch nicht existiert.
+    Future<void> ensure(String skr, String nummer, String bez,
+        String kategorie, double? ust) async {
+      if (seen.contains('$skr|$nummer')) return;
       await _db.into(_db.konten).insert(KontenCompanion.insert(
-            nummer: k.$1,
-            bezeichnung: k.$2,
-            skr: const Value('SKR03'),
-            kategorie: Value(k.$3),
-            ustSatz: Value(k.$4),
+            nummer: nummer,
+            bezeichnung: bez,
+            skr: Value(skr),
+            kategorie: Value(kategorie),
+            ustSatz: Value(ust),
           ));
+      seen.add('$skr|$nummer');
+    }
+
+    for (final k in _defaultSkr03) {
+      await ensure('SKR03', k.$1, k.$2, k.$3, k.$4);
     }
     for (final k in _defaultSkr04) {
-      await _db.into(_db.konten).insert(KontenCompanion.insert(
-            nummer: k.$1,
-            bezeichnung: k.$2,
-            skr: const Value('SKR04'),
-            kategorie: Value(k.$3),
-            ustSatz: Value(k.$4),
-          ));
+      await ensure('SKR04', k.$1, k.$2, k.$3, k.$4);
     }
   }
 

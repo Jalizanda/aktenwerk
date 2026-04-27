@@ -324,7 +324,7 @@ class StandardFormDialog extends StatelessWidget {
     required this.title,
     required this.body,
     required this.onCancel,
-    required this.onSave,
+    this.onSave,
     this.saving = false,
     this.size,
     this.maxWidth = 760,
@@ -342,7 +342,7 @@ class StandardFormDialog extends StatelessWidget {
   final Widget body;
   final IconData? icon;
   final VoidCallback onCancel;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final bool saving;
   final double maxWidth;
   final double maxHeight;

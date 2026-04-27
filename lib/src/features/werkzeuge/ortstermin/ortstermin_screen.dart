@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import 'ortstermin_audio_stub.dart'
+    if (dart.library.html) 'ortstermin_audio_web.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -35,6 +39,8 @@ class _NotizEintrag {
   final int? fotoDbId;
   final Uint8List? audioBytes;
   final String? audioMime;
+  /// DB-ID des sofort gespeicherten Foto-Eintrags für das Audio (zum späteren Update mit Transkription).
+  final int? audioDbId;
   const _NotizEintrag({
     required this.zeit,
     this.text,
@@ -43,6 +49,7 @@ class _NotizEintrag {
     this.fotoDbId,
     this.audioBytes,
     this.audioMime,
+    this.audioDbId,
   });
 
   bool get isFoto => fotoBytes != null;
@@ -73,6 +80,9 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
 
   /// Spinner-Flag für den „Hier bin ich"-Button.
   bool _geoSucheLaeuft = false;
+
+  /// Sekunden-Ticker damit die Timer-Anzeige live aktualisiert wird.
+  Timer? _elapsedTicker;
 
   /// Holt die aktuelle GPS-Position und wählt die nächstgelegene Akte
   /// (nur Akten mit objektLat/Lon; Radius bis 5 km). Auf größerer
@@ -194,7 +204,16 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _elapsedTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && ref.read(stundenTimerProvider).running) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
+    _elapsedTicker?.cancel();
     _notizController.dispose();
     super.dispose();
   }
@@ -362,18 +381,27 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     );
   }
 
+  /// Notiz sofort 1:1 ins Journal — kein KI-Durchlauf.
+  void _notizSpeichernDirekt() {
+    final text = _notizController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _eintraege.insert(0, _NotizEintrag(zeit: DateTime.now(), text: text));
+      _notizController.clear();
+    });
+  }
+
+  /// Notiz mit KI-Rechtschreibkorrektur ins Journal.
   Future<void> _notizSpeichern() async {
     final text = _notizController.text.trim();
     if (text.isEmpty) return;
 
-    // Klartext sofort wegsichern, KI kann er später ersetzen.
     setState(() => _notizKiLaeuft = true);
     String korrigiert = text;
     try {
       korrigiert = await kiAnwenden(ref, text, KiModus.korrektur)
           .timeout(const Duration(seconds: 10), onTimeout: () => text);
     } catch (_) {
-      // KI-Fehler dürfen das Speichern nicht blockieren — Originaltext nehmen.
       korrigiert = text;
     }
     if (!mounted) return;
@@ -433,10 +461,32 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
       audioBytes = f.bytes!;
     }
 
-    // Audio-Eintrag sofort sichtbar machen.
     final audioZeit = DateTime.now();
     _audioCounter += 1;
     final aufnahmeNummer = _audioCounter;
+
+    // Sofort in die lokale DB schreiben — unabhängig von Netz oder KI.
+    int? audioDbId;
+    if (_auftragId != null) {
+      try {
+        final fotoRepo = ref.read(fotosRepositoryProvider);
+        final reihenfolge = await nextReihenfolgeFor(
+            ref.read(appDatabaseProvider), _auftragId);
+        final dateiname =
+            'Sprachnotiz_${DateFormat('yyyyMMdd_HHmmss').format(audioZeit)}';
+        audioDbId = await fotoRepo.upsert(FotosCompanion.insert(
+          auftragId: Value(_auftragId),
+          titel: Value(dateiname),
+          mimeType: Value(audioMime),
+          daten: Value(audioBytes),
+          reihenfolge: Value(reihenfolge),
+          aufnahmeAm: Value(audioZeit),
+        ));
+      } catch (_) {
+        // DB-Fehler dürfen die Aufnahme nicht blockieren — weiter mit Memory-only.
+      }
+    }
+
     setState(() {
       _eintraege.insert(
           0,
@@ -444,6 +494,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
             zeit: audioZeit,
             audioBytes: audioBytes,
             audioMime: audioMime,
+            audioDbId: audioDbId,
           ));
       _transkribiereLaeuft.add(audioZeit);
     });
@@ -454,6 +505,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
       mime: audioMime,
       audioZeit: audioZeit,
       nummer: aufnahmeNummer,
+      audioDbId: audioDbId,
     );
   }
 
@@ -462,18 +514,30 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
     required String mime,
     required DateTime audioZeit,
     required int nummer,
+    int? audioDbId,
   }) async {
     try {
       final ergebnis = await transkribiereAudio(ref, bytes, mime);
+      final text = ergebnis.kombiniert(nummer);
+
+      // Transkription im DB-Eintrag nachholen, falls Audio bereits gespeichert.
+      if (audioDbId != null) {
+        try {
+          await ref.read(fotosRepositoryProvider).upsert(
+                FotosCompanion(
+                  id: Value(audioDbId),
+                  beschreibung: Value(text),
+                ),
+              );
+        } catch (_) {}
+      }
+
       if (!mounted) return;
       setState(() {
         _transkribiereLaeuft.remove(audioZeit);
         _eintraege.insert(
           0,
-          _NotizEintrag(
-            zeit: DateTime.now(),
-            text: ergebnis.kombiniert(nummer),
-          ),
+          _NotizEintrag(zeit: DateTime.now(), text: text),
         );
       });
     } catch (e) {
@@ -563,6 +627,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
                   auftragSelected: _auftragId != null,
                   onFoto: _fotoHinzufuegen,
                   onNotiz: _notizSpeichern,
+                  onNotizDirekt: _notizSpeichernDirekt,
                   onTimer:
                       _auftragId == null ? null : (timer.running ? _timerStop : _timerStart),
                   onAudio: _audioHinzufuegen,
@@ -606,6 +671,7 @@ class _ActionsColumn extends StatelessWidget {
     required this.auftragSelected,
     required this.onFoto,
     required this.onNotiz,
+    required this.onNotizDirekt,
     required this.onTimer,
     required this.onAudio,
     required this.notizKiLaeuft,
@@ -616,6 +682,7 @@ class _ActionsColumn extends StatelessWidget {
   final bool auftragSelected;
   final VoidCallback? onFoto;
   final VoidCallback onNotiz;
+  final VoidCallback onNotizDirekt;
   final VoidCallback? onTimer;
   final VoidCallback onAudio;
   final bool notizKiLaeuft;
@@ -698,23 +765,29 @@ class _ActionsColumn extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: notizKiLaeuft ? null : onNotiz,
-                    icon: notizKiLaeuft
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white),
-                          )
-                        : const Icon(Icons.add),
-                    label: Text(notizKiLaeuft
-                        ? 'KI prüft …'
-                        : 'Notiz hinzufügen'),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: notizKiLaeuft ? null : onNotizDirekt,
+                      icon: const Icon(Icons.save_outlined, size: 16),
+                      label: const Text('Direkt speichern'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: notizKiLaeuft ? null : onNotiz,
+                      icon: notizKiLaeuft
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white),
+                            )
+                          : const Icon(Icons.auto_fix_high, size: 16),
+                      label: Text(notizKiLaeuft ? 'KI prüft …' : 'Mit KI'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1030,7 +1103,7 @@ class _WebAudioDialogState extends State<_WebAudioDialog> {
 
   Future<void> _start() async {
     try {
-      final handle = await _platformStart((d) {
+      final handle = await ortsterminAudioStart((d) {
         if (mounted) setState(() => _duration = d);
       });
       setState(() {
@@ -1047,7 +1120,7 @@ class _WebAudioDialogState extends State<_WebAudioDialog> {
   void _pause() {
     if (_recorder == null) return;
     try {
-      _platformPause(_recorder!);
+      ortsterminAudioPause(_recorder!);
       setState(() => _paused = true);
     } catch (_) {}
   }
@@ -1055,7 +1128,7 @@ class _WebAudioDialogState extends State<_WebAudioDialog> {
   void _resume() {
     if (_recorder == null) return;
     try {
-      _platformResume(_recorder!);
+      ortsterminAudioResume(_recorder!);
       setState(() => _paused = false);
     } catch (_) {}
   }
@@ -1065,7 +1138,8 @@ class _WebAudioDialogState extends State<_WebAudioDialog> {
       Navigator.pop(context);
       return;
     }
-    final result = await _platformStop(_recorder!);
+    final result = await ortsterminAudioStop(_recorder!);
+    _recorder = null;
     if (!mounted) return;
     Navigator.pop(
         context,
@@ -1077,7 +1151,7 @@ class _WebAudioDialogState extends State<_WebAudioDialog> {
   Future<void> _stopRecorder({bool discard = false}) async {
     if (_recorder == null) return;
     try {
-      await _platformStop(_recorder!);
+      await ortsterminAudioStop(_recorder!);
     } catch (_) {}
     _recorder = null;
   }
@@ -1171,17 +1245,6 @@ class _WebAudioDialogState extends State<_WebAudioDialog> {
     return '$m:$s';
   }
 }
-
-// Platform-Wrapper. Auf Web wird MediaRecorder via dart:js_interop genutzt;
-// auf anderen Plattformen fällt das Modul auf einen Fehler zurück.
-Future<Object> _platformStart(void Function(Duration) onTick) async {
-  throw UnimplementedError(
-      'Audio-Aufnahme ist nur im Browser/iPad/iPhone verfügbar.');
-}
-
-void _platformPause(Object handle) {}
-void _platformResume(Object handle) {}
-Future<(Uint8List, String)?> _platformStop(Object handle) async => null;
 
 class _ActionCard extends StatelessWidget {
   const _ActionCard({

@@ -112,7 +112,9 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
       final p = Position(
         bezeichnung: picked.titel,
         langtext: picked.inhalt ?? '',
-        menge: 1,
+        menge: 0,
+        einzelpreis: 0,
+        istTextbaustein: true,
       );
       setState(() {
         _items.add(p);
@@ -367,6 +369,136 @@ class _PositionRowState extends State<_PositionRow> {
     _emit();
   }
 
+  /// Volle-Breiten-Zeile für Textbausteine: Titel + mehrzeiliger Text,
+  /// keine Menge/Einheit/EP/Betrag.
+  Widget _buildTextbausteinRow(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      color: scheme.surfaceContainerLow,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 8, right: 8),
+            child: Icon(Icons.text_snippet_outlined,
+                size: 16, color: scheme.onSurfaceVariant),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _bez,
+                  decoration: _dec(hint: 'Titel des Textbausteins'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13),
+                  onChanged: (_) => _emit(),
+                ),
+                const SizedBox(height: 4),
+                Builder(builder: (context) {
+                  final isDelta = _lang.text.trim().startsWith('[');
+                  final preview = isDelta
+                      ? plainTextFromDeltaJson(_lang.text)
+                      : null;
+                  return GestureDetector(
+                    onDoubleTap: () => _openLangtextPopup(context),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        TextField(
+                          controller: _lang,
+                          decoration: _dec(
+                              hint: isDelta
+                                  ? null
+                                  : 'Text (Doppelklick → Rich-Text-Editor)'),
+                          minLines: 3,
+                          maxLines: 8,
+                          readOnly: isDelta,
+                          onChanged: (_) => _emit(),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        if (isDelta)
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: Container(
+                                color: Theme.of(context)
+                                    .scaffoldBackgroundColor,
+                                padding: const EdgeInsets.fromLTRB(
+                                    8, 6, 36, 6),
+                                child: Text(
+                                  preview ?? '',
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 8,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned(
+                          top: 2,
+                          right: 4,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              iconSize: 16,
+                              constraints: const BoxConstraints(
+                                  minWidth: 28, minHeight: 28),
+                              tooltip:
+                                  'Rich-Text-Editor öffnen (oder Doppelklick)',
+                              icon: const Icon(Icons.edit_note_outlined),
+                              onPressed: () => _openLangtextPopup(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  constraints:
+                      const BoxConstraints(minWidth: 40, minHeight: 24),
+                  tooltip: 'Nach oben',
+                  icon: const Icon(Icons.keyboard_arrow_up),
+                  onPressed: widget.onMoveUp,
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  constraints:
+                      const BoxConstraints(minWidth: 40, minHeight: 24),
+                  tooltip: 'Nach unten',
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  onPressed: widget.onMoveDown,
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  constraints:
+                      const BoxConstraints(minWidth: 40, minHeight: 24),
+                  tooltip: 'Textbaustein entfernen',
+                  icon: const Icon(Icons.close),
+                  onPressed: widget.onRemove,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   InputDecoration _dec({String? hint}) => InputDecoration(
         isDense: true,
         hintText: hint,
@@ -382,6 +514,9 @@ class _PositionRowState extends State<_PositionRow> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.position.istTextbaustein) {
+      return _buildTextbausteinRow(context);
+    }
     final betrag = widget.position.nettoBetrag;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

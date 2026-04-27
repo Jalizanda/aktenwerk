@@ -11,8 +11,11 @@ import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/auftraege/auto_akte.dart';
 import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
+import '../../../features/akten/rechnungen/rechnungen_repository.dart';
+import '../../../features/akten/rechnungen/rechnungen_screen.dart';
 import '../../../features/akten/workflow/dokument_workflow.dart';
 import '../../../features/system/benutzer/benutzer_repository.dart';
+import '../auftragsbestaetigungen/auftragsbestaetigungen_screen.dart';
 import '../../../features/system/einstellungen/absender_service.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
 import '../../../features/system/einstellungen/nummernkreis_service.dart';
@@ -417,7 +420,11 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   late final _fuss = TextEditingController(
       text: widget.eintrag?.angebot.fusstext ?? '');
   bool _saving = false;
+  DateTime? _pdfErstelltAm;
+  int? _savedId;
   late final VoidCallback _plzAutoFillDispose;
+
+  bool get _eingefroren => _pdfErstelltAm != null;
 
   @override
   void initState() {
@@ -430,6 +437,8 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
         a?.gueltigBis ?? DateTime.now().add(const Duration(days: 30));
     _status = a?.status ?? 'anfrage';
     _positionen = positionsFromJson(a?.positionenJson);
+    _pdfErstelltAm = a?.pdfErstelltAm;
+    _savedId = a?.id;
     _plzAutoFillDispose = attachPlzAutoFill(_objPlz, _objOrt);
     if (widget.eintrag == null) _prefill();
   }
@@ -561,7 +570,8 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
       fusstext: _nt(_fuss),
     );
     try {
-      await ref.read(angeboteRepositoryProvider).upsert(companion);
+      final id = await ref.read(angeboteRepositoryProvider).upsert(companion);
+      if (mounted) setState(() => _savedId = id);
       if (close && mounted) {
         Navigator.of(context, rootNavigator: true).pop(true);
       } else if (mounted) {
@@ -573,6 +583,36 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Fehler: $e')));
       }
+    }
+  }
+
+  Future<void> _druckenUndEinfrieren() async {
+    if (!_formKey.currentState!.validate()) return;
+    await _save(close: false);
+    if (!mounted) return;
+    final id = _savedId;
+    if (id == null) return;
+    final data = await _buildPdfData(alsAb: _istAb);
+    // Vorschau + Druckmöglichkeit
+    await previewDocumentPdf(data);
+    if (!mounted) return;
+    // Einfrieren in DB
+    final db = ref.read(appDatabaseProvider);
+    final now = DateTime.now();
+    await (db.update(db.angebote)..where((t) => t.id.equals(id))).write(
+      AngeboteCompanion(pdfErstelltAm: Value(now), updatedAt: Value(now)),
+    );
+    if (mounted) setState(() => _pdfErstelltAm = now);
+    // PDF sofort lokal ablegen + Cloud-Upload im Hintergrund
+    await archivePdfLokalUndCloud(
+      ref,
+      data,
+      auftragId: _auftragId,
+      prefix: 'belege/angebote',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Dokument eingefroren und in der Akte abgelegt.')));
     }
   }
 
@@ -635,36 +675,24 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   /// AB-Nummer aus dem eigenen Nummernkreis an (Default AB{YYYY}-{NNN}).
   Future<void> _convertToAb() async {
     if (!_isEdit) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      useRootNavigator: true,
-      builder: (_) => AlertDialog(
-        title: const Text('Auftragsbestätigung anlegen?'),
-        content: const Text(
-            'Es wird eine neue Auftragsbestätigung (eigener Nummernkreis, '
-            'z.B. AB2026-001) mit den Positionen und Beträgen dieses Angebots '
-            'erzeugt. Das Angebot bleibt unverändert. Aus der AB heraus kannst '
-            'du später eine Rechnung erstellen.'),
-        actions: [
-          TextButton(
-              onPressed: () =>
-                  Navigator.of(context, rootNavigator: true).pop(false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () =>
-                  Navigator.of(context, rootNavigator: true).pop(true),
-              child: const Text('AB anlegen')),
-        ],
-      ),
-    );
-    if (ok != true) return;
     final workflow = ref.read(dokumentWorkflowProvider);
     final abId = await workflow.angebotToAb(widget.eintrag!.angebot);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Auftragsbestätigung #$abId angelegt')));
-      Navigator.of(context, rootNavigator: true).pop(true);
-    }
+    if (!mounted) return;
+
+    final db = ref.read(appDatabaseProvider);
+    final abData = await (db.select(db.angebote)
+          ..where((t) => t.id.equals(abId)))
+        .getSingleOrNull();
+    if (abData == null || !mounted) return;
+
+    final kundeId = abData.kundeId;
+    final kunde =
+        kundeId == null ? null : await ref.read(kundenRepositoryProvider).byId(kundeId);
+
+    if (!mounted) return;
+    await showAbEditor(context,
+        eintrag: AngebotWithKunde(abData, kunde));
+    if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
   }
 
   /// Legt aus diesem Angebot eine neue Akte (AW-Nummer) an, wenn noch keine
@@ -714,65 +742,46 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 
   Future<void> _convertToRechnung() async {
     if (!_isEdit) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      useRootNavigator: true,
-      builder: (_) => AlertDialog(
-        title: const Text('Aus Angebot → Rechnung erstellen?'),
-        content: const Text(
-            'Eine neue Rechnung wird mit den Positionen dieses Angebots '
-            'erzeugt. Du kannst sie anschließend bearbeiten.'),
-        actions: [
-          TextButton(
-              onPressed: () =>
-                  Navigator.of(context, rootNavigator: true).pop(false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () =>
-                  Navigator.of(context, rootNavigator: true).pop(true),
-              child: const Text('Rechnung erstellen')),
-        ],
-      ),
-    );
-    if (ok != true) return;
     final workflow = ref.read(dokumentWorkflowProvider);
-    final rId = await workflow.angebotToRechnung(widget.eintrag!.angebot);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rechnung #$rId angelegt')));
-      Navigator.of(context, rootNavigator: true).pop(true);
-    }
-  }
+    final rId = await workflow.angebotToRechnung(
+        widget.eintrag!.angebot,
+        auftragId: _auftragId);
+    if (!mounted) return;
 
-  Future<void> _archivePdfFromDialog() async {
-    if (!_isEdit) return;
-    final data = await _buildPdfData(alsAb: false);
-    final uploaded = await freezeAngebotAsBeleg(
-        ref, widget.eintrag!.angebot, data);
-    if (uploaded == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Upload nicht möglich — bitte anmelden / Cloud prüfen.')));
-      }
-      return;
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Beleg archiviert: ${uploaded.dateiname}')));
-    }
+    final db = ref.read(appDatabaseProvider);
+    final rechnung = await ref.read(rechnungenRepositoryProvider).byId(rId);
+    if (rechnung == null || !mounted) return;
+
+    final kundeId = _kundeId;
+    final kunde =
+        kundeId == null ? null : await ref.read(kundenRepositoryProvider).byId(kundeId);
+    final auftrag = _auftragId == null
+        ? null
+        : await (db.select(db.auftraege)
+              ..where((t) => t.id.equals(_auftragId!)))
+            .getSingleOrNull();
+
+    if (!mounted) return;
+    await showRechnungEditor(context,
+        eintrag: RechnungWithKunde(rechnung, kunde, auftrag));
+    if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
+    final title = _eingefroren
+        ? (_isEdit
+            ? '${_istAb ? "Auftragsbestätigung" : "Angebot"} (eingefroren)'
+            : 'Neues Angebot (eingefroren)')
+        : (_isEdit ? 'Angebot bearbeiten' : 'Neues Angebot');
     return StandardFormDialog(
-      title: _isEdit ? 'Angebot bearbeiten' : 'Neues Angebot',
+      title: title,
       saving: _saving,
       maxWidth: 1100,
       maxHeight: 900,
       onCancel: () => Navigator.of(context, rootNavigator: true).pop(false),
-      onSave: _save,
-      onDelete: _isEdit
+      onSave: _eingefroren ? null : _save,
+      onDelete: _isEdit && !_eingefroren
           ? () async => ref
               .read(angeboteRepositoryProvider)
               .delete(widget.eintrag!.angebot.id)
@@ -780,18 +789,28 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
       footerLeading: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-            label: const Text('Vorschau'),
-            onPressed: () => _previewPdf(alsAb: _istAb),
-          ),
-          const SizedBox(width: 6),
-          if (_isEdit)
+          if (_eingefroren)
             OutlinedButton.icon(
-              icon: const Icon(Icons.cloud_upload_outlined, size: 16),
-              label: const Text('Archivieren'),
-              onPressed: _archivePdfFromDialog,
+              icon: const Icon(Icons.print_outlined, size: 16),
+              label: const Text('Erneut drucken'),
+              onPressed: () async {
+                final data = await _buildPdfData(alsAb: _istAb);
+                await previewDocumentPdf(data);
+              },
+            )
+          else ...[
+            OutlinedButton.icon(
+              icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+              label: const Text('Vorschau'),
+              onPressed: () => _previewPdf(alsAb: _istAb),
             ),
+            const SizedBox(width: 6),
+            FilledButton.icon(
+              icon: const Icon(Icons.print_outlined, size: 16),
+              label: const Text('Drucken & einfrieren'),
+              onPressed: _druckenUndEinfrieren,
+            ),
+          ],
           if (_isEdit) const SizedBox(width: 6),
           if (_isEdit)
             PopupMenuButton<String>(
@@ -859,11 +878,18 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding:
+                  EdgeInsets.fromLTRB(20, _eingefroren ? 52 : 20, 20, 20),
+              child: AbsorbPointer(
+                absorbing: _eingefroren,
+                child: Opacity(
+                  opacity: _eingefroren ? 0.6 : 1.0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               // Reihe 1: Nr. · Datum · Gültig bis · Status
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1068,9 +1094,46 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
                   ),
                 ),
               ),
-            ],
-          ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_eingefroren)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: _FrozenBanner(_pdfErstelltAm!),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _FrozenBanner extends StatelessWidget {
+  const _FrozenBanner(this.seit);
+  final DateTime seit;
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = DateFormat('dd.MM.yyyy – HH:mm', 'de');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: Colors.amber.shade100,
+      child: Row(
+        children: [
+          const Icon(Icons.lock_outline, size: 16, color: Colors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Gedruckt und eingefroren am ${fmt.format(seit)} · Dokument ist nur noch lesbar.',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }

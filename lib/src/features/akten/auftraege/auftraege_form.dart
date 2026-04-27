@@ -15,6 +15,7 @@ import '../../../shared/widgets/gericht_picker.dart';
 import '../../../shared/widgets/file_upload_section.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../kunden/kunden_picker.dart';
+import '../rechnungen/zahlungsziel_vorlagen.dart';
 import 'auftraege_repository.dart';
 
 /// Öffnet den Stammdaten-Dialog für eine Akte / einen Auftrag.
@@ -102,6 +103,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   late final _aufwandSchaetzung =
       _tec(widget.auftrag?.aufwandSchaetzung?.toStringAsFixed(1));
   late final _honorargruppe = _tec(widget.auftrag?.honorargruppe);
+  String? _zahlungsbedingungKey;
   late final _notiz = _tec(widget.auftrag?.notiz);
 
   bool _saving = false;
@@ -153,6 +155,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
     _aufgabenJson = a?.aufgabenJson;
     _status = AuftragStatusX.fromDb(a?.status);
     _kundeId = a?.kundeId;
+    _zahlungsbedingungKey = a?.zahlungsbedingung;
     _eingangAm = a?.eingangAm;
     _auftragAm = a?.auftragAm;
     _ortsterminAm = a?.ortsterminAm;
@@ -288,6 +291,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       kostenLimit: _nm(_kostenLimit),
       kostenvorschuss: _nm(_kostenvorschuss),
       aufwandSchaetzung: _nm(_aufwandSchaetzung),
+      zahlungsbedingung: Value(_zahlungsbedingungKey),
       notiz: _nt(_notiz),
       beweisbeschlussStorageUrl: Value(_beweisbeschlussFile?.storageUrl),
       beweisbeschlussDateiname: Value(_beweisbeschlussFile?.dateiname),
@@ -824,6 +828,33 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                     const TextInputType.numberWithOptions(decimal: true),
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          LabeledField(
+            'Zahlungsbedingung',
+            Consumer(builder: (context, ref, _) {
+              final async = ref.watch(zahlungszielVorlagenProvider);
+              final list = async.valueOrNull ?? zahlungszielVorlagenDefaults;
+              final activeKey = list.any((v) => v.key == _zahlungsbedingungKey)
+                  ? _zahlungsbedingungKey
+                  : null;
+              return DropdownButtonFormField<String?>(
+                isDense: true,
+                isExpanded: true,
+                initialValue: activeKey,
+                decoration: const InputDecoration(
+                  hintText: 'Standard aus Einstellungen verwenden',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('— Standard aus Einstellungen —')),
+                  for (final v in list)
+                    DropdownMenuItem<String?>(value: v.key, child: Text(v.label)),
+                ],
+                onChanged: (v) => setState(() => _zahlungsbedingungKey = v),
+              );
+            }),
           ),
         ],
       ),

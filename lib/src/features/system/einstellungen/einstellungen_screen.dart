@@ -17,6 +17,7 @@ import 'ki_modelle_section.dart';
 import 'ki_usage_section.dart';
 import 'stammdaten_seed.dart';
 import 'zahlungsziele_section.dart';
+import '../../werkzeuge/jveg_rechner/jveg_rechner_screen.dart';
 
 class EinstellungenScreen extends ConsumerWidget {
   const EinstellungenScreen({super.key});
@@ -46,7 +47,7 @@ class _EinstellungenFormState
     extends ConsumerState<_EinstellungenForm>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController =
-      TabController(length: 7, vsync: this);
+      TabController(length: 8, vsync: this);
 
   @override
   void dispose() {
@@ -153,6 +154,8 @@ class _EinstellungenFormState
   // ---------- Logo ----------
   String? _logoBase64;
   String? _logoMime;
+  String? _logo2Base64;
+  String? _logo2Mime;
 
   // ---------- Siegel ----------
   String? _siegelBase64;
@@ -213,6 +216,9 @@ class _EinstellungenFormState
     final logo = widget.values[SettingsKeys.firmaLogoBase64];
     _logoBase64 = (logo == null || logo.isEmpty) ? null : logo;
     _logoMime = widget.values[SettingsKeys.firmaLogoMime];
+    final logo2 = widget.values[SettingsKeys.firmaLogo2Base64];
+    _logo2Base64 = (logo2 == null || logo2.isEmpty) ? null : logo2;
+    _logo2Mime = widget.values[SettingsKeys.firmaLogo2Mime];
     final siegel = widget.values[SettingsKeys.siegelBase64];
     _siegelBase64 = (siegel == null || siegel.isEmpty) ? null : siegel;
     _siegelMime = widget.values[SettingsKeys.siegelMime];
@@ -287,6 +293,36 @@ class _EinstellungenFormState
     setState(() {
       _logoBase64 = null;
       _logoMime = null;
+    });
+  }
+
+  Future<void> _pickLogo2() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final f = result.files.first;
+    if (f.bytes == null || f.bytes!.isEmpty) return;
+    if (f.size > 2 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Logo max. 2 MB — bitte kleinere Datei wählen.')));
+      }
+      return;
+    }
+    setState(() {
+      _logo2Base64 = base64Encode(f.bytes!);
+      _logo2Mime = _mimeForExt(f.extension);
+    });
+  }
+
+  void _removeLogo2() {
+    setState(() {
+      _logo2Base64 = null;
+      _logo2Mime = null;
     });
   }
 
@@ -444,6 +480,8 @@ class _EinstellungenFormState
     await repo.set(SettingsKeys.firmaBestellung2, _bestellung2.text.trim());
     await repo.set(SettingsKeys.firmaLogoBase64, _logoBase64);
     await repo.set(SettingsKeys.firmaLogoMime, _logoMime);
+    await repo.set(SettingsKeys.firmaLogo2Base64, _logo2Base64);
+    await repo.set(SettingsKeys.firmaLogo2Mime, _logo2Mime);
 
     // Steuer
     await repo.set(SettingsKeys.steuerUstId, _ustId.text.trim());
@@ -649,11 +687,45 @@ class _EinstellungenFormState
                               color:
                                   theme.colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 6),
-                      _LogoPanel(
-                        logoBase64: _logoBase64,
-                        logoMime: _logoMime,
-                        onPick: _pickLogo,
-                        onRemove: _removeLogo,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text('Logo 1',
+                                    style: theme.textTheme.labelSmall),
+                                const SizedBox(height: 4),
+                                _LogoPanel(
+                                  logoBase64: _logoBase64,
+                                  logoMime: _logoMime,
+                                  onPick: _pickLogo,
+                                  onRemove: _removeLogo,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text('Logo 2 (optional)',
+                                    style: theme.textTheme.labelSmall),
+                                const SizedBox(height: 4),
+                                _LogoPanel(
+                                  logoBase64: _logo2Base64,
+                                  logoMime: _logo2Mime,
+                                  onPick: _pickLogo2,
+                                  onRemove: _removeLogo2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       _Row2(
@@ -1247,6 +1319,8 @@ class _EinstellungenFormState
                   ),
                 ),
               ),
+              // ---------------- TAB 8: JVEG-RECHNER ----------------
+              const JvegRechnerScreen(),
             ],
           ),
         ),
@@ -1268,6 +1342,7 @@ class _EinstellungenTabBar extends StatelessWidget {
     ('Darstellung', Icons.palette_outlined),
     ('Daten & Cloud', Icons.cloud_outlined),
     ('KI', Icons.auto_fix_high),
+    ('JVEG-Rechner', Icons.calculate_outlined),
   ];
 
   @override

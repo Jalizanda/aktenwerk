@@ -3,12 +3,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/akten/akte/akte_screen.dart';
 import '../../features/akten/akte/akten_screen.dart';
-import '../../features/akten/auftraege/auftraege_screen.dart';
+import '../../features/angebote/auftragsbestaetigungen/auftragsbestaetigungen_screen.dart';
 import '../../features/akten/dokumente/dokumente_screen.dart';
 import '../../features/akten/eingangsrechnungen/eingangsrechnungen_screen.dart';
 import '../../features/akten/erlaeuterungen/erlaeuterungen_screen.dart';
 import '../../features/akten/gutachten/gutachten_screen.dart';
-import '../../features/akten/kunden/kunden_screen.dart';
+import '../../features/akten/kontakte/kontakte_screen.dart';
 import '../../features/akten/lieferanten/lieferanten_screen.dart';
 import '../../features/akten/rechnungen/rechnungen_screen.dart';
 import '../../features/angebote/angebote/angebote_screen.dart';
@@ -50,7 +50,7 @@ GoRouter buildRouter() {
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
-          GoRoute(path: '/kunden', builder: (_, _) => const KundenScreen()),
+          GoRoute(path: '/kunden', builder: (_, _) => const KontakteScreen()),
           GoRoute(path: '/akten', builder: (_, _) => const AktenScreen()),
           GoRoute(
               path: '/akte/:id',
@@ -60,7 +60,7 @@ GoRouter buildRouter() {
                   )),
           GoRoute(
               path: '/auftraege',
-              builder: (_, _) => const AuftraegeScreen()),
+              builder: (_, _) => const AuftragsbestaetigungenScreen()),
           GoRoute(
               path: '/gutachten',
               builder: (_, _) => const GutachtenScreen()),
