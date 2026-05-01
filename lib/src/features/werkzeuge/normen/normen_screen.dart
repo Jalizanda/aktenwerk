@@ -5,17 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/ai/norm_rag_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/storage_service.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import '../../../core/web/web_compat.dart' as web;
 
 import 'normen_chat_dialog.dart';
+import 'normen_rag_chat_dialog.dart';
 import 'normen_import.dart';
 import 'normen_pdf_bulk_dialog.dart';
 import 'normen_repository.dart';
@@ -61,6 +62,11 @@ class NormenScreen extends ConsumerWidget {
               icon: const Icon(Icons.fact_check_outlined, size: 18),
               label: const Text('Aktualität prüfen'),
               onPressed: () => _openAktualitaetsDialog(context, ref),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cloud_sync_outlined, size: 18),
+              label: const Text('Bibliothek indexieren'),
+              onPressed: () => _bibliothekIndexieren(context, ref),
             ),
             FilledButton.icon(
               icon: const Icon(Icons.add),
@@ -143,6 +149,17 @@ class NormenScreen extends ConsumerWidget {
           ],
         ),
         const Divider(height: 1),
+        async.maybeWhen(
+          data: (items) => _IndexFortschrittBalken(
+            normIdsMitPdf: items
+                .where((n) =>
+                    n.pdfStorageUrl != null &&
+                    n.pdfStorageUrl!.trim().isNotEmpty)
+                .map((n) => n.id)
+                .toList(),
+          ),
+          orElse: () => const SizedBox.shrink(),
+        ),
         Expanded(
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -205,20 +222,70 @@ class NormenScreen extends ConsumerWidget {
   /// (Web). Auf anderen Plattformen fallen wir auf einen normalen
   /// Dialog zurück, damit's dort nicht hart fehlschlägt.
   void _oeffneKiChat(BuildContext context) {
-    if (kIsWeb) {
-      // Eigenes Fenster — Aktenwerk bleibt parallel bedienbar.
-      web.openInNewWindow(
-        '${web.appOrigin}/normen/chat',
-        name: 'aktenwerk_ki_chat',
-        features: 'popup=yes,width=900,height=760,resizable=yes,scrollbars=yes',
-      );
-      return;
-    }
     showDialog<void>(
       context: context,
       useRootNavigator: true,
-      builder: (_) => const NormenChatDialog(),
+      barrierDismissible: true,
+      builder: (_) => const _NormenKiChatDialogTabs(),
     );
+  }
+
+  Future<void> _bibliothekIndexieren(
+      BuildContext context, WidgetRef ref) async {
+    final db = ref.read(appDatabaseProvider);
+    final alle = await db.select(db.normen).get();
+    final mitPdf = alle
+        .where((n) =>
+            n.pdfStorageUrl != null && n.pdfStorageUrl!.trim().isNotEmpty)
+        .toList();
+    if (!context.mounted) return;
+    if (mitPdf.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'In der Bibliothek liegen keine Normen mit Storage-PDF.')));
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Bibliothek indexieren?'),
+        content: Text(
+          'Es werden alle ${mitPdf.length} Normen mit hinterlegtem PDF zur '
+          'Vektorisierung im Cloud-Backend angemeldet. Bereits indexierte '
+          'Normen werden übersprungen — Doppelung ist nicht möglich. '
+          'Die Indexierung läuft im Hintergrund; den Status zeigt der '
+          'farbige Punkt am PDF-Symbol jeder Norm.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(true),
+              child: const Text('Starten')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Anmeldung läuft … das kann einen Moment dauern.'),
+        duration: Duration(seconds: 3)));
+    try {
+      final report = await ref
+          .read(normRagServiceProvider)
+          .markiereAlleZurIndexierung(mitPdf);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Indexierung gestartet: ${report.angefordert} Normen angemeldet, '
+              '${report.uebersprungen} übersprungen (bereits indexiert oder ohne PDF).')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler beim Anmelden: $e')));
+    }
   }
 
   Future<void> _importJson(BuildContext context, WidgetRef ref) async {
@@ -327,7 +394,7 @@ class NormenScreen extends ConsumerWidget {
 
 /// ------------- Gemeinsame Tabelle (Aktiv / Inaktiv) -------------
 
-class _NormenTabelle extends StatelessWidget {
+class _NormenTabelle extends ConsumerStatefulWidget {
   const _NormenTabelle({
     required this.label,
     required this.items,
@@ -344,7 +411,80 @@ class _NormenTabelle extends StatelessWidget {
   final bool dimmed;
 
   @override
+  ConsumerState<_NormenTabelle> createState() => _NormenTabelleState();
+}
+
+class _NormenTabelleState extends ConsumerState<_NormenTabelle> {
+  // Sort-State: Spalten-Index (entsprechend der `columns`-Reihenfolge) +
+  // Richtung. -1 = keine Sortierung (Original-Reihenfolge).
+  int _sortColumnIndex = -1;
+  bool _sortAscending = true;
+
+  void _onSort(int columnIndex, bool ascending) {
+    setState(() {
+      _sortColumnIndex = columnIndex;
+      _sortAscending = ascending;
+    });
+  }
+
+  // Sortier-Schlüssel pro Spalte. Stringvergleich case-insensitive,
+  // null bzw. leer wandert ans Ende (in beide Richtungen).
+  Comparable<Object> _key(NormenData n, int col,
+      Map<int, NormIndexStatus> statusMap) {
+    String s(String? v) => (v ?? '').toLowerCase();
+    switch (col) {
+      case 1:
+        return s(n.nummer);
+      case 2:
+        return s(n.ausgabe);
+      case 3:
+        return s(n.titel);
+      case 4:
+        return s(n.gewerk);
+      case 5:
+        return s(n.kategorie);
+      case 6:
+        // Aktualität: aktuell < veraltet < unbekannt/null
+        final st = (n.aktualitaetStatus ?? '').toLowerCase();
+        return st.isEmpty ? 'zzz' : st;
+      case 7:
+        // Indexiert-Status (sortiert nach Reihenfolge: indexed > indexing > pending > failed > unbekannt)
+        final st = statusMap[n.id] ?? NormIndexStatus.unbekannt;
+        return _statusSortRank(st);
+      default:
+        return s(n.nummer);
+    }
+  }
+
+  String _statusSortRank(NormIndexStatus s) {
+    return switch (s) {
+      NormIndexStatus.indexed => '1',
+      NormIndexStatus.indexing => '2',
+      NormIndexStatus.pending => '3',
+      NormIndexStatus.failed => '4',
+      NormIndexStatus.unbekannt => '5',
+    };
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final statusMapAsync = ref.watch(normIndexStatusMapProvider);
+    final statusMap = statusMapAsync.valueOrNull ?? const <int, NormIndexStatus>{};
+    final items = widget.items;
+    final dimmed = widget.dimmed;
+    final label = widget.label;
+    final onEdit = widget.onEdit;
+    final onDelete = widget.onDelete;
+    final onToggleFavorit = widget.onToggleFavorit;
+
+    final sorted = _sortColumnIndex < 0
+        ? items
+        : ([...items]..sort((a, b) {
+            final ka = _key(a, _sortColumnIndex, statusMap);
+            final kb = _key(b, _sortColumnIndex, statusMap);
+            final cmp = Comparable.compare(ka, kb);
+            return _sortAscending ? cmp : -cmp;
+          }));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
@@ -373,23 +513,29 @@ class _NormenTabelle extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   showCheckboxColumn: false,
+                  sortColumnIndex:
+                      _sortColumnIndex < 0 ? null : _sortColumnIndex,
+                  sortAscending: _sortAscending,
                   headingRowColor: WidgetStateProperty.all(
                     Theme.of(context).colorScheme.surfaceContainerLow,
                   ),
-                  columns: const [
-                    DataColumn(label: SizedBox(width: 24, child: Text(''))),
-                    DataColumn(label: Text('Nummer')),
-                    DataColumn(label: Text('Ausgabe')),
-                    DataColumn(label: Text('Titel')),
-                    DataColumn(label: Text('Gewerk')),
-                    DataColumn(label: Text('Kategorie')),
-                    DataColumn(label: Text('Aktualität')),
-                    DataColumn(label: SizedBox(width: 28, child: Text(''))),
-                    DataColumn(label: SizedBox(width: 28, child: Text(''))),
-                    DataColumn(label: SizedBox(width: 28, child: Text(''))),
+                  columns: [
+                    const DataColumn(
+                        label: SizedBox(width: 24, child: Text(''))),
+                    DataColumn(label: const Text('Nummer'), onSort: _onSort),
+                    DataColumn(label: const Text('Ausgabe'), onSort: _onSort),
+                    DataColumn(label: const Text('Titel'), onSort: _onSort),
+                    DataColumn(label: const Text('Gewerk'), onSort: _onSort),
+                    DataColumn(label: const Text('Kategorie'), onSort: _onSort),
+                    DataColumn(label: const Text('Aktualität'), onSort: _onSort),
+                    DataColumn(label: const Text('Indexiert'), onSort: _onSort),
+                    const DataColumn(
+                        label: SizedBox(width: 28, child: Text(''))),
+                    const DataColumn(
+                        label: SizedBox(width: 28, child: Text(''))),
                   ],
                   rows: [
-                    for (final n in items)
+                    for (final n in sorted)
                       DataRow(
                         onSelectChanged: (_) => onEdit(n),
                         cells: [
@@ -432,6 +578,9 @@ class _NormenTabelle extends StatelessWidget {
                           )),
                           DataCell(_KategorieBadge(kategorie: n.kategorie)),
                           DataCell(_AktualitaetsPill(norm: n)),
+                          DataCell(_IndexStatusZelle(
+                              status: statusMap[n.id] ??
+                                  NormIndexStatus.unbekannt)),
                           DataCell(_PdfCell(norm: n)),
                           DataCell(IconButton(
                             tooltip: 'Bearbeiten',
@@ -537,25 +686,106 @@ class _AktualitaetsPill extends StatelessWidget {
   }
 }
 
-class _PdfCell extends StatelessWidget {
+class _PdfCell extends ConsumerWidget {
   const _PdfCell({required this.norm});
   final NormenData norm;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final url = norm.pdfStorageUrl;
     if (url == null || url.isEmpty) {
       return const SizedBox.shrink();
     }
-    return IconButton(
-      tooltip: norm.pdfDateiname ?? 'PDF öffnen',
-      icon: const Icon(Icons.picture_as_pdf,
-          size: 20, color: AwTokens.red),
-      onPressed: () async {
-        final uri = Uri.tryParse(url);
-        if (uri != null) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+    return StreamBuilder<NormIndexStatus>(
+      stream: ref.read(normRagServiceProvider).watchStatus(norm.id),
+      builder: (context, snap) {
+        final status = snap.data ?? NormIndexStatus.unbekannt;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              tooltip:
+                  '${norm.pdfDateiname ?? 'PDF öffnen'}\nIndexierung: ${status.label}',
+              icon: const Icon(Icons.picture_as_pdf,
+                  size: 20, color: AwTokens.red),
+              onPressed: () async {
+                final uri = Uri.tryParse(url);
+                if (uri != null) {
+                  await launchUrl(uri,
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: _IndexStatusDot(status: status),
+            ),
+          ],
+        );
       },
+    );
+  }
+}
+
+/// Zellen-Variante des Index-Status: kleines Icon + sprechendes Label,
+/// damit man in der Tabelle direkt erkennt, ob die Norm im Cloud-Index ist.
+class _IndexStatusZelle extends StatelessWidget {
+  const _IndexStatusZelle({required this.status});
+  final NormIndexStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon, label) = switch (status) {
+      NormIndexStatus.indexed => (AwTokens.green, Icons.check_circle, 'Indexiert'),
+      NormIndexStatus.indexing => (AwTokens.blue, Icons.hourglass_top, 'Läuft …'),
+      NormIndexStatus.pending => (AwTokens.amber, Icons.schedule, 'Wartet'),
+      NormIndexStatus.failed => (AwTokens.red, Icons.error_outline, 'Fehler'),
+      NormIndexStatus.unbekannt => (
+          Theme.of(context).colorScheme.outline,
+          Icons.cloud_off_outlined,
+          '—',
+        ),
+    };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Text(label,
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+      ],
+    );
+  }
+}
+
+class _IndexStatusDot extends StatelessWidget {
+  const _IndexStatusDot({required this.status});
+  final NormIndexStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon) = switch (status) {
+      NormIndexStatus.indexed => (AwTokens.green, Icons.check),
+      NormIndexStatus.indexing => (AwTokens.blue, Icons.hourglass_top),
+      NormIndexStatus.pending => (AwTokens.amber, Icons.schedule),
+      NormIndexStatus.failed => (AwTokens.red, Icons.error_outline),
+      NormIndexStatus.unbekannt => (
+          Theme.of(context).colorScheme.outlineVariant,
+          Icons.cloud_off_outlined,
+        ),
+    };
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+            color: Theme.of(context).colorScheme.surface, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 8, color: Colors.white),
     );
   }
 }
@@ -950,7 +1180,19 @@ class _NormFormState extends ConsumerState<_NormForm> {
       aktualitaetNotiz: _nt(_aktNotiz),
     );
     try {
-      await ref.read(normenRepositoryProvider).upsert(companion);
+      final id = await ref.read(normenRepositoryProvider).upsert(companion);
+      // Wenn ein PDF hochgeladen wurde: Indexierung im Cloud-Backend anstoßen.
+      if (_pdfStorageUrl != null && _pdfStorageUrl!.isNotEmpty) {
+        try {
+          final db = ref.read(appDatabaseProvider);
+          final norm = await (db.select(db.normen)
+                ..where((t) => t.id.equals(id)))
+              .getSingleOrNull();
+          if (norm != null) {
+            await ref.read(normRagServiceProvider).markiereZurIndexierung(norm);
+          }
+        } catch (_) {/* Indexierung ist optional, blockiert den Save nicht */}
+      }
       if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       if (mounted) {
@@ -1724,4 +1966,282 @@ class _ChatBubble extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Live-Fortschritts-Balken für die RAG-Indexierung der Bibliothek.
+/// Zeigt: indexed / pending / indexing / failed / unbekannt + Chunk-Anzahl.
+class _IndexFortschrittBalken extends ConsumerWidget {
+  const _IndexFortschrittBalken({required this.normIdsMitPdf});
+  final List<int> normIdsMitPdf;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (normIdsMitPdf.isEmpty) return const SizedBox.shrink();
+    final stream =
+        ref.read(normRagServiceProvider).watchFortschritt(normIdsMitPdf);
+    return StreamBuilder<NormIndexFortschritt>(
+      stream: stream,
+      builder: (context, snap) {
+        final f = snap.data;
+        if (f == null) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        return Container(
+          color: scheme.surfaceContainerLowest,
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+          child: Row(
+            children: [
+              Icon(
+                f.istFertig
+                    ? Icons.check_circle
+                    : (f.laeuft ? Icons.cloud_sync : Icons.cloud_off_outlined),
+                size: 18,
+                color: f.istFertig
+                    ? AwTokens.green
+                    : (f.laeuft ? AwTokens.blue : AwTokens.mute),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'KI-Indexierung der Bibliothek: ${f.indexed} / ${f.gesamt} Normen',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        const SizedBox(width: 8),
+                        if (f.chunks > 0)
+                          Text('· ${f.chunks} Textstellen',
+                              style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: f.fortschritt,
+                        minHeight: 6,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation(
+                            f.istFertig ? AwTokens.green : AwTokens.orange),
+                      ),
+                    ),
+                    if (f.laeuft || f.failed > 0 || f.unbekannt > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Wrap(
+                          spacing: 14,
+                          children: [
+                            if (f.indexing > 0)
+                              _StatusZahl(
+                                  icon: Icons.hourglass_top,
+                                  color: AwTokens.blue,
+                                  label: '${f.indexing} läuft'),
+                            if (f.pending > 0)
+                              _StatusZahl(
+                                  icon: Icons.schedule,
+                                  color: AwTokens.amber,
+                                  label: '${f.pending} wartet'),
+                            if (f.failed > 0)
+                              InkWell(
+                                onTap: () =>
+                                    _zeigeFehlerDialog(context, ref),
+                                child: _StatusZahl(
+                                    icon: Icons.error_outline,
+                                    color: AwTokens.red,
+                                    label:
+                                        '${f.failed} fehlgeschlagen ›'),
+                              ),
+                            if (f.unbekannt > 0)
+                              _StatusZahl(
+                                  icon: Icons.cloud_off_outlined,
+                                  color: AwTokens.mute,
+                                  label:
+                                      '${f.unbekannt} noch nicht angemeldet'),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StatusZahl extends StatelessWidget {
+  const _StatusZahl({
+    required this.icon,
+    required this.color,
+    required this.label,
+  });
+  final IconData icon;
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11.5,
+                color: color,
+                fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+}
+
+/// Modaler Dialog mit zwei Tabs:
+///  - **RAG (neu)**: Vector-Search gegen indexierte Chunks + Quellen
+///  - **Klassisch**: bisheriger Chat, der ganze PDFs an Gemini schickt
+class _NormenKiChatDialogTabs extends StatefulWidget {
+  const _NormenKiChatDialogTabs();
+  @override
+  State<_NormenKiChatDialogTabs> createState() =>
+      _NormenKiChatDialogTabsState();
+}
+
+class _NormenKiChatDialogTabsState extends State<_NormenKiChatDialogTabs>
+    with SingleTickerProviderStateMixin {
+  late final _tabs = TabController(length: 2, vsync: this);
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(32),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 960, maxHeight: 800),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 8, 0),
+              child: Row(
+                children: [
+                  Text('Normen-Chat',
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Schließen',
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).pop(),
+                  ),
+                ],
+              ),
+            ),
+            TabBar(
+              controller: _tabs,
+              tabs: const [
+                Tab(icon: Icon(Icons.auto_awesome, size: 18), text: 'RAG (neu)'),
+                Tab(
+                    icon: Icon(Icons.chat_bubble_outline, size: 18),
+                    text: 'Klassisch'),
+              ],
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: const [
+                  NormenRagChatDialog(embedded: true),
+                  NormenChatDialog(embedded: true),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Zeigt die fehlgeschlagenen Norm-Indexierungen mit ihren Fehlermeldungen.
+Future<void> _zeigeFehlerDialog(BuildContext context, WidgetRef ref) async {
+  final liste = await ref.read(normRagServiceProvider).ladeFehlgeschlagene();
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    useRootNavigator: true,
+    builder: (dialogCtx) => Dialog(
+      insetPadding: const EdgeInsets.all(40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760, maxHeight: 600),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AwTokens.red),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                        'Fehlgeschlagene Indexierungen (${liste.length})',
+                        style: Theme.of(dialogCtx).textTheme.titleMedium),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(dialogCtx).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: liste.isEmpty
+                  ? const Center(child: Text('Keine Fehler'))
+                  : ListView.separated(
+                      itemCount: liste.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final e = liste[i];
+                        return ListTile(
+                          dense: true,
+                          title: Text(e.nummer.isEmpty
+                              ? 'Norm #${e.normId ?? '?'}'
+                              : e.nummer),
+                          subtitle: Text(e.error,
+                              style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontFamily: 'monospace')),
+                        );
+                      },
+                    ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogCtx).pop(),
+                    child: const Text('Schließen'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

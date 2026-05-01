@@ -228,13 +228,14 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
                       ),
                       onPressed: () => _archivePdf(context, a),
                     ),
-                    IconButton(
-                      tooltip: 'Löschen',
-                      icon: const Icon(Icons.delete_outline, size: 20),
-                      onPressed: () async => ref
-                          .read(angeboteRepositoryProvider)
-                          .delete(a.angebot.id),
-                    ),
+                    if (a.angebot.pdfErstelltAm == null)
+                      IconButton(
+                        tooltip: 'Löschen',
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () async => ref
+                            .read(angeboteRepositoryProvider)
+                            .delete(a.angebot.id),
+                      ),
                   ],
                 )),
               ],
@@ -374,17 +375,29 @@ class _KpiRow extends StatelessWidget {
 }
 
 Future<void> showAngebotEditor(BuildContext context,
-    {AngebotWithKunde? eintrag}) async {
+    {AngebotWithKunde? eintrag,
+    int? prefillAuftragId,
+    int? prefillKundeId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _AngebotForm(eintrag: eintrag),
+    builder: (_) => _AngebotForm(
+      eintrag: eintrag,
+      prefillAuftragId: prefillAuftragId,
+      prefillKundeId: prefillKundeId,
+    ),
   );
 }
 
 class _AngebotForm extends ConsumerStatefulWidget {
-  const _AngebotForm({this.eintrag});
+  const _AngebotForm({
+    this.eintrag,
+    this.prefillAuftragId,
+    this.prefillKundeId,
+  });
   final AngebotWithKunde? eintrag;
+  final int? prefillAuftragId;
+  final int? prefillKundeId;
   @override
   ConsumerState<_AngebotForm> createState() => _AngebotFormState();
 }
@@ -430,8 +443,8 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   void initState() {
     super.initState();
     final a = widget.eintrag?.angebot;
-    _kundeId = a?.kundeId;
-    _auftragId = a?.auftragId;
+    _kundeId = a?.kundeId ?? widget.prefillKundeId;
+    _auftragId = a?.auftragId ?? widget.prefillAuftragId;
     _datum = a?.datum ?? DateTime.now();
     _gueltigBis =
         a?.gueltigBis ?? DateTime.now().add(const Duration(days: 30));
@@ -525,10 +538,14 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     setState(() => _saving = true);
 
     if (!_isEdit && _nr.text.trim().isEmpty) {
-      final neu = await ref
-          .read(nummernkreisServiceProvider)
-          .nextNumber(NummernkreisTyp.angebot);
-      _nr.text = neu;
+      final db = ref.read(appDatabaseProvider);
+      final existing = await (db.select(db.angebote)
+            ..where((t) => t.status.isNotIn(const ['auftragsbestaetigung'])))
+          .get();
+      final svc = ref.read(nummernkreisServiceProvider);
+      await svc.syncCounterToHighestUsed(
+          NummernkreisTyp.angebot, existing.map((a) => a.angebotsnummer));
+      _nr.text = await svc.nextNumber(NummernkreisTyp.angebot);
     }
 
     // Auto-Akte anlegen, falls das Angebot noch nicht mit einer Akte
@@ -675,8 +692,29 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   /// AB-Nummer aus dem eigenen Nummernkreis an (Default AB{YYYY}-{NNN}).
   Future<void> _convertToAb() async {
     if (!_isEdit) return;
+    // Stelle sicher, dass das Quell-Angebot eine Akte hat — dann erbt die
+    // AB sie automatisch via angebotToAb.
+    var quelle = widget.eintrag!.angebot;
+    if (quelle.auftragId == null) {
+      final neueAkteId = await ensureAkte(
+        ref,
+        auftragId: null,
+        kundeId: quelle.kundeId,
+        betreff:
+            quelle.betreff ?? 'Akte zu ${quelle.angebotsnummer ?? "Angebot"}',
+      );
+      await ref.read(angeboteRepositoryProvider).upsert(AngeboteCompanion(
+            id: Value(quelle.id),
+            auftragId: Value(neueAkteId),
+          ));
+      final db = ref.read(appDatabaseProvider);
+      quelle = (await (db.select(db.angebote)
+                ..where((t) => t.id.equals(quelle.id)))
+              .getSingleOrNull()) ??
+          quelle;
+    }
     final workflow = ref.read(dokumentWorkflowProvider);
-    final abId = await workflow.angebotToAb(widget.eintrag!.angebot);
+    final abId = await workflow.angebotToAb(quelle);
     if (!mounted) return;
 
     final db = ref.read(appDatabaseProvider);
@@ -742,10 +780,27 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
 
   Future<void> _convertToRechnung() async {
     if (!_isEdit) return;
+    // Akte sicherstellen, damit auch die Rechnung an einer Akte hängt.
+    var quelle = widget.eintrag!.angebot;
+    var auftragId = _auftragId ?? quelle.auftragId;
+    if (auftragId == null) {
+      auftragId = await ensureAkte(
+        ref,
+        auftragId: null,
+        kundeId: quelle.kundeId,
+        betreff:
+            quelle.betreff ?? 'Akte zu ${quelle.angebotsnummer ?? "Angebot"}',
+      );
+      await ref.read(angeboteRepositoryProvider).upsert(AngeboteCompanion(
+            id: Value(quelle.id),
+            auftragId: Value(auftragId),
+          ));
+      setState(() => _auftragId = auftragId);
+    }
     final workflow = ref.read(dokumentWorkflowProvider);
     final rId = await workflow.angebotToRechnung(
-        widget.eintrag!.angebot,
-        auftragId: _auftragId);
+        quelle,
+        auftragId: auftragId);
     if (!mounted) return;
 
     final db = ref.read(appDatabaseProvider);

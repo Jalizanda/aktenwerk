@@ -48,7 +48,6 @@ const navSections = <NavSection>[
     NavItem('Anschreiben', 'anschreiben', '/anschreiben'),
     NavItem('Serienbriefe', 'serienbrief', '/serienbrief'),
     NavItem('Fotos', 'fotos', '/fotos'),
-    NavItem('Kalender', 'kalender', '/termine'),
     NavItem('Wiedervorlagen', 'wiedervorlagen', '/wiedervorlagen'),
     NavItem('Ortstermin-Modus', 'ortstermin', '/ortstermin'),
   ]),

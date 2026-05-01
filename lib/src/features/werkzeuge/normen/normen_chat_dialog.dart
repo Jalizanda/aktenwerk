@@ -13,7 +13,11 @@ import 'normen_repository.dart';
 /// Metadaten aller Normen werden immer als Kontext mitgegeben, PDFs der
 /// bis zu drei inhaltlich passendsten Normen werden hochgeladen.
 class NormenChatDialog extends ConsumerStatefulWidget {
-  const NormenChatDialog({super.key});
+  const NormenChatDialog({super.key, this.embedded = false});
+
+  /// `true`, wenn der Dialog in einem [TabBarView] dargestellt wird —
+  /// dann wird auf eigene [Dialog]-Hülle verzichtet.
+  final bool embedded;
 
   @override
   ConsumerState<NormenChatDialog> createState() => _NormenChatDialogState();
@@ -72,38 +76,39 @@ class _NormenChatDialogState extends ConsumerState<NormenChatDialog> {
     final normenAsync = ref.watch(normenListProvider);
     final scheme = Theme.of(context).colorScheme;
 
+    final inner = normenAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (normen) {
+        _session ??= NormenChatSession(ref, normen);
+        final mitPdf = normen
+            .where((n) =>
+                n.pdfStorageUrl != null && n.pdfStorageUrl!.isNotEmpty)
+            .length;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(scheme, normen.length, mitPdf),
+            const Divider(height: 1),
+            Expanded(
+              child: _session!.historie.isEmpty
+                  ? _buildEmptyState(scheme, normen.length, mitPdf)
+                  : _buildVerlauf(scheme),
+            ),
+            if (_fehler != null) _buildFehler(scheme),
+            if (_laedt) _buildLadeIndikator(scheme),
+            const Divider(height: 1),
+            _buildEingabe(scheme),
+          ],
+        );
+      },
+    );
+    if (widget.embedded) return inner;
     return Dialog(
       insetPadding: const EdgeInsets.all(32),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900, maxHeight: 760),
-        child: normenAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Fehler: $e')),
-          data: (normen) {
-            _session ??= NormenChatSession(ref, normen);
-            final mitPdf = normen
-                .where((n) =>
-                    n.pdfStorageUrl != null && n.pdfStorageUrl!.isNotEmpty)
-                .length;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(scheme, normen.length, mitPdf),
-                const Divider(height: 1),
-                Expanded(
-                  child: _session!.historie.isEmpty
-                      ? _buildEmptyState(scheme, normen.length, mitPdf)
-                      : _buildVerlauf(scheme),
-                ),
-                if (_fehler != null) _buildFehler(scheme),
-                if (_laedt) _buildLadeIndikator(scheme),
-                const Divider(height: 1),
-                _buildEingabe(scheme),
-              ],
-            );
-          },
-        ),
+        child: inner,
       ),
     );
   }

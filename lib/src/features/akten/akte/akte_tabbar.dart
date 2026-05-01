@@ -83,6 +83,10 @@ class AkteTabBar extends ConsumerWidget {
         count: c(ref.watch(erlaeuterungenCountProvider(auftragId))),
       ),
       const AkteTabData(
+        label: 'Anschreiben',
+        icon: Icons.drafts_outlined,
+      ),
+      const AkteTabData(
         label: 'Protokolle',
         icon: Icons.fact_check_outlined,
       ),

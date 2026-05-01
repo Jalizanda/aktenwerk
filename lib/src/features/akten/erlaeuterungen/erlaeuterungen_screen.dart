@@ -108,17 +108,19 @@ class ErlaeuterungenScreen extends ConsumerWidget {
 }
 
 Future<void> showErlaeuterungEditor(BuildContext context,
-    {ErlaeuterungWithAuftrag? eintrag}) async {
+    {ErlaeuterungWithAuftrag? eintrag, int? prefillAuftragId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _ErlaeuterungForm(eintrag: eintrag),
+    builder: (_) => _ErlaeuterungForm(
+        eintrag: eintrag, prefillAuftragId: prefillAuftragId),
   );
 }
 
 class _ErlaeuterungForm extends ConsumerStatefulWidget {
-  const _ErlaeuterungForm({this.eintrag});
+  const _ErlaeuterungForm({this.eintrag, this.prefillAuftragId});
   final ErlaeuterungWithAuftrag? eintrag;
+  final int? prefillAuftragId;
   @override
   ConsumerState<_ErlaeuterungForm> createState() =>
       _ErlaeuterungFormState();
@@ -163,7 +165,7 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
   void initState() {
     super.initState();
     final e = widget.eintrag?.eintrag;
-    _auftragId = e?.auftragId;
+    _auftragId = e?.auftragId ?? widget.prefillAuftragId;
     final t = e?.terminAm;
     _termin = t;
     if (t != null) {

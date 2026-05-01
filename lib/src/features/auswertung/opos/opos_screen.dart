@@ -39,9 +39,12 @@ class OposScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
             data: (items) {
-              // Nur offene / teilbezahlte / überfällige Rechnungen
+              // Nur offene / teilbezahlte / überfällige Rechnungen, die
+              // tatsächlich gedruckt+eingefroren sind. Entwürfe ohne
+              // feste Belegnummer gehören NICHT in OPOS.
               final offen = items
                   .where((r) =>
+                      r.rechnung.pdfErstelltAm != null &&
                       r.rechnung.status != 'bezahlt' &&
                       r.rechnung.status != 'storniert')
                   .where((r) {

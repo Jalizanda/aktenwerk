@@ -31,6 +31,8 @@ import '../dokumente/dokumente_repository.dart';
 import '../dokumente/dokumente_screen.dart';
 import '../erlaeuterungen/erlaeuterungen_repository.dart';
 import '../erlaeuterungen/erlaeuterungen_screen.dart';
+import '../../angebote/anschreiben/anschreiben_repository.dart';
+import '../../angebote/anschreiben/anschreiben_screen.dart';
 import '../bauteiloeffnungen/bauteiloeffnung_tab.dart';
 import '../journal/journal_tab.dart';
 import '../maengel/maengel_tab.dart';
@@ -113,14 +115,15 @@ class _AkteScreenState extends ConsumerState<AkteScreen>
               BeteiligteTab(auftrag: a),
               _StundenTab(auftragId: a.id),
               _AuslagenTab(auftragId: a.id),
-              _RechnungenTab(auftragId: a.id),
-              _AngeboteTab(kundeId: a.kundeId),
+              _RechnungenTab(auftragId: a.id, kundeId: a.kundeId),
+              _AngeboteTab(auftragId: a.id, kundeId: a.kundeId),
               _GutachtenTab(auftragId: a.id),
               _FotosTab(auftragId: a.id),
               _DokumenteTab(auftragId: a.id),
               _NormenTab(auftragId: a.id),
               _GeraeteTab(auftragId: a.id),
               _ErlaeuterungenTab(auftragId: a.id),
+              _AnschreibenTab(auftragId: a.id, kundeId: a.kundeId),
               ProtokolleTab(auftrag: a),
               JournalTab(auftragId: a.id),
               MaengelTab(auftragId: a.id),
@@ -920,7 +923,9 @@ class _StundenTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyTab(ctx, Icons.schedule_outlined,
               'Noch keine Stunden gebucht.', '/stunden',
-              createLabel: '+ Stunde erfassen');
+              createLabel: '+ Stunde erfassen',
+              onCreate: () => showStundenEditor(ctx,
+                  prefillAuftragId: auftragId));
         }
         final minutes = items.fold<int>(0, (a, s) => a + s.minuten);
         final betrag = items.fold<double>(
@@ -931,6 +936,8 @@ class _StundenTab extends ConsumerWidget {
               '${items.length} Einträge · ${(minutes / 60).toStringAsFixed(1)} h · ${_money(betrag)}',
           onOpen: () => ctx.go('/stunden'),
           createLabel: '+ Stunde',
+          onCreate: () => showStundenEditor(ctx,
+              prefillAuftragId: auftragId),
           table: DataTable(
             showCheckboxColumn: false,
             columns: const [
@@ -998,7 +1005,9 @@ class _AuslagenTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyTab(ctx, Icons.payments_outlined,
               'Noch keine Auslagen gebucht.', '/auslagen',
-              createLabel: '+ Auslage buchen');
+              createLabel: '+ Auslage buchen',
+              onCreate: () => showAuslageEditor(ctx,
+                  prefillAuftragId: auftragId));
         }
         final summe = items.fold<double>(0, (a, s) => a + s.summe);
         return _listWrapper(
@@ -1006,6 +1015,8 @@ class _AuslagenTab extends ConsumerWidget {
           header: '${items.length} Einträge · ${_money(summe)}',
           onOpen: () => ctx.go('/auslagen'),
           createLabel: '+ Auslage',
+          onCreate: () => showAuslageEditor(ctx,
+              prefillAuftragId: auftragId),
           table: DataTable(
             showCheckboxColumn: false,
             columns: const [
@@ -1045,8 +1056,18 @@ class _AuslagenTab extends ConsumerWidget {
 }
 
 class _RechnungenTab extends ConsumerWidget {
-  const _RechnungenTab({required this.auftragId});
+  const _RechnungenTab({required this.auftragId, required this.kundeId});
   final int auftragId;
+  final int? kundeId;
+
+  void _neueRechnung(BuildContext context) {
+    showRechnungEditor(
+      context,
+      prefillAuftragId: auftragId,
+      prefillKundeId: kundeId,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(rechnungenListProvider).valueOrNull ?? const [];
@@ -1054,13 +1075,15 @@ class _RechnungenTab extends ConsumerWidget {
     if (mine.isEmpty) {
       return _emptyTab(context, Icons.request_page_outlined,
           'Noch keine Rechnungen zu dieser Akte.', '/rechnungen',
-          createLabel: '+ Neue Rechnung');
+          createLabel: '+ Neue Rechnung',
+          onCreate: () => _neueRechnung(context));
     }
     return _listWrapper(
       context,
       header: '${mine.length} Rechnungen',
       onOpen: () => context.go('/rechnungen'),
       createLabel: '+ Neue Rechnung',
+      onCreate: () => _neueRechnung(context),
       table: DataTable(
         showCheckboxColumn: false,
         columns: const [
@@ -1096,8 +1119,18 @@ class _RechnungenTab extends ConsumerWidget {
 }
 
 class _AngeboteTab extends ConsumerWidget {
-  const _AngeboteTab({required this.kundeId});
+  const _AngeboteTab({required this.auftragId, required this.kundeId});
+  final int auftragId;
   final int? kundeId;
+
+  void _neuesAngebot(BuildContext context) {
+    showAngebotEditor(
+      context,
+      prefillAuftragId: auftragId,
+      prefillKundeId: kundeId,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(angeboteListProvider).valueOrNull ?? const [];
@@ -1107,13 +1140,15 @@ class _AngeboteTab extends ConsumerWidget {
     if (mine.isEmpty) {
       return _emptyTab(context, Icons.price_change_outlined,
           'Keine Angebote verknüpft.', '/angebote',
-          createLabel: '+ Neues Angebot');
+          createLabel: '+ Neues Angebot',
+          onCreate: () => _neuesAngebot(context));
     }
     return _listWrapper(
       context,
       header: '${mine.length} Angebote',
       onOpen: () => context.go('/angebote'),
       createLabel: '+ Neues Angebot',
+      onCreate: () => _neuesAngebot(context),
       table: DataTable(
         showCheckboxColumn: false,
         columns: const [
@@ -1185,13 +1220,17 @@ class _GutachtenTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyTab(ctx, Icons.description_outlined,
               'Noch kein Gutachten angelegt.', '/gutachten',
-              createLabel: '+ Neues Gutachten');
+              createLabel: '+ Neues Gutachten',
+              onCreate: () => showGutachtenEditor(ctx,
+                  prefillAuftragId: auftragId));
         }
         return _listWrapper(
           ctx,
           header: '${items.length} Gutachten',
           onOpen: () => ctx.go('/gutachten'),
           createLabel: '+ Neues Gutachten',
+          onCreate: () => showGutachtenEditor(ctx,
+              prefillAuftragId: auftragId),
           table: DataTable(
             showCheckboxColumn: false,
             columns: const [
@@ -1632,13 +1671,17 @@ class _ErlaeuterungenTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyTab(ctx, Icons.gavel_outlined,
               'Keine Erläuterungstermine.', '/erlaeuterungen',
-              createLabel: '+ Neuer Erläuterungstermin');
+              createLabel: '+ Neuer Erläuterungstermin',
+              onCreate: () => showErlaeuterungEditor(ctx,
+                  prefillAuftragId: auftragId));
         }
         return _listWrapper(
           ctx,
           header: '${items.length} Termine',
           onOpen: () => ctx.go('/erlaeuterungen'),
           createLabel: '+ Neuer Termin',
+          onCreate: () => showErlaeuterungEditor(ctx,
+              prefillAuftragId: auftragId),
           table: DataTable(
             showCheckboxColumn: false,
             columns: const [
@@ -1676,6 +1719,69 @@ class _ErlaeuterungenTab extends ConsumerWidget {
   }
 }
 
+class _AnschreibenTab extends ConsumerWidget {
+  const _AnschreibenTab({required this.auftragId, required this.kundeId});
+  final int auftragId;
+  final int? kundeId;
+
+  void _neuesAnschreiben(BuildContext context) {
+    showAnschreibenEditor(
+      context,
+      prefillAuftragId: auftragId,
+      prefillKundeId: kundeId,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = ref.watch(anschreibenListProvider).valueOrNull ?? const [];
+    final mine =
+        all.where((a) => a.anschreiben.auftragId == auftragId).toList();
+    if (mine.isEmpty) {
+      return _emptyTab(context, Icons.drafts_outlined,
+          'Noch keine Anschreiben zu dieser Akte.', '/anschreiben',
+          createLabel: '+ Neues Anschreiben',
+          onCreate: () => _neuesAnschreiben(context));
+    }
+    return _listWrapper(
+      context,
+      header: '${mine.length} Anschreiben',
+      onOpen: () => context.go('/anschreiben'),
+      createLabel: '+ Neues Anschreiben',
+      onCreate: () => _neuesAnschreiben(context),
+      table: DataTable(
+        showCheckboxColumn: false,
+        columns: const [
+          DataColumn(label: Text('Datum')),
+          DataColumn(label: Text('Betreff')),
+          DataColumn(label: Text('Empfänger')),
+          DataColumn(label: Text('Status')),
+        ],
+        rows: [
+          for (final a in mine)
+            DataRow(
+              onSelectChanged: (_) =>
+                  showAnschreibenEditor(context, eintrag: a),
+              cells: [
+                DataCell(Text(_dateFmt.format(a.anschreiben.datum))),
+                DataCell(SizedBox(
+                  width: 280,
+                  child: Text(
+                    a.anschreiben.betreff ?? '',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )),
+                DataCell(Text(
+                    a.kunde == null ? '—' : kundeAnzeigename(a.kunde!))),
+                DataCell(Text(a.anschreiben.status)),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 // ---------------- Helpers ----------------
 
 final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
@@ -1689,6 +1795,7 @@ Widget _emptyTab(
   String text,
   String route, {
   String? createLabel,
+  VoidCallback? onCreate,
 }) {
   return Center(
     child: Padding(
@@ -1705,7 +1812,7 @@ Widget _emptyTab(
             mainAxisSize: MainAxisSize.min,
             children: [
               FilledButton.icon(
-                onPressed: () => ctx.go(route),
+                onPressed: onCreate ?? () => ctx.go(route),
                 icon: const Icon(Icons.add, size: 16),
                 label: Text(createLabel ?? 'Neu anlegen'),
               ),

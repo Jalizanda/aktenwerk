@@ -172,7 +172,30 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
 }
 
 Future<void> previewDocumentPdf(PdfDocumentData data) async {
-  await Printing.layoutPdf(onLayout: (_) => buildDocumentPdf(data));
+  await Printing.layoutPdf(
+    onLayout: (_) => buildDocumentPdf(data),
+    name: _dokumentDateiname(data.dokumentTyp, data.dokumentNr, data.datum),
+  );
+}
+
+Future<void> previewAnschreibenPdf(AnschreibenPdfData data) async {
+  await Printing.layoutPdf(
+    onLayout: (_) => buildAnschreibenPdf(data),
+    name: _dokumentDateiname(data.dokumentTyp, data.dokumentNr, data.datum),
+  );
+}
+
+/// Erzeugt einen aussagekräftigen Dateinamen für den Druck-Dialog. Format:
+/// `<Typ>_<Nummer>.pdf` (z. B. `Rechnung_RE2026-001.pdf`); falls keine
+/// Nummer vorhanden ist, wird das Datum verwendet.
+String _dokumentDateiname(String typ, String? nr, DateTime? datum) {
+  final cleanTyp = typ.replaceAll(RegExp(r'[^A-Za-zäöüÄÖÜß0-9-]'), '_');
+  final id = (nr != null && nr.trim().isNotEmpty)
+      ? nr.trim().replaceAll(RegExp(r'[\\/:*?"<>|\s]'), '_')
+      : (datum != null
+          ? '${datum.year}${datum.month.toString().padLeft(2, '0')}${datum.day.toString().padLeft(2, '0')}'
+          : 'Entwurf');
+  return '${cleanTyp}_$id.pdf';
 }
 
 /// Daten für ein freies Anschreiben (Brief). Anders als
@@ -301,9 +324,6 @@ Future<Uint8List> buildAnschreibenPdf(AnschreibenPdfData data) async {
   return doc.save();
 }
 
-Future<void> previewAnschreibenPdf(AnschreibenPdfData data) async {
-  await Printing.layoutPdf(onLayout: (_) => buildAnschreibenPdf(data));
-}
 
 /// Baut EIN gebündeltes PDF aus mehreren [PdfDocumentData]. Jeder Beleg
 /// bekommt seine eigenen Seiten (MultiPage), alle zusammen in einem PDF.

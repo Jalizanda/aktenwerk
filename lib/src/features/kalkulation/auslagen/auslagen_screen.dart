@@ -169,11 +169,12 @@ class AuslagenScreen extends ConsumerWidget {
 }
 
 Future<void> showAuslageEditor(BuildContext context,
-    {AuslageWithAuftrag? eintrag}) async {
+    {AuslageWithAuftrag? eintrag, int? prefillAuftragId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _AuslageForm(eintrag: eintrag),
+    builder: (_) => _AuslageForm(
+        eintrag: eintrag, prefillAuftragId: prefillAuftragId),
   );
 }
 
@@ -250,7 +251,8 @@ class _KpiStrip extends StatelessWidget {
 }
 
 class _AuslageForm extends ConsumerStatefulWidget {
-  const _AuslageForm({this.eintrag});
+  const _AuslageForm({this.eintrag, this.prefillAuftragId});
+  final int? prefillAuftragId;
   final AuslageWithAuftrag? eintrag;
   @override
   ConsumerState<_AuslageForm> createState() => _AuslageFormState();
@@ -290,7 +292,7 @@ class _AuslageFormState extends ConsumerState<_AuslageForm> {
   @override
   void initState() {
     super.initState();
-    _auftragId = widget.eintrag?.auslage.auftragId;
+    _auftragId = widget.eintrag?.auslage.auftragId ?? widget.prefillAuftragId;
     _datum = widget.eintrag?.auslage.datum ?? DateTime.now();
     _abgerechnet = widget.eintrag?.auslage.abgerechnet ?? false;
     final rawArt = widget.eintrag?.auslage.art ?? 'sonstiges';

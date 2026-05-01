@@ -1,4 +1,32 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "norm_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 768,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "norm_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "orgId", "order": "ASCENDING" },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 768,
+            "flat": {}
+          }
+        }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

@@ -39850,6 +39850,365 @@ class RechercheNotizenCompanion extends UpdateCompanion<RechercheNotizenData> {
   }
 }
 
+class $NormChatsTable extends NormChats
+    with TableInfo<$NormChatsTable, NormChat> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NormChatsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _titelMeta = const VerificationMeta('titel');
+  @override
+  late final GeneratedColumn<String> titel = GeneratedColumn<String>(
+    'titel',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nachrichtenJsonMeta = const VerificationMeta(
+    'nachrichtenJson',
+  );
+  @override
+  late final GeneratedColumn<String> nachrichtenJson = GeneratedColumn<String>(
+    'nachrichten_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    titel,
+    nachrichtenJson,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'norm_chats';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NormChat> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('titel')) {
+      context.handle(
+        _titelMeta,
+        titel.isAcceptableOrUnknown(data['titel']!, _titelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titelMeta);
+    }
+    if (data.containsKey('nachrichten_json')) {
+      context.handle(
+        _nachrichtenJsonMeta,
+        nachrichtenJson.isAcceptableOrUnknown(
+          data['nachrichten_json']!,
+          _nachrichtenJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nachrichtenJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NormChat map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NormChat(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      titel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}titel'],
+      )!,
+      nachrichtenJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nachrichten_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NormChatsTable createAlias(String alias) {
+    return $NormChatsTable(attachedDatabase, alias);
+  }
+}
+
+class NormChat extends DataClass implements Insertable<NormChat> {
+  final int id;
+
+  /// Anzeigetitel — beim ersten Speichern automatisch aus der ersten
+  /// Nutzer-Frage gebildet (max. 80 Zeichen). Kann später umbenannt werden.
+  final String titel;
+
+  /// Nachrichten-Verlauf als JSON-Array. Jeder Eintrag:
+  /// `{ "rolle": "user"|"assistant", "text": "...", "quellen": [...],
+  ///    "zeit": "ISO-Datum" }`. `quellen` ist nur bei assistant gefüllt.
+  final String nachrichtenJson;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const NormChat({
+    required this.id,
+    required this.titel,
+    required this.nachrichtenJson,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['titel'] = Variable<String>(titel);
+    map['nachrichten_json'] = Variable<String>(nachrichtenJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  NormChatsCompanion toCompanion(bool nullToAbsent) {
+    return NormChatsCompanion(
+      id: Value(id),
+      titel: Value(titel),
+      nachrichtenJson: Value(nachrichtenJson),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory NormChat.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NormChat(
+      id: serializer.fromJson<int>(json['id']),
+      titel: serializer.fromJson<String>(json['titel']),
+      nachrichtenJson: serializer.fromJson<String>(json['nachrichtenJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'titel': serializer.toJson<String>(titel),
+      'nachrichtenJson': serializer.toJson<String>(nachrichtenJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  NormChat copyWith({
+    int? id,
+    String? titel,
+    String? nachrichtenJson,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => NormChat(
+    id: id ?? this.id,
+    titel: titel ?? this.titel,
+    nachrichtenJson: nachrichtenJson ?? this.nachrichtenJson,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  NormChat copyWithCompanion(NormChatsCompanion data) {
+    return NormChat(
+      id: data.id.present ? data.id.value : this.id,
+      titel: data.titel.present ? data.titel.value : this.titel,
+      nachrichtenJson: data.nachrichtenJson.present
+          ? data.nachrichtenJson.value
+          : this.nachrichtenJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NormChat(')
+          ..write('id: $id, ')
+          ..write('titel: $titel, ')
+          ..write('nachrichtenJson: $nachrichtenJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, titel, nachrichtenJson, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NormChat &&
+          other.id == this.id &&
+          other.titel == this.titel &&
+          other.nachrichtenJson == this.nachrichtenJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class NormChatsCompanion extends UpdateCompanion<NormChat> {
+  final Value<int> id;
+  final Value<String> titel;
+  final Value<String> nachrichtenJson;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const NormChatsCompanion({
+    this.id = const Value.absent(),
+    this.titel = const Value.absent(),
+    this.nachrichtenJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  NormChatsCompanion.insert({
+    this.id = const Value.absent(),
+    required String titel,
+    required String nachrichtenJson,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : titel = Value(titel),
+       nachrichtenJson = Value(nachrichtenJson);
+  static Insertable<NormChat> custom({
+    Expression<int>? id,
+    Expression<String>? titel,
+    Expression<String>? nachrichtenJson,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (titel != null) 'titel': titel,
+      if (nachrichtenJson != null) 'nachrichten_json': nachrichtenJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  NormChatsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? titel,
+    Value<String>? nachrichtenJson,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return NormChatsCompanion(
+      id: id ?? this.id,
+      titel: titel ?? this.titel,
+      nachrichtenJson: nachrichtenJson ?? this.nachrichtenJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (titel.present) {
+      map['titel'] = Variable<String>(titel.value);
+    }
+    if (nachrichtenJson.present) {
+      map['nachrichten_json'] = Variable<String>(nachrichtenJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NormChatsCompanion(')
+          ..write('id: $id, ')
+          ..write('titel: $titel, ')
+          ..write('nachrichtenJson: $nachrichtenJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -39902,6 +40261,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RechercheNotizenTable rechercheNotizen = $RechercheNotizenTable(
     this,
   );
+  late final $NormChatsTable normChats = $NormChatsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -39944,6 +40304,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     wertermittlungen,
     serienbriefe,
     rechercheNotizen,
+    normChats,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -64624,6 +64985,196 @@ typedef $$RechercheNotizenTableProcessedTableManager =
       RechercheNotizenData,
       PrefetchHooks Function({bool auftragId})
     >;
+typedef $$NormChatsTableCreateCompanionBuilder =
+    NormChatsCompanion Function({
+      Value<int> id,
+      required String titel,
+      required String nachrichtenJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$NormChatsTableUpdateCompanionBuilder =
+    NormChatsCompanion Function({
+      Value<int> id,
+      Value<String> titel,
+      Value<String> nachrichtenJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+class $$NormChatsTableFilterComposer
+    extends Composer<_$AppDatabase, $NormChatsTable> {
+  $$NormChatsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titel => $composableBuilder(
+    column: $table.titel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nachrichtenJson => $composableBuilder(
+    column: $table.nachrichtenJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NormChatsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NormChatsTable> {
+  $$NormChatsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titel => $composableBuilder(
+    column: $table.titel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nachrichtenJson => $composableBuilder(
+    column: $table.nachrichtenJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NormChatsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NormChatsTable> {
+  $$NormChatsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get titel =>
+      $composableBuilder(column: $table.titel, builder: (column) => column);
+
+  GeneratedColumn<String> get nachrichtenJson => $composableBuilder(
+    column: $table.nachrichtenJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$NormChatsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NormChatsTable,
+          NormChat,
+          $$NormChatsTableFilterComposer,
+          $$NormChatsTableOrderingComposer,
+          $$NormChatsTableAnnotationComposer,
+          $$NormChatsTableCreateCompanionBuilder,
+          $$NormChatsTableUpdateCompanionBuilder,
+          (NormChat, BaseReferences<_$AppDatabase, $NormChatsTable, NormChat>),
+          NormChat,
+          PrefetchHooks Function()
+        > {
+  $$NormChatsTableTableManager(_$AppDatabase db, $NormChatsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NormChatsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NormChatsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NormChatsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> titel = const Value.absent(),
+                Value<String> nachrichtenJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => NormChatsCompanion(
+                id: id,
+                titel: titel,
+                nachrichtenJson: nachrichtenJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String titel,
+                required String nachrichtenJson,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => NormChatsCompanion.insert(
+                id: id,
+                titel: titel,
+                nachrichtenJson: nachrichtenJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NormChatsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NormChatsTable,
+      NormChat,
+      $$NormChatsTableFilterComposer,
+      $$NormChatsTableOrderingComposer,
+      $$NormChatsTableAnnotationComposer,
+      $$NormChatsTableCreateCompanionBuilder,
+      $$NormChatsTableUpdateCompanionBuilder,
+      (NormChat, BaseReferences<_$AppDatabase, $NormChatsTable, NormChat>),
+      NormChat,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -64702,4 +65253,6 @@ class $AppDatabaseManager {
       $$SerienbriefeTableTableManager(_db, _db.serienbriefe);
   $$RechercheNotizenTableTableManager get rechercheNotizen =>
       $$RechercheNotizenTableTableManager(_db, _db.rechercheNotizen);
+  $$NormChatsTableTableManager get normChats =>
+      $$NormChatsTableTableManager(_db, _db.normChats);
 }

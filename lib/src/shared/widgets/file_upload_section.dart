@@ -18,11 +18,18 @@ class UploadedFile {
   final String? mimeType;
   final int? groesse;
 
+  /// Lokale Roh-Bytes der Datei. Wird beim Upload gesetzt, damit Konsumenten
+  /// (z. B. KI-Extraktion) die Bytes direkt nutzen können, ohne sie über
+  /// Firebase Storage neu herunterladen zu müssen (CORS/Auth-Risiko). Nicht
+  /// persistiert — nach dem Laden aus JSON ist `bytes` immer null.
+  final Uint8List? bytes;
+
   const UploadedFile({
     required this.storageUrl,
     required this.dateiname,
     this.mimeType,
     this.groesse,
+    this.bytes,
   });
 
   Map<String, dynamic> toJson() => {
@@ -145,6 +152,7 @@ Future<UploadedFile?> pickAndUploadFile({
       dateiname: f.name,
       mimeType: mime,
       groesse: f.size,
+      bytes: f.bytes,
     );
   } catch (e) {
     if (context.mounted) {

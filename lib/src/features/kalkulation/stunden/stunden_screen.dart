@@ -176,11 +176,12 @@ class StundenScreen extends ConsumerWidget {
 /// Öffnet den Stunden-Editor — auch aus anderen Modulen (z.B. Akten-Tab)
 /// zum direkten Bearbeiten eines Eintrags aufrufbar.
 Future<void> showStundenEditor(BuildContext context,
-    {StundenWithAuftrag? eintrag}) async {
+    {StundenWithAuftrag? eintrag, int? prefillAuftragId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _StundenForm(eintrag: eintrag),
+    builder: (_) =>
+        _StundenForm(eintrag: eintrag, prefillAuftragId: prefillAuftragId),
   );
 }
 
@@ -461,7 +462,8 @@ class _TimerBarState extends ConsumerState<_TimerBar> {
 }
 
 class _StundenForm extends ConsumerStatefulWidget {
-  const _StundenForm({this.eintrag});
+  const _StundenForm({this.eintrag, this.prefillAuftragId});
+  final int? prefillAuftragId;
   final StundenWithAuftrag? eintrag;
   @override
   ConsumerState<_StundenForm> createState() => _StundenFormState();
@@ -486,7 +488,7 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
   @override
   void initState() {
     super.initState();
-    _auftragId = widget.eintrag?.stunde.auftragId;
+    _auftragId = widget.eintrag?.stunde.auftragId ?? widget.prefillAuftragId;
     _partnerId = widget.eintrag?.stunde.partnerId;
     _datum = widget.eintrag?.stunde.datum ?? DateTime.now();
     _abgerechnet = widget.eintrag?.stunde.abgerechnet ?? false;

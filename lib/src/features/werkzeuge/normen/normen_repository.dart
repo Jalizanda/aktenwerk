@@ -82,6 +82,10 @@ class NormenRepository {
       ..sort();
   }
 
+  Future<NormenData?> byId(int id) =>
+      (_db.select(_db.normen)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
   Future<int> upsert(NormenCompanion entry) async {
     if (entry.id.present) {
       await (_db.update(_db.normen)

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ai/norm_rag_service.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../data/sync/storage_service.dart';
@@ -182,6 +183,17 @@ Future<NormenPdfUploadReport> ladePdfsHoch({
           updatedAt: Value(DateTime.now()),
         ),
       );
+      // RAG-Indexierung im Cloud-Backend anstoßen (best-effort).
+      try {
+        final aktualisiert = await (db.select(db.normen)
+              ..where((t) => t.id.equals(n.id)))
+            .getSingleOrNull();
+        if (aktualisiert != null) {
+          await ref
+              .read(normRagServiceProvider)
+              .markiereZurIndexierung(aktualisiert);
+        }
+      } catch (_) {/* Indexierung ist optional */}
       ok++;
     } catch (_) {
       fehler++;

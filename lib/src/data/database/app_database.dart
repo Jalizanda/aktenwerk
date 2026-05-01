@@ -24,6 +24,7 @@ import '../tables/kunden_table.dart';
 import '../tables/lieferanten_table.dart';
 import '../tables/maengel_table.dart';
 import '../tables/messwerte_table.dart';
+import '../tables/norm_chats_table.dart';
 import '../tables/normen_table.dart';
 import '../tables/partner_table.dart';
 import '../tables/protokolle_table.dart';
@@ -79,6 +80,7 @@ part 'app_database.g.dart';
   Wertermittlungen,
   Serienbriefe,
   RechercheNotizen,
+  NormChats,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._(super.executor);
@@ -107,7 +109,7 @@ class AppDatabase extends _$AppDatabase {
         ));
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -298,6 +300,11 @@ class AppDatabase extends _$AppDatabase {
           // v25 → v26: Standard-Zahlungsbedingung pro Akte.
           if (from < 26) {
             await m.addColumn(auftraege, auftraege.zahlungsbedingung);
+          }
+
+          // v26 → v27: Persistente Chat-Verläufe für den Normen-RAG-Chat.
+          if (from < 27) {
+            await m.createTable(normChats);
           }
         },
       );

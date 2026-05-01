@@ -216,15 +216,27 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
             DataRow(
               onSelectChanged: (_) => _show(context, r),
               cells: [
-                DataCell(Text(
-                  r.rechnung.rechnungsnummer ?? '',
-                  style: const TextStyle(
-                    color: AwTokens.orange,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                )),
+                DataCell(
+                  (r.rechnung.rechnungsnummer == null ||
+                          r.rechnung.rechnungsnummer!.trim().isEmpty)
+                      ? Text(
+                          'Entwurf',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey.shade500,
+                          ),
+                        )
+                      : Text(
+                          r.rechnung.rechnungsnummer!,
+                          style: const TextStyle(
+                            color: AwTokens.orange,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                ),
                 DataCell(Text(r.rechnung.rechnungsdatum == null
                     ? ''
                     : RechnungenScreen._dateFmt
@@ -272,13 +284,14 @@ class _RechnungenScreenState extends ConsumerState<RechnungenScreen> {
                       ),
                       onPressed: () => _druckenUndEinfrieren(context, r),
                     ),
-                    IconButton(
-                      tooltip: 'Löschen',
-                      icon: const Icon(Icons.delete_outline, size: 20),
-                      onPressed: () async => ref
-                          .read(rechnungenRepositoryProvider)
-                          .delete(r.rechnung.id),
-                    ),
+                    if (r.rechnung.pdfErstelltAm == null)
+                      IconButton(
+                        tooltip: 'Löschen',
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () async => ref
+                            .read(rechnungenRepositoryProvider)
+                            .delete(r.rechnung.id),
+                      ),
                   ],
                 )),
               ],
@@ -425,17 +438,29 @@ class _KpiRow extends StatelessWidget {
 }
 
 Future<void> showRechnungEditor(BuildContext context,
-    {RechnungWithKunde? eintrag}) async {
+    {RechnungWithKunde? eintrag,
+    int? prefillAuftragId,
+    int? prefillKundeId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _RechnungForm(eintrag: eintrag),
+    builder: (_) => _RechnungForm(
+      eintrag: eintrag,
+      prefillAuftragId: prefillAuftragId,
+      prefillKundeId: prefillKundeId,
+    ),
   );
 }
 
 class _RechnungForm extends ConsumerStatefulWidget {
-  const _RechnungForm({this.eintrag});
+  const _RechnungForm({
+    this.eintrag,
+    this.prefillAuftragId,
+    this.prefillKundeId,
+  });
   final RechnungWithKunde? eintrag;
+  final int? prefillAuftragId;
+  final int? prefillKundeId;
   @override
   ConsumerState<_RechnungForm> createState() => _RechnungFormState();
 }
@@ -489,8 +514,8 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
   void initState() {
     super.initState();
     final r = widget.eintrag?.rechnung;
-    _kundeId = r?.kundeId;
-    _auftragId = r?.auftragId;
+    _kundeId = r?.kundeId ?? widget.prefillKundeId;
+    _auftragId = r?.auftragId ?? widget.prefillAuftragId;
     _kontonummer = r?.kontonummer;
     _rechnungsdatum = r?.rechnungsdatum ?? DateTime.now();
     _leistungsdatum = r?.leistungsdatum;
@@ -507,13 +532,8 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
   }
 
   Future<void> _prefill() async {
-    final repo = ref.read(rechnungenRepositoryProvider);
-    final seq = await repo.nextSequenz();
-    final pattern = await ref
-        .read(einstellungenRepositoryProvider)
-        .getOr(SettingsKeys.nummernkreisRechnung, '{YYYY}-###');
-    final nr = _applyPattern(pattern, seq);
-    if (mounted && _nr.text.isEmpty) _nr.text = nr;
+    // Rechnungsnummer wird NICHT vorab reserviert — erst beim Drucken &
+    // Einfrieren wird die nächste Nummer aus dem Nummernkreis vergeben.
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
         .get(SettingsKeys.rechnungFusstext);
@@ -609,22 +629,6 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     }
   }
 
-  String _applyPattern(String pattern, int seq) {
-    final now = DateTime.now();
-    var out = pattern
-        .replaceAll('{YYYY}', '${now.year}')
-        .replaceAll('YYYY', '${now.year}')
-        .replaceAll('{MM}', now.month.toString().padLeft(2, '0'))
-        .replaceAll('MM', now.month.toString().padLeft(2, '0'));
-    final m = RegExp(r'#+').firstMatch(out);
-    if (m != null) {
-      out = out.replaceFirst(
-          m.group(0)!, seq.toString().padLeft(m.group(0)!.length, '0'));
-    } else {
-      out = '$out$seq';
-    }
-    return out;
-  }
 
   @override
   void dispose() {
@@ -652,14 +656,24 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     // Akontoanforderungen laufen in einem eigenen Kreis (AZ{YYYY}-{NNN}),
     // alles andere (Rechnung, JVEG, Teil-, Schluss-, Gutschrift, Korrektur)
     // nutzt den Standard-Rechnungskreis.
-    if (!_isEdit && _nr.text.trim().isEmpty) {
+    if (_nr.text.trim().isEmpty) {
       final kreis = _typ == 'akonto'
           ? NummernkreisTyp.akonto
           : NummernkreisTyp.rechnung;
-      final neu = await ref
-          .read(nummernkreisServiceProvider)
-          .nextNumber(kreis);
-      _nr.text = neu;
+      // Sicherstellen, dass keine Doppelvergabe entsteht: existierende
+      // Belegnummern aus der DB einlesen und den Zähler ggf. hochsetzen.
+      final db = ref.read(appDatabaseProvider);
+      final query = db.select(db.rechnungen);
+      if (_typ == 'akonto') {
+        query.where((t) => t.typ.equals('akonto'));
+      } else {
+        query.where((t) => t.typ.isNotIn(const ['akonto']));
+      }
+      final existing = await query.get();
+      final svc = ref.read(nummernkreisServiceProvider);
+      await svc.syncCounterToHighestUsed(
+          kreis, existing.map((r) => r.rechnungsnummer));
+      _nr.text = await svc.nextNumber(kreis);
     }
 
     // Auto-Akte: wenn noch keine Akte verknüpft ist, eine neue mit nächster
@@ -873,35 +887,40 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
   Future<void> _convertToGutschrift() async {
     if (!_isEdit) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      useRootNavigator: true,
-      builder: (_) => AlertDialog(
-        title: const Text('Gutschrift erstellen?'),
-        content: const Text(
-            'Eine neue Gutschrift wird mit negierten Beträgen der aktuellen '
-            'Rechnung angelegt. Bezug auf die Original-Rechnung wird gesetzt.'),
-        actions: [
-          TextButton(
-              onPressed: () =>
-                  Navigator.of(context, rootNavigator: true).pop(false),
-              child: const Text('Abbrechen')),
-          FilledButton(
-              onPressed: () =>
-                  Navigator.of(context, rootNavigator: true).pop(true),
-              child: const Text('Gutschrift erstellen')),
-        ],
-      ),
-    );
-    if (ok != true) return;
     final workflow = ref.read(dokumentWorkflowProvider);
     final gId =
         await workflow.rechnungToGutschrift(widget.eintrag!.rechnung);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gutschrift #$gId angelegt')));
-      Navigator.of(context, rootNavigator: true).pop(true);
-    }
+    if (!mounted) return;
+    await _openNeueRechnung(gId);
+  }
+
+  Future<void> _convertToKorrektur() async {
+    if (!_isEdit) return;
+    final workflow = ref.read(dokumentWorkflowProvider);
+    final kId =
+        await workflow.rechnungToKorrektur(widget.eintrag!.rechnung);
+    if (!mounted) return;
+    await _openNeueRechnung(kId);
+  }
+
+  /// Lädt eine soeben aus dem Workflow erzeugte Rechnung samt Kunde/Akte
+  /// und öffnet den Rechnungs-Editor mit den vorbelegten Daten.
+  Future<void> _openNeueRechnung(int rId) async {
+    final db = ref.read(appDatabaseProvider);
+    final rechnung = await ref.read(rechnungenRepositoryProvider).byId(rId);
+    if (rechnung == null || !mounted) return;
+    final kunde = rechnung.kundeId == null
+        ? null
+        : await ref.read(kundenRepositoryProvider).byId(rechnung.kundeId!);
+    final auftrag = rechnung.auftragId == null
+        ? null
+        : await (db.select(db.auftraege)
+              ..where((t) => t.id.equals(rechnung.auftragId!)))
+            .getSingleOrNull();
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(true);
+    await showRechnungEditor(context,
+        eintrag: RechnungWithKunde(rechnung, kunde, auftrag));
   }
 
   String _pdfTitleFor(String typ) => switch (typ) {
@@ -969,11 +988,23 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
               onPressed: _druckenUndEinfrieren,
             ),
           ],
-          if (_isEdit && !_eingefroren && _typ != 'gutschrift')
+          if (_isEdit &&
+              _eingefroren &&
+              _typ != 'gutschrift' &&
+              _typ != 'korrektur')
             OutlinedButton.icon(
               icon: const Icon(Icons.undo_outlined, size: 16),
               label: const Text('→ Gutschrift'),
               onPressed: _convertToGutschrift,
+            ),
+          if (_isEdit &&
+              _eingefroren &&
+              _typ != 'gutschrift' &&
+              _typ != 'korrektur')
+            OutlinedButton.icon(
+              icon: const Icon(Icons.edit_note_outlined, size: 16),
+              label: const Text('→ Korrektur'),
+              onPressed: _convertToKorrektur,
             ),
           if (_isEdit && !_eingefroren) ...[
             OutlinedButton.icon(
@@ -1130,12 +1161,12 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                   Expanded(
                     flex: 2,
                     child: LabeledField(
-                      'Rechnungs-Nr. *',
+                      'Rechnungs-Nr.',
                       TextFormField(
                         controller: _nr,
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Erforderlich'
-                            : null,
+                        decoration: const InputDecoration(
+                          hintText: 'wird beim Einfrieren vergeben',
+                        ),
                       ),
                     ),
                   ),

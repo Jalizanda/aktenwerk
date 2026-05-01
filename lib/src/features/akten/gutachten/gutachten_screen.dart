@@ -177,17 +177,19 @@ class _StatusPill extends StatelessWidget {
 /// ---------------------------- Editor ----------------------------
 
 Future<void> showGutachtenEditor(BuildContext context,
-    {GutachtenData? gutachten}) async {
+    {GutachtenData? gutachten, int? prefillAuftragId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _GutachtenEditor(gutachten: gutachten),
+    builder: (_) => _GutachtenEditor(
+        gutachten: gutachten, prefillAuftragId: prefillAuftragId),
   );
 }
 
 class _GutachtenEditor extends ConsumerStatefulWidget {
-  const _GutachtenEditor({this.gutachten});
+  const _GutachtenEditor({this.gutachten, this.prefillAuftragId});
   final GutachtenData? gutachten;
+  final int? prefillAuftragId;
   @override
   ConsumerState<_GutachtenEditor> createState() => _GutachtenEditorState();
 }
@@ -235,7 +237,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     super.initState();
     final g = widget.gutachten;
     _status = g?.status ?? 'entwurf';
-    _auftragId = g?.auftragId;
+    _auftragId = g?.auftragId ?? widget.prefillAuftragId;
     _datum = g?.datum ?? DateTime.now();
     _ortstermin = g?.ortsterminAm;
     _abgabe = g?.abgabeAm;
@@ -356,10 +358,93 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
           : '$aktuell\n\n${picked.inhalt}';
       _abschnitte[abschnitt.key] = ctrl.text;
     });
+
+    // Aus den strukturierten Norm-Referenzen die zitierten Normen
+    // (samt Seitenangaben) als Akten-spezifische Normen anlegen, falls
+    // sie nicht schon in der Akte stehen. So sind sie im Gutachten-PDF
+    // mit Dokument-Nr., Ausgabe und Titel sauber als Quelle vermerkt.
+    await _uebernehmeReferenzNormen(picked);
+
     // fire-and-forget — Fehler hier sind nicht kritisch
     await ref
         .read(rechercheAblageRepositoryProvider)
         .setVerwendet(picked.id, true);
+  }
+
+  /// Liest `referenzNormenJson` der gewählten Notiz und legt für jede
+  /// referenzierte Library-Norm eine akten-spezifische Kopie an, sofern
+  /// noch keine mit gleicher Nummer für diesen Auftrag existiert.
+  Future<void> _uebernehmeReferenzNormen(RechercheNotizenData notiz) async {
+    final auftragId = _auftragId;
+    if (auftragId == null) return;
+    final raw = notiz.referenzNormenJson;
+    if (raw == null || raw.trim().isEmpty) return;
+    List<dynamic> liste;
+    try {
+      liste = jsonDecode(raw) as List<dynamic>;
+    } catch (_) {
+      return;
+    }
+    if (liste.isEmpty) return;
+    final db = ref.read(appDatabaseProvider);
+    int uebernommen = 0;
+    for (final entry in liste) {
+      // Backwards-Kompatibilität: alte Format `[12, 47]` sind nur IDs.
+      int? normId;
+      List<int> seiten = const [];
+      if (entry is num) {
+        normId = entry.toInt();
+      } else if (entry is Map) {
+        final id = entry['normId'];
+        if (id is num) normId = id.toInt();
+        final s = entry['seiten'];
+        if (s is List) {
+          seiten = s.whereType<num>().map((e) => e.toInt()).toList();
+        }
+      }
+      if (normId == null) continue;
+      // Library-Norm laden
+      final library = await (db.select(db.normen)
+            ..where((t) => t.id.equals(normId!)))
+          .getSingleOrNull();
+      if (library == null) continue;
+      // Schon in der Akte?
+      final vorhandenQuery = db.select(db.normen)
+        ..where((t) => t.auftragId.equals(auftragId))
+        ..where((t) => t.nummer.equals(library.nummer));
+      final vorhanden = await vorhandenQuery.getSingleOrNull();
+      if (vorhanden != null) continue;
+      // Akten-Norm anlegen — alle Stammdaten kopieren, Seitenangaben als
+      // `zitat`-Feld („S. 12, S. 17") und `relevanz='gutachten'`.
+      final seitenStr = seiten.isEmpty
+          ? null
+          : 'Zitiert: ${(seiten..sort()).map((p) => 'S. $p').join(', ')}';
+      await db.into(db.normen).insert(NormenCompanion.insert(
+            auftragId: Value(auftragId),
+            nummer: library.nummer,
+            titel: Value(library.titel),
+            ausgabe: Value(library.ausgabe),
+            kategorie: Value(library.kategorie),
+            art: Value(library.art),
+            herausgeber: Value(library.herausgeber),
+            relevanz: const Value('gutachten'),
+            zusammenfassung: Value(library.zusammenfassung),
+            zitat: Value(seitenStr),
+            beschreibung: Value(library.beschreibung),
+            gewerk: Value(library.gewerk),
+            pdfPfad: Value(library.pdfPfad),
+            pdfStorageUrl: Value(library.pdfStorageUrl),
+            pdfMimeType: Value(library.pdfMimeType),
+            pdfGroesse: Value(library.pdfGroesse),
+            pdfDateiname: Value(library.pdfDateiname),
+          ));
+      uebernommen++;
+    }
+    if (uebernommen > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              '$uebernommen Norm${uebernommen == 1 ? '' : 'en'} in die Akte übernommen.')));
+    }
   }
 
   IconData _kiIcon(KiModus m) => switch (m) {
@@ -459,7 +544,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     }
   }
 
-  Future<void> _previewPdf() async {
+  Future<void> _previewPdf({bool pdfA = false}) async {
     final absender = await absenderFromSettings(ref);
     AuftraegeData? auftrag;
     KundenData? kunde;
@@ -562,7 +647,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       bestellGueltigBis: gueltigBis,
       verwendeteNormen: verwendeteNormen,
       lichtbilder: lichtbilder,
-    ));
+    ), pdfA: pdfA);
   }
 
   Map<String, String> _currentAbschnitte() => {
@@ -702,7 +787,12 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
           OutlinedButton.icon(
             icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
             label: const Text('Vorschau / Drucken'),
-            onPressed: _saving ? null : _previewPdf,
+            onPressed: _saving ? null : () => _previewPdf(),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.archive_outlined, size: 16),
+            label: const Text('PDF/A (Archiv)'),
+            onPressed: _saving ? null : () => _previewPdf(pdfA: true),
           ),
         ],
       ),

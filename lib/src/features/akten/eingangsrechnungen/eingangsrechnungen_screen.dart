@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
@@ -394,19 +397,37 @@ class _EingangsrechnungFormState
   /// zurückkommt. Schon ausgefüllte Felder bleiben unverändert —
   /// überschreibt werden nur leere / Null-Werte.
   Future<void> _felderAusKiFuellen() async {
-    final firstUrl = _belege.isNotEmpty ? _belege.first.storageUrl : null;
-    if (firstUrl == null || firstUrl.isEmpty) return;
-
+    if (_belege.isEmpty) return;
+    final first = _belege.first;
     setState(() => _kiLaeuft = true);
     try {
-      // Firebase Storage Download-URL ist bereits signiert — mit
-      // einfachem http.get holen.
-      final resp = await http.get(Uri.parse(firstUrl));
-      if (resp.statusCode != 200) {
-        throw Exception('HTTP ${resp.statusCode}');
+      // Bevorzugt: lokale Bytes nutzen (sofort verfügbar nach Upload).
+      // Fallback: über die Firebase Storage SDK nachladen — die kennt die
+      // Auth-Token, umgeht CORS-Probleme und funktioniert auch nach Reload.
+      Uint8List? bytes = first.bytes;
+      if (bytes == null) {
+        final url = first.storageUrl;
+        if (url.isEmpty) {
+          throw Exception('Datei nicht verfügbar.');
+        }
+        try {
+          final ref = FirebaseStorage.instance.refFromURL(url);
+          // 25 MB Maximalgröße — größere Belege brauchen wir nicht
+          bytes = await ref.getData(25 * 1024 * 1024);
+        } catch (e) {
+          // Fallback auf HTTP nur wenn refFromURL nicht klappt (z. B.
+          // bei alten URLs ohne Bucket-Match).
+          final resp = await http.get(Uri.parse(url));
+          if (resp.statusCode != 200) {
+            throw Exception('Konnte Datei nicht laden: $e / HTTP ${resp.statusCode}');
+          }
+          bytes = resp.bodyBytes;
+        }
+        if (bytes == null) {
+          throw Exception('Storage-Datei konnte nicht geladen werden.');
+        }
       }
-      final bytes = resp.bodyBytes;
-      final mime = _belege.first.mimeType ?? 'application/pdf';
+      final mime = first.mimeType ?? 'application/pdf';
       final extr = await extrahiereBeleg(
           ref: ref, bytes: bytes, mimeType: mime);
 

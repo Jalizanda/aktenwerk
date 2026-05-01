@@ -207,12 +207,13 @@ class _AuftragsbestaetigungenScreenState
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
                       onPressed: () => _previewPdf(context, a),
                     ),
-                    IconButton(
-                      tooltip: 'Löschen',
-                      icon: const Icon(Icons.delete_outline, size: 20),
-                      onPressed: () async =>
-                          ref.read(angeboteRepositoryProvider).delete(a.angebot.id),
-                    ),
+                    if (a.angebot.pdfErstelltAm == null)
+                      IconButton(
+                        tooltip: 'Löschen',
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () async =>
+                            ref.read(angeboteRepositoryProvider).delete(a.angebot.id),
+                      ),
                   ],
                 )),
               ],
@@ -324,7 +325,13 @@ class _AbKpiRow extends StatelessWidget {
 }
 
 class _AbForm extends ConsumerStatefulWidget {
-  const _AbForm({this.eintrag});
+  const _AbForm({
+    this.eintrag,
+    this.prefillAuftragId,
+    this.prefillKundeId,
+  });
+  final int? prefillAuftragId;
+  final int? prefillKundeId;
   final AngebotWithKunde? eintrag;
   @override
   ConsumerState<_AbForm> createState() => _AbFormState();
@@ -370,8 +377,8 @@ class _AbFormState extends ConsumerState<_AbForm> {
   void initState() {
     super.initState();
     final a = widget.eintrag?.angebot;
-    _kundeId = a?.kundeId;
-    _auftragId = a?.auftragId;
+    _kundeId = a?.kundeId ?? widget.prefillKundeId;
+    _auftragId = a?.auftragId ?? widget.prefillAuftragId;
     _datum = a?.datum ?? DateTime.now();
     _positionen = positionsFromJson(a?.positionenJson);
     _pdfErstelltAm = a?.pdfErstelltAm;
@@ -483,9 +490,15 @@ class _AbFormState extends ConsumerState<_AbForm> {
     if (!_formKey.currentState!.validate()) return;
     // Belegnummer erst jetzt vergeben – verhindert Lücken durch abgebrochene Entwürfe
     if (_nr.text.trim().isEmpty) {
-      final nr = await ref
-          .read(nummernkreisServiceProvider)
-          .nextNumber(NummernkreisTyp.auftragsbestaetigung);
+      final db = ref.read(appDatabaseProvider);
+      final existing = await (db.select(db.angebote)
+            ..where((t) => t.status.equals('auftragsbestaetigung')))
+          .get();
+      final svc = ref.read(nummernkreisServiceProvider);
+      await svc.syncCounterToHighestUsed(
+          NummernkreisTyp.auftragsbestaetigung,
+          existing.map((a) => a.angebotsnummer));
+      final nr = await svc.nextNumber(NummernkreisTyp.auftragsbestaetigung);
       if (mounted) setState(() => _nr.text = nr);
     }
     await _save(close: false);
@@ -570,13 +583,35 @@ class _AbFormState extends ConsumerState<_AbForm> {
     if (id == null) return;
 
     final db = ref.read(appDatabaseProvider);
-    final abData = await (db.select(db.angebote)
+    var abData = await (db.select(db.angebote)
           ..where((t) => t.id.equals(id)))
         .getSingleOrNull();
     if (abData == null || !mounted) return;
 
+    // Akte sicherstellen — wenn weder am Form noch am AB-Datensatz hinterlegt
+    // ist, wird hier eine neue mit AW-Aktenzeichen angelegt.
+    var auftragId = _auftragId ?? abData.auftragId;
+    if (auftragId == null) {
+      auftragId = await ensureAkte(
+        ref,
+        auftragId: null,
+        kundeId: abData.kundeId,
+        betreff: abData.betreff ?? 'Akte zu AB ${abData.angebotsnummer ?? ""}',
+      );
+      await ref.read(angeboteRepositoryProvider).upsert(AngeboteCompanion(
+            id: Value(abData.id),
+            auftragId: Value(auftragId),
+          ));
+      // Refresh, damit abData den auftragId enthält
+      abData = (await (db.select(db.angebote)
+                ..where((t) => t.id.equals(abData!.id)))
+              .getSingleOrNull()) ??
+          abData;
+      if (mounted) setState(() => _auftragId = auftragId);
+    }
+
     final workflow = ref.read(dokumentWorkflowProvider);
-    final rId = await workflow.angebotToRechnung(abData, auftragId: _auftragId);
+    final rId = await workflow.angebotToRechnung(abData, auftragId: auftragId);
     if (!mounted) return;
 
     final rechnung = await ref.read(rechnungenRepositoryProvider).byId(rId);
@@ -911,11 +946,17 @@ class _AbFormState extends ConsumerState<_AbForm> {
 }
 
 Future<void> showAbEditor(BuildContext context,
-    {AngebotWithKunde? eintrag}) async {
+    {AngebotWithKunde? eintrag,
+    int? prefillAuftragId,
+    int? prefillKundeId}) async {
   await showDialog(
     context: context,
     useRootNavigator: true,
-    builder: (_) => _AbForm(eintrag: eintrag),
+    builder: (_) => _AbForm(
+      eintrag: eintrag,
+      prefillAuftragId: prefillAuftragId,
+      prefillKundeId: prefillKundeId,
+    ),
   );
 }
 

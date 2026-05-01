@@ -121,9 +121,35 @@ class AnschreibenScreen extends ConsumerWidget {
   }
 }
 
+/// Öffnet den Anschreiben-Editor als Dialog. Wird auch aus dem
+/// Akten-Tab aufgerufen — dann werden `prefillAuftragId` und
+/// `prefillKundeId` als Vorbelegung mitgegeben.
+Future<void> showAnschreibenEditor(
+  BuildContext context, {
+  AnschreibenWithKunde? eintrag,
+  int? prefillAuftragId,
+  int? prefillKundeId,
+}) async {
+  await showDialog(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => _AnschreibenEditor(
+      eintrag: eintrag,
+      prefillAuftragId: prefillAuftragId,
+      prefillKundeId: prefillKundeId,
+    ),
+  );
+}
+
 class _AnschreibenEditor extends ConsumerStatefulWidget {
-  const _AnschreibenEditor({this.eintrag});
+  const _AnschreibenEditor({
+    this.eintrag,
+    this.prefillAuftragId,
+    this.prefillKundeId,
+  });
   final AnschreibenWithKunde? eintrag;
+  final int? prefillAuftragId;
+  final int? prefillKundeId;
   @override
   ConsumerState<_AnschreibenEditor> createState() =>
       _AnschreibenEditorState();
@@ -150,8 +176,8 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
   void initState() {
     super.initState();
     final a = widget.eintrag?.anschreiben;
-    _kundeId = a?.kundeId;
-    _auftragId = a?.auftragId;
+    _kundeId = a?.kundeId ?? widget.prefillKundeId;
+    _auftragId = a?.auftragId ?? widget.prefillAuftragId;
     _datum = a?.datum ?? DateTime.now();
     _status = a?.status ?? 'entwurf';
     _inhaltJson = a?.inhaltJson;
@@ -477,6 +503,7 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
             Row2(
               left: AuftragPickerField(
                 auftragId: _auftragId,
+                label: 'Akte',
                 onChanged: (id) => setState(() => _auftragId = id),
               ),
               right: LabeledField(

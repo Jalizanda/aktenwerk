@@ -173,6 +173,40 @@ class NummernkreisService {
     return result;
   }
 
+  /// Stellt sicher, dass der gespeicherte Zähler mindestens `max(genutzt)+1`
+  /// ist — damit eine Nummer im Kreis garantiert nur einmal vorkommt, auch
+  /// wenn die Settings z. B. nach Restore oder Mehr-Geräte-Sync veraltet sind.
+  ///
+  /// `usedNumbers` sind die in der relevanten Tabelle bereits vergebenen
+  /// Belegnummern. Bei `reset='jahr'` werden nur Nummern berücksichtigt, die
+  /// die aktuelle Jahreszahl enthalten.
+  Future<void> syncCounterToHighestUsed(
+    NummernkreisTyp typ,
+    Iterable<String?> usedNumbers,
+  ) async {
+    final keys = _keysFor(typ);
+    final reset = await _repo.getOr(keys.reset, _defaultReset(typ));
+    final yearStr = DateTime.now().year.toString();
+    // Letzte zusammenhängende Ziffer-Gruppe in der Nummer ist der Zähler.
+    final digitsRe = RegExp(r'(\d+)(?!.*\d)');
+    int maxCounter = 0;
+    for (final nr in usedNumbers) {
+      if (nr == null || nr.trim().isEmpty) continue;
+      if (reset == 'jahr' && !nr.contains(yearStr)) continue;
+      final m = digitsRe.firstMatch(nr);
+      if (m == null) continue;
+      final c = int.tryParse(m.group(1)!) ?? 0;
+      if (c > maxCounter) maxCounter = c;
+    }
+    if (maxCounter > 0) {
+      final stored =
+          int.tryParse(await _repo.getOr(keys.naechste, '1')) ?? 1;
+      if (maxCounter + 1 > stored) {
+        await _repo.set(keys.naechste, (maxCounter + 1).toString());
+      }
+    }
+  }
+
   /// Vorschau ohne den Zähler hochzusetzen.
   Future<String> previewNumber(
     NummernkreisTyp typ, {

@@ -180,35 +180,55 @@ class _ModuleHeaderState extends State<ModuleHeader> {
 
     return Padding(
       padding: pad,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(child: titleBlock),
-              if (searchField != null) ...[
-                const SizedBox(width: 24),
-                SizedBox(width: 320, child: searchField),
+      child: LayoutBuilder(builder: (context, constraints) {
+        // Actions in dieselbe Zeile nur, wenn genug Platz ist; sonst eigene
+        // Zeile mit Wrap, damit nichts abgeschnitten wird.
+        final actionsBreite =
+            widget.actions.length * 150.0 + (widget.actions.length - 1) * 8;
+        final searchBreite = searchField != null ? 320.0 + 24 : 0;
+        final titelMin = 240.0;
+        final braucht = titelMin + searchBreite + 24 + actionsBreite;
+        final actionsInZeile = braucht <= constraints.maxWidth;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(child: titleBlock),
+                if (searchField != null) ...[
+                  const SizedBox(width: 24),
+                  SizedBox(width: 320, child: searchField),
+                ],
+                const Spacer(),
+                if (actionsInZeile)
+                  for (final a in widget.actions) ...[
+                    const SizedBox(width: 8),
+                    a
+                  ],
               ],
-              const Spacer(),
-              for (final a in widget.actions) ...[
-                const SizedBox(width: 8),
-                a
-              ],
-            ],
-          ),
-          if (widget.filters.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: widget.filters,
             ),
+            if (!actionsInZeile && widget.actions.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: widget.actions,
+              ),
+            ],
+            if (widget.filters.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: widget.filters,
+              ),
+            ],
           ],
-        ],
-      ),
+        );
+      }),
     );
   }
 }

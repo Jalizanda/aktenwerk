@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -82,9 +83,46 @@ class LichtbildPdfEntry {
   final String? abschnittKey;
 }
 
-Future<Uint8List> buildGutachtenPdf(GutachtenPdfData data) async {
-  final doc = pw.Document();
+Future<Uint8List> buildGutachtenPdf(
+  GutachtenPdfData data, {
+  /// Wenn `true`, wird das PDF als **PDF/A-3b** ausgegeben (gerichts-
+  /// fest archivierbar): XMP-Metadaten mit pdfaid-Konformitätsmarkierung +
+  /// sRGB-ICC-Output-Intent. Standard-Variante (false) ist ein normales
+  /// PDF 1.7.
+  bool pdfA = false,
+}) async {
   final dateFmt = DateFormat('dd.MM.yyyy', 'de');
+
+  // Dokumenten-Metadaten (Titel etc.) — bei PDF/A wandern sie zusätzlich
+  // in das XMP-RDF, damit Validatoren sie erkennen.
+  final aktenzeichen = data.auftrag?.aktenzeichen?.trim() ?? '';
+  final titelText = aktenzeichen.isEmpty
+      ? 'Gutachten'
+      : 'Gutachten $aktenzeichen';
+  final autorName = [data.absender?.vorname, data.absender?.nachname]
+      .whereType<String>()
+      .where((s) => s.trim().isNotEmpty)
+      .join(' ');
+  final beschreibung = data.auftrag?.betreff?.trim();
+
+  final doc = pw.Document(
+    title: titelText,
+    author: autorName.isEmpty ? null : autorName,
+    creator: 'Aktenwerk',
+    subject: beschreibung,
+    keywords: 'Sachverständigengutachten',
+    producer: 'Aktenwerk',
+    metadata: pdfA
+        ? PdfaRdf(
+            title: titelText,
+            author: autorName.isEmpty ? null : autorName,
+            creator: 'Aktenwerk',
+            subject: beschreibung,
+            keywords: 'Sachverständigengutachten',
+            producer: 'Aktenwerk',
+          ).create()
+        : null,
+  );
   final regular = await PdfGoogleFonts.interRegular();
   final bold = await PdfGoogleFonts.interBold();
   final italic = await PdfGoogleFonts.interMedium();
@@ -190,6 +228,15 @@ Future<Uint8List> buildGutachtenPdf(GutachtenPdfData data) async {
         build: (ctx) =>
             _lichtbildAnlage(anlageFotos, startIndex: inlineVorher + 1),
       ),
+    );
+  }
+
+  if (pdfA) {
+    // OutputIntent + sRGB-ICC einbetten — Pflicht für PDF/A-Konformität.
+    final iccBytes = await rootBundle.load('assets/pdf/sRGB2014.icc');
+    PdfaColorProfile(
+      doc.document,
+      iccBytes.buffer.asUint8List(),
     );
   }
 
@@ -392,8 +439,20 @@ pw.Widget _unterschriftsBlock(GutachtenPdfData d, DateFormat dateFmt) {
   );
 }
 
-Future<void> previewGutachtenPdf(GutachtenPdfData data) =>
-    Printing.layoutPdf(onLayout: (_) => buildGutachtenPdf(data));
+Future<void> previewGutachtenPdf(GutachtenPdfData data, {bool pdfA = false}) =>
+    Printing.layoutPdf(
+      onLayout: (_) => buildGutachtenPdf(data, pdfA: pdfA),
+      name: _gutachtenDateiname(data, pdfA: pdfA),
+    );
+
+String _gutachtenDateiname(GutachtenPdfData data, {required bool pdfA}) {
+  final az = (data.auftrag?.aktenzeichen ?? '').replaceAll(
+      RegExp(r'[\\/:*?"<>|\s]'), '_');
+  final suffix = pdfA ? '_PDFA' : '';
+  return az.isEmpty
+      ? 'Gutachten$suffix.pdf'
+      : 'Gutachten_$az$suffix.pdf';
+}
 
 // ---------------- Helfer ----------------
 

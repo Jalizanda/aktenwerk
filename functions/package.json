@@ -1,0 +1,29 @@
+{
+  "name": "aktenwerk-functions",
+  "version": "1.0.0",
+  "description": "Aktenwerk RAG-Backend für die Normen-Bibliothek (Firebase Functions v2).",
+  "main": "dist/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "@google-cloud/aiplatform": "^3.34.0",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0",
+    "google-auth-library": "^9.14.1",
+    "pdfjs-dist": "^4.7.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "^5.6.3"
+  },
+  "private": true
+}

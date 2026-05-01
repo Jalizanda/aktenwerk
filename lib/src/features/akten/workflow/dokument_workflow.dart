@@ -76,12 +76,10 @@ class DokumentWorkflowService {
         ));
   }
 
-  /// Rechnung → Gutschrift. Positionen werden negiert, Nummernkreis Gutschrift.
+  /// Rechnung → Gutschrift. Positionen werden negiert. Nummer wird erst
+  /// beim Einfrieren der Gutschrift vergeben.
   Future<int> rechnungToGutschrift(RechnungenData r) async {
-    final nr = await _nk.nextNumber(NummernkreisTyp.rechnung);
-    final gutschriftNr = 'G-$nr';
     return _db.into(_db.rechnungen).insert(RechnungenCompanion.insert(
-          rechnungsnummer: Value(gutschriftNr),
           typ: const Value('gutschrift'),
           bezugRechnung: Value(r.rechnungsnummer),
           kundeId: Value(r.kundeId),
@@ -99,10 +97,9 @@ class DokumentWorkflowService {
   }
 
   /// Rechnung → Rechnungskorrektur (identische Positionen, User bearbeitet).
+  /// Nummer wird erst beim Einfrieren vergeben.
   Future<int> rechnungToKorrektur(RechnungenData r) async {
-    final nr = await _nk.nextNumber(NummernkreisTyp.rechnung);
     return _db.into(_db.rechnungen).insert(RechnungenCompanion.insert(
-          rechnungsnummer: Value('K-$nr'),
           typ: const Value('korrektur'),
           bezugRechnung: Value(r.rechnungsnummer),
           kundeId: Value(r.kundeId),
@@ -123,8 +120,11 @@ class DokumentWorkflowService {
   /// `auftragsbestaetigung`).
   Future<int> angebotToAb(AngeboteData a) async {
     // Keine Nummer vorab — wird erst beim Einfrieren vergeben.
+    // Bestehende Akte (auftragId) wird automatisch übernommen, sodass
+    // das Folgedokument unter derselben Akte hängt.
     return _db.into(_db.angebote).insert(AngeboteCompanion.insert(
           kundeId: Value(a.kundeId),
+          auftragId: Value(a.auftragId),
           betreff: Value('Auftragsbestätigung zu ${a.angebotsnummer ?? ""}'),
           anfrage: Value(a.anfrage),
           objektStrasse: Value(a.objektStrasse),

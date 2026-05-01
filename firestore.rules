@@ -178,6 +178,24 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
+    // ---- Normen-RAG (global, app-weit) ----
+    // `norm_pdfs/{key}` ist die Steuer-Tabelle für die PDF-Indexierung.
+    // Eingeloggte, freigeschaltete Nutzer dürfen pending-Markierungen anlegen
+    // und ihre eigenen Indexierungs-Status lesen. Schreibend nutzt nur die
+    // Cloud Function (admin-priv), die diese Regel ignoriert.
+    match /norm_pdfs/{key} {
+      allow read: if isApprovedUser();
+      allow create, update: if isApprovedUser();
+      allow delete: if isApprovedUser();
+    }
+    // `norm_chunks/{chunkId}` enthält die Embeddings + Textstellen.
+    // Nur lesen für eingeloggte Nutzer; Schreiben ausschließlich durch die
+    // Cloud Function.
+    match /norm_chunks/{chunkId} {
+      allow read: if isApprovedUser();
+      allow write: if false;
+    }
+
     // Default-Deny.
     match /{document=**} {
       allow read, write: if false;
