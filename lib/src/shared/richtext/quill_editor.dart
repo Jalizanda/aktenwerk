@@ -2,6 +2,37 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../features/system/einstellungen/einstellungen_repository.dart';
+
+/// Standard-Mappings für Schriftarten und -größen, die alle RichText-
+/// Editoren der App teilen — Konsistenz zwischen Gutachten, Anschreiben,
+/// Serienbriefen etc.
+const kRichTextFontFamilies = <String, String>{
+  'Standard (Inter)': 'Inter',
+  'Arial': 'Arial',
+  'Times New Roman': 'Times New Roman',
+  'Helvetica': 'Helvetica',
+  'Courier New': 'Courier New',
+  'Georgia': 'Georgia',
+  'Verdana': 'Verdana',
+  'Zurücksetzen': 'Clear',
+};
+
+const kRichTextFontSizes = <String, String>{
+  '6 pt': '6',
+  '8 pt': '8',
+  '10 pt': '10',
+  '11 pt': '11',
+  '12 pt': '12',
+  '14 pt': '14',
+  '16 pt': '16',
+  '18 pt': '18',
+  '20 pt': '20',
+  '24 pt': '24',
+  'Zurücksetzen': '0',
+};
 
 /// Extrahiert den reinen Text aus einem Quill-Delta-JSON-String. Wenn der
 /// String kein Delta ist, wird er unverändert zurückgegeben — so kann
@@ -20,7 +51,7 @@ String plainTextFromDeltaJson(String? json) {
 }
 
 /// Kompakter Quill-Editor mit Toolbar und JSON-Delta-Serialisierung.
-class RichTextEditor extends StatefulWidget {
+class RichTextEditor extends ConsumerStatefulWidget {
   const RichTextEditor({
     super.key,
     required this.initialDeltaJson,
@@ -37,17 +68,41 @@ class RichTextEditor extends StatefulWidget {
   final bool showToolbar;
 
   @override
-  State<RichTextEditor> createState() => _RichTextEditorState();
+  ConsumerState<RichTextEditor> createState() => _RichTextEditorState();
 }
 
-class _RichTextEditorState extends State<RichTextEditor> {
+class _RichTextEditorState extends ConsumerState<RichTextEditor> {
   late quill.QuillController _controller;
+  String _einstStandardFont = 'Standard (Inter)';
+  String _einstStandardSize = '11';
 
   @override
   void initState() {
     super.initState();
     _controller = _build(widget.initialDeltaJson);
     _controller.addListener(_emit);
+    _ladeStandardSchrift();
+  }
+
+  Future<void> _ladeStandardSchrift() async {
+    final repo = ref.read(einstellungenRepositoryProvider);
+    final font = await repo.get(SettingsKeys.gutachtenFontFamily);
+    final size = await repo.get(SettingsKeys.gutachtenFontSize);
+    if (!mounted) return;
+    setState(() {
+      // Settings-Wert kann „Standard" oder ein konkreter Familienname
+      // sein — wir mappen auf die Toolbar-Labels.
+      if (font != null && font.isNotEmpty) {
+        if (font == 'Standard' || font == 'Inter') {
+          _einstStandardFont = 'Standard (Inter)';
+        } else {
+          _einstStandardFont = font;
+        }
+      }
+      if (size != null && size.isNotEmpty) {
+        _einstStandardSize = size;
+      }
+    });
   }
 
   quill.QuillController _build(String? json) {
@@ -110,13 +165,26 @@ class _RichTextEditorState extends State<RichTextEditor> {
         if (widget.showToolbar)
           quill.QuillSimpleToolbar(
             controller: _controller,
-            config: const quill.QuillSimpleToolbarConfig(
+            config: quill.QuillSimpleToolbarConfig(
+              buttonOptions: quill.QuillSimpleToolbarButtonOptions(
+                fontFamily: quill.QuillToolbarFontFamilyButtonOptions(
+                  initialValue: _einstStandardFont,
+                  defaultDisplayText: _einstStandardFont,
+                  items: kRichTextFontFamilies,
+                  renderFontFamilies: true,
+                ),
+                fontSize: quill.QuillToolbarFontSizeButtonOptions(
+                  initialValue: _einstStandardSize,
+                  defaultDisplayText: _einstStandardSize,
+                  items: kRichTextFontSizes,
+                ),
+              ),
               multiRowsDisplay: false,
               showAlignmentButtons: true,
               showCodeBlock: false,
               showInlineCode: false,
-              showFontFamily: false,
-              showFontSize: false,
+              showFontFamily: true,
+              showFontSize: true,
               showSearchButton: false,
               showBackgroundColorButton: false,
               showListCheck: true,

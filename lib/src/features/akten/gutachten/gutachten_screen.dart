@@ -292,6 +292,12 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
   /// Dialog selbst nicht angefasst hat.
   StreamSubscription<GutachtenData?>? _gutachtenSub;
 
+  /// Debounced Auto-Save bei jeder Tipp-Aktivität in den Sektionsfeldern.
+  /// Spart einen manuellen „Speichern"-Klick — der Anwender schreibt
+  /// einfach weiter, nach 2 s Inaktivität wird in die DB geschrieben.
+  Timer? _autoSaveTimer;
+  static const _autoSaveDelay = Duration(seconds: 2);
+
   bool _saving = false;
   bool _kiLaeuft = false;
   List<SprachCheckTreffer>? _sprachTreffer;
@@ -334,11 +340,33 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       for (final a in gutachtenAbschnitte) a.key: plain[a.key] ?? '',
     };
     _gutachtenSub = _maybeWatchGutachten();
+    // Auto-Save: bei jeder Tipp-Aktivität in den Sektionsfeldern den
+    // Debounce-Timer zurücksetzen — nach 2 s Stille fließt der Stand in
+    // die DB. Auch andere Felder (Nummer, Titel, Bezeichnung) lösen den
+    // Trigger aus.
+    for (final c in _sektionCtrls.values) {
+      c.addListener(_planeAutoSave);
+    }
+    _titel.addListener(_planeAutoSave);
+    _nummer.addListener(_planeAutoSave);
+    _bezeichnung.addListener(_planeAutoSave);
     // Normenverzeichnis einmalig auto-befüllen, wenn der Anwender es noch
     // nicht selbst editiert hat. Asynchron, damit der Dialog sofort
     // erscheint und die Normen nachgezogen werden.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoFillNormenverzeichnisFallsLeer();
+    });
+  }
+
+  void _planeAutoSave() {
+    // Nicht speichern solange das Gutachten noch keine ID hat — sonst
+    // legen wir bei jedem Buchstaben einen leeren Datensatz an.
+    if (!_isEdit) return;
+    if (_saving) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(_autoSaveDelay, () {
+      if (!mounted) return;
+      _save(silent: true);
     });
   }
 
@@ -449,6 +477,14 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
+    // Letzten Stand noch flushen, falls der Anwender den Dialog
+    // schließt bevor der Debounce abgelaufen ist.
+    if (_isEdit) {
+      // Best-effort: kein await im dispose möglich. Speichert i.d.R.
+      // erfolgreich, weil die Drift-DB lokal ist.
+      _save(silent: true);
+    }
     _gutachtenSub?.cancel();
     _titel.dispose();
     _nummer.dispose();
@@ -622,11 +658,13 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
   /// IndexedDB ist tab-übergreifend, aber TextEditingController nicht
   /// reaktiv.
   Future<void> _vergroessern(GutachtenAbschnitt abschnitt) async {
-    if (!_isEdit) {
-      // Erst speichern, damit die ID existiert.
-      await _save(silent: true);
-      if (!mounted) return;
-    }
+    // Vor dem Öffnen des Vollbild-Editors immer speichern — sonst sieht
+    // das neue Fenster den Stand der DB, nicht den frisch im Dialog
+    // eingegebenen Text. (Beim ersten Speichern entsteht außerdem die
+    // Gutachten-ID, die wir in der URL brauchen.)
+    _autoSaveTimer?.cancel();
+    await _save(silent: true);
+    if (!mounted) return;
     final id = widget.gutachten?.id;
     if (id == null) return;
     // Flutter Web nutzt Hash-Routing — der Hash muss mit in der URL
@@ -2254,16 +2292,23 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
               label: const Text('Recherche'),
               onPressed: () => _pickRecherche(a),
             ),
-            TextButton.icon(
-              icon: const Icon(Icons.list_alt_outlined, size: 14),
-              label: const Text('LV-Positionen'),
-              onPressed: () => _pickLvPositionen(a),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.groups_outlined, size: 14),
-              label: const Text('Beteiligte'),
-              onPressed: () => _pickBeteiligte(a),
-            ),
+            // LV-Positionen nur in Sektion 10 (Kostenschätzung) sinnvoll —
+            // dort listen die meisten Gutachter ihre Mängelbeseitigungs-
+            // Aufwände auf.
+            if (a.key == 's_kosten')
+              TextButton.icon(
+                icon: const Icon(Icons.list_alt_outlined, size: 14),
+                label: const Text('LV-Positionen'),
+                onPressed: () => _pickLvPositionen(a),
+              ),
+            // Beteiligte nur in Sektion 5 (Angaben von Beteiligten) — dort
+            // dokumentiert der SV, wer beim Ortstermin was gesagt hat.
+            if (a.key == 's_beteiligte_aussagen')
+              TextButton.icon(
+                icon: const Icon(Icons.groups_outlined, size: 14),
+                label: const Text('Beteiligte'),
+                onPressed: () => _pickBeteiligte(a),
+              ),
             if (a.key == 's_anlagen')
               TextButton.icon(
                 icon: const Icon(Icons.attach_file, size: 14),

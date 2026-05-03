@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
+import '../../../shared/widgets/signature_pad.dart';
 import '../konten/datev_export.dart';
 import '../sync/sync_section.dart';
 import 'aktenzeichen_migration_section.dart';
@@ -203,6 +204,8 @@ class _EinstellungenFormState
 
   String _theme = 'system';
   String _datevSkr = 'SKR03';
+  String _gutachtenFontFamily = 'Standard';
+  String _gutachtenFontSize = '11';
   bool _saving = false;
 
   @override
@@ -210,6 +213,10 @@ class _EinstellungenFormState
     super.initState();
     _theme = widget.values[SettingsKeys.theme] ?? 'system';
     _datevSkr = widget.values[SettingsKeys.datevKontenrahmen] ?? 'SKR03';
+    final font = widget.values[SettingsKeys.gutachtenFontFamily];
+    _gutachtenFontFamily = (font == null || font.isEmpty) ? 'Standard' : font;
+    final size = widget.values[SettingsKeys.gutachtenFontSize];
+    _gutachtenFontSize = (size == null || size.isEmpty) ? '11' : size;
     _kleinunternehmer =
         widget.values[SettingsKeys.steuerKleinunternehmer] ?? 'nein';
     _nkAkteReset =
@@ -383,6 +390,68 @@ class _EinstellungenFormState
     setState(() {
       _unterschriftBase64 = null;
       _unterschriftMime = null;
+    });
+  }
+
+  /// Öffnet einen Dialog mit SignaturePad — der Anwender unterschreibt
+  /// per Maus/Trackpad/Stift, das Resultat wird als PNG-Base64 in den
+  /// Unterschrifts-Scan geschrieben.
+  Future<void> _direktUnterschreiben() async {
+    final controller = SignaturePadController();
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Direkt unterschreiben'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Mit Maus, Trackpad oder Touch im Feld unten unterschreiben.',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              SignaturePad(controller: controller, height: 220),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Löschen'),
+                  onPressed: () => controller.clear(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(true),
+            child: const Text('Übernehmen'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final png = await controller.toPngBytes(pixelRatio: 2.5);
+    if (png == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Keine Unterschrift erkannt.')));
+      }
+      return;
+    }
+    setState(() {
+      _unterschriftBase64 = base64Encode(png);
+      _unterschriftMime = 'image/png';
     });
   }
 
@@ -576,6 +645,8 @@ class _EinstellungenFormState
     // UI + DATEV
     await repo.set(SettingsKeys.theme, _theme);
     await repo.set(SettingsKeys.datevKontenrahmen, _datevSkr);
+    await repo.set(SettingsKeys.gutachtenFontFamily, _gutachtenFontFamily);
+    await repo.set(SettingsKeys.gutachtenFontSize, _gutachtenFontSize);
 
     // E-Rechnung / Kostensatz
     await repo.set(SettingsKeys.leitwegId, _leitwegId.text.trim());
@@ -1157,6 +1228,18 @@ class _EinstellungenFormState
                           onRemove: _removeUnterschrift,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      _L(
+                        'Direkt unterschreiben',
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.draw_outlined, size: 18),
+                            label: const Text('Mit Maus / Trackpad zeichnen'),
+                            onPressed: _direktUnterschreiben,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       _L(
                         'Position im Gutachten',
@@ -1292,15 +1375,69 @@ class _EinstellungenFormState
                         segments: const [
                           ButtonSegment(value: 'system', label: Text('System')),
                           ButtonSegment(value: 'light', label: Text('Hell')),
-                          ButtonSegment(value: 'dark', label: Text('Dunkel')),
                         ],
-                        selected: {_theme},
+                        selected: {_theme == 'dark' ? 'system' : _theme},
                         showSelectedIcon: false,
                         onSelectionChanged: (s) =>
                             setState(() => _theme = s.first),
                       ),
                     ),
                   ]),
+                  _Section(
+                    'Gutachten-Editor — Standard-Schrift',
+                    subtitle:
+                        'Diese Vorgaben erscheinen im Vollbild-Editor als Initial-Werte in '
+                        'den Schriftart- und Schriftgrad-Dropdowns. Pro Abschnitt kann der '
+                        'Anwender weiterhin abweichend wählen.',
+                    children: [
+                      _L(
+                        'Schriftart',
+                        DropdownButtonFormField<String>(
+                          initialValue: _gutachtenFontFamily,
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Standard',
+                                child: Text('Standard (Inter)')),
+                            DropdownMenuItem(
+                                value: 'Arial', child: Text('Arial')),
+                            DropdownMenuItem(
+                                value: 'Times New Roman',
+                                child: Text('Times New Roman')),
+                            DropdownMenuItem(
+                                value: 'Helvetica',
+                                child: Text('Helvetica')),
+                            DropdownMenuItem(
+                                value: 'Courier New',
+                                child: Text('Courier New')),
+                            DropdownMenuItem(
+                                value: 'Georgia', child: Text('Georgia')),
+                            DropdownMenuItem(
+                                value: 'Verdana', child: Text('Verdana')),
+                          ],
+                          onChanged: (v) => setState(
+                              () => _gutachtenFontFamily = v ?? 'Standard'),
+                        ),
+                      ),
+                      _L(
+                        'Schriftgrad',
+                        DropdownButtonFormField<String>(
+                          initialValue: _gutachtenFontSize,
+                          items: const [
+                            DropdownMenuItem(value: '8', child: Text('8 pt')),
+                            DropdownMenuItem(value: '9', child: Text('9 pt')),
+                            DropdownMenuItem(value: '10', child: Text('10 pt')),
+                            DropdownMenuItem(
+                                value: '11', child: Text('11 pt (Standard)')),
+                            DropdownMenuItem(value: '12', child: Text('12 pt')),
+                            DropdownMenuItem(value: '14', child: Text('14 pt')),
+                            DropdownMenuItem(value: '16', child: Text('16 pt')),
+                          ],
+                          onChanged: (v) => setState(
+                              () => _gutachtenFontSize = v ?? '11'),
+                        ),
+                      ),
+                    ],
+                  ),
                   _Section(
                     'Vorlagen laden',
                     subtitle:

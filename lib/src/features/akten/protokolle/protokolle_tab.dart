@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/form_widgets.dart';
+import '../akte/beteiligte_tab.dart' show decodeBeteiligte;
 import 'protokoll_pdf.dart';
 import 'protokolle_repository.dart';
 
@@ -52,6 +54,19 @@ List<Teilnehmer> _decodeTeilnehmer(String? raw) {
 
 String _encodeTeilnehmer(List<Teilnehmer> list) =>
     jsonEncode(list.map((t) => t.toJson()).toList());
+
+class _TeilnehmerVorschlag {
+  const _TeilnehmerVorschlag({
+    required this.name,
+    required this.rolle,
+    required this.firma,
+    required this.email,
+  });
+  final String name;
+  final String rolle;
+  final String firma;
+  final String email;
+}
 
 class ProtokolleTab extends ConsumerWidget {
   const ProtokolleTab({super.key, required this.auftrag});
@@ -215,6 +230,143 @@ class _ProtokollFormState extends ConsumerState<_ProtokollForm> {
     super.dispose();
   }
 
+  /// Übernimmt die Akte-Beteiligten als Teilnehmer-Vorauswahl. Öffnet
+  /// einen Picker mit Auftraggeber + allen Beteiligten, Anwender hakt
+  /// die Anwesenden ab — die werden dann als Teilnehmer-Zeilen mit
+  /// vorbefüllten Feldern angelegt.
+  Future<void> _aktenBeteiligteUebernehmen() async {
+    final db = ref.read(appDatabaseProvider);
+    // Auftraggeber (= Kunde) der Akte
+    final kunde = widget.auftrag.kundeId == null
+        ? null
+        : await (db.select(db.kunden)
+              ..where((t) => t.id.equals(widget.auftrag.kundeId!)))
+            .getSingleOrNull();
+    // Beteiligte aus auftrag.beteiligteJson
+    final beteiligte = decodeBeteiligte(widget.auftrag.beteiligteJson);
+    // Richter / Kläger / Beklagter aus den Akten-Stammdaten als
+    // zusätzliche Vorschläge.
+    final extras = <_TeilnehmerVorschlag>[];
+    if (kunde != null) {
+      extras.add(_TeilnehmerVorschlag(
+        name: [kunde.vorname, kunde.nachname]
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .join(' '),
+        rolle: 'Auftraggeber',
+        firma: kunde.firma ?? '',
+        email: kunde.email ?? '',
+      ));
+    }
+    for (final b in beteiligte) {
+      extras.add(_TeilnehmerVorschlag(
+        name: b.name,
+        rolle: b.rolle,
+        firma: '',
+        email: b.email,
+      ));
+    }
+    if ((widget.auftrag.richter ?? '').isNotEmpty) {
+      extras.add(_TeilnehmerVorschlag(
+        name: widget.auftrag.richter!,
+        rolle: 'Richter',
+        firma: widget.auftrag.gericht ?? '',
+        email: '',
+      ));
+    }
+    if ((widget.auftrag.klaeger ?? '').isNotEmpty) {
+      extras.add(_TeilnehmerVorschlag(
+        name: widget.auftrag.klaeger!,
+        rolle: 'Kläger',
+        firma: '',
+        email: '',
+      ));
+    }
+    if ((widget.auftrag.beklagter ?? '').isNotEmpty) {
+      extras.add(_TeilnehmerVorschlag(
+        name: widget.auftrag.beklagter!,
+        rolle: 'Beklagter',
+        firma: '',
+        email: '',
+      ));
+    }
+    if (extras.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Keine Beteiligten in der Akte hinterlegt — Tab „Beteiligte" nutzen.')));
+      return;
+    }
+    final ausgewaehlt = <int>{
+      for (var i = 0; i < extras.length; i++) i,
+    };
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, set2) {
+        return AlertDialog(
+          title: const Text('Beteiligte als Teilnehmer übernehmen'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < extras.length; i++)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: ausgewaehlt.contains(i),
+                      onChanged: (v) => set2(() {
+                        if (v == true) {
+                          ausgewaehlt.add(i);
+                        } else {
+                          ausgewaehlt.remove(i);
+                        }
+                      }),
+                      title: Text(
+                          '${extras[i].rolle} · ${extras[i].name}'),
+                      subtitle: extras[i].email.isEmpty
+                          ? null
+                          : Text(extras[i].email,
+                              style: const TextStyle(fontSize: 11)),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () =>
+                    Navigator.of(ctx, rootNavigator: true).pop(false),
+                child: const Text('Abbrechen')),
+            FilledButton(
+                onPressed: () =>
+                    Navigator.of(ctx, rootNavigator: true).pop(true),
+                child: const Text('Übernehmen')),
+          ],
+        );
+      }),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      for (final i in ausgewaehlt) {
+        final v = extras[i];
+        // Doppelte Namen nicht zweimal hinzufügen.
+        if (_teilnehmer.any((t) =>
+            t.name.trim().toLowerCase() ==
+            v.name.trim().toLowerCase())) {
+          continue;
+        }
+        _teilnehmer.add(Teilnehmer(
+          name: v.name,
+          rolle: v.rolle,
+          firma: v.firma,
+          email: v.email,
+        ));
+      }
+    });
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -317,6 +469,12 @@ class _ProtokollFormState extends ConsumerState<_ProtokollForm> {
                 Text('Teilnehmer',
                     style: Theme.of(context).textTheme.titleSmall),
                 const Spacer(),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.groups_outlined, size: 16),
+                  label: const Text('Aus Beteiligten der Akte'),
+                  onPressed: _aktenBeteiligteUebernehmen,
+                ),
+                const SizedBox(width: 8),
                 FilledButton.tonalIcon(
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('Teilnehmer'),

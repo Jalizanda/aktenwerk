@@ -270,8 +270,12 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
                           : null,
                     ),
                   ),
-                  right: LabeledField('Kategorie',
-                      TextFormField(controller: _kategorie)),
+                  right: LabeledField(
+                    'Kategorie',
+                    _KategorieDropdown(
+                      controller: _kategorie,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 LabeledField('Ansprechpartner',
@@ -370,5 +374,125 @@ class _LieferantFormState extends ConsumerState<_LieferantForm> {
         ),
       ),
     );
+  }
+}
+
+/// Standard-Kategorien für Lieferanten — gängige SV-Büro-Klassifizierung.
+/// Der Anwender kann zusätzlich eigene über „Eigene Kategorie …" hinzufügen.
+const _lieferantenKategorien = <String>[
+  'Versicherung',
+  'Telekommunikation',
+  'EDV / Software',
+  'Bürobedarf',
+  'Werkzeug / Messtechnik',
+  'Fortbildung',
+  'Mobilität / KFZ',
+  'Energie',
+  'Wartung / Service',
+  'Buch / Fachliteratur',
+  'Beratung / Steuerberatung',
+  'Reisekosten',
+  'Bewirtung',
+  'Porto / Versand',
+  'Handwerk / Subunternehmer',
+  'Gericht / Behörde',
+  'Sachverständigen-Verband',
+  'Bank / Finanzen',
+  'Sonstiges',
+];
+
+class _KategorieDropdown extends StatefulWidget {
+  const _KategorieDropdown({required this.controller});
+  final TextEditingController controller;
+  @override
+  State<_KategorieDropdown> createState() => _KategorieDropdownState();
+}
+
+class _KategorieDropdownState extends State<_KategorieDropdown> {
+  static const _eigeneOption = '__eigene__';
+
+  String? _aktuelleAuswahl() {
+    final t = widget.controller.text.trim();
+    if (t.isEmpty) return null;
+    return _lieferantenKategorien.contains(t) ? t : t;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = _aktuelleAuswahl();
+    final isCustom = cur != null && !_lieferantenKategorien.contains(cur);
+    return DropdownButtonFormField<String>(
+      initialValue: cur,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        hintText: '— wählen —',
+      ),
+      items: [
+        for (final k in _lieferantenKategorien)
+          DropdownMenuItem(value: k, child: Text(k)),
+        if (isCustom)
+          DropdownMenuItem(
+            value: cur,
+            child: Text(cur, style: const TextStyle(fontStyle: FontStyle.italic)),
+          ),
+        const DropdownMenuItem(
+          value: _eigeneOption,
+          child: Row(children: [
+            Icon(Icons.add, size: 14),
+            SizedBox(width: 6),
+            Text('Eigene Kategorie …'),
+          ]),
+        ),
+      ],
+      onChanged: (v) async {
+        if (v == _eigeneOption) {
+          final neu = await _frageEigeneKategorie();
+          if (neu != null && neu.isNotEmpty) {
+            setState(() => widget.controller.text = neu);
+          }
+          return;
+        }
+        if (v != null) {
+          setState(() => widget.controller.text = v);
+        }
+      },
+    );
+  }
+
+  Future<String?> _frageEigeneKategorie() async {
+    final ctrl = TextEditingController();
+    final ergebnis = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => AlertDialog(
+        title: const Text('Eigene Kategorie'),
+        content: SizedBox(
+          width: 360,
+          child: TextField(
+            controller: ctrl,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Bezeichnung',
+              hintText: 'z. B. Hosting / Domain',
+            ),
+            onSubmitted: (v) => Navigator.of(context, rootNavigator: true)
+                .pop(v.trim()),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context, rootNavigator: true)
+                .pop(ctrl.text.trim()),
+            child: const Text('Übernehmen'),
+          ),
+        ],
+      ),
+    );
+    return ergebnis;
   }
 }

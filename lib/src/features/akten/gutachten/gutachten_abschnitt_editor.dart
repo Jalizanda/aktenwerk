@@ -14,6 +14,9 @@ import '../../../core/ai/rechtschreibung_service.dart';
 import '../../../core/web/web_compat.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
+import '../../../shared/richtext/quill_editor.dart'
+    show kRichTextFontFamilies, kRichTextFontSizes;
+import '../../system/einstellungen/einstellungen_repository.dart';
 import '../akte/normen_picker_dialog.dart';
 import '../lv/lv_insert_dialog.dart';
 import 'gutachten_repository.dart';
@@ -61,6 +64,12 @@ class _GutachtenAbschnittEditorScreenState
   final FocusNode _editorFocus = FocusNode();
   final ScrollController _editorScroll = ScrollController();
 
+  /// Aus den Einstellungen geladener Standard für Schriftart + Größe.
+  /// Wird in der Quill-Toolbar als „Initial-Wert" angezeigt, sodass der
+  /// Anwender direkt sieht, was die Standard-Vorgabe ist.
+  String _einstStandardFont = 'Standard (Inter)';
+  String _einstStandardSize = '11';
+
   @override
   void initState() {
     super.initState();
@@ -93,12 +102,27 @@ class _GutachtenAbschnittEditorScreenState
               ..where((t) => t.id.equals(g.auftragId!)))
             .getSingleOrNull();
       }
+      // Standard-Schrift + -Größe aus den Einstellungen für die Toolbar.
+      final settings = ref.read(einstellungenRepositoryProvider);
+      final standardFont = await settings.get(SettingsKeys.gutachtenFontFamily);
+      final standardSize = await settings.get(SettingsKeys.gutachtenFontSize);
       final inhalte = abschnitteFromJson(g.abschnitteJson);
       final raw = inhalte[widget.abschnittKey] ?? '';
       final controller = _buildController(raw);
       controller.document.changes.listen((_) => _onEditChange());
       if (!mounted) return;
       setState(() {
+        if (standardFont == null ||
+            standardFont.isEmpty ||
+            standardFont == 'Standard' ||
+            standardFont == 'Inter') {
+          _einstStandardFont = 'Standard (Inter)';
+        } else {
+          _einstStandardFont = standardFont;
+        }
+        _einstStandardSize = (standardSize == null || standardSize.isEmpty)
+            ? '11'
+            : standardSize;
         _gutachten = g;
         _auftrag = auftrag;
         _abschnitt = abschnitt;
@@ -660,20 +684,17 @@ class _GutachtenAbschnittEditorScreenState
             child: quill.QuillSimpleToolbar(
               controller: _quill!,
               config: quill.QuillSimpleToolbarConfig(
-                buttonOptions: const quill.QuillSimpleToolbarButtonOptions(
+                buttonOptions: quill.QuillSimpleToolbarButtonOptions(
                   fontFamily: quill.QuillToolbarFontFamilyButtonOptions(
-                    initialValue: 'Standard',
-                    items: {
-                      'Standard': 'Inter',
-                      'Arial': 'Arial',
-                      'Times New Roman': 'Times New Roman',
-                      'Helvetica': 'Helvetica',
-                      'Courier New': 'Courier New',
-                      'Georgia': 'Georgia',
-                      'Verdana': 'Verdana',
-                      'Zurücksetzen': 'Clear',
-                    },
+                    initialValue: _einstStandardFont,
+                    defaultDisplayText: _einstStandardFont,
+                    items: kRichTextFontFamilies,
                     renderFontFamilies: true,
+                  ),
+                  fontSize: quill.QuillToolbarFontSizeButtonOptions(
+                    initialValue: _einstStandardSize,
+                    defaultDisplayText: _einstStandardSize,
+                    items: kRichTextFontSizes,
                   ),
                 ),
                 multiRowsDisplay: false,

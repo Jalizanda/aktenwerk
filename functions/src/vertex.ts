@@ -13,9 +13,13 @@ const GEN_MODEL = "gemini-2.5-flash";
 let cachedToken: string | undefined;
 let cachedTokenExpiresAt = 0;
 
-async function getAuthHeader(): Promise<string> {
+async function getAuthHeader(forceRefresh = false): Promise<string> {
   const now = Date.now();
-  if (cachedToken && cachedTokenExpiresAt > now + 60_000) {
+  if (
+    !forceRefresh &&
+    cachedToken &&
+    cachedTokenExpiresAt > now + 60_000
+  ) {
     return `Bearer ${cachedToken}`;
   }
   const auth = new GoogleAuth({
@@ -27,10 +31,17 @@ async function getAuthHeader(): Promise<string> {
     throw new Error("Kein Access-Token von ADC erhalten.");
   }
   cachedToken = tokenResp.token;
+  // Etwas konservativer cachen — manche Cloud-Function-Umgebungen liefern
+  // kürzer als 50 min lebende Tokens. 30 min sind auf der sicheren Seite.
   cachedTokenExpiresAt = (tokenResp.res?.data?.expires_in as number | undefined)
     ? now + (tokenResp.res!.data.expires_in as number) * 1000
-    : now + 50 * 60_000; // konservativ: 50 min
+    : now + 30 * 60_000;
   return `Bearer ${cachedToken}`;
+}
+
+function invalidateTokenCache(): void {
+  cachedToken = undefined;
+  cachedTokenExpiresAt = 0;
 }
 
 /**
@@ -75,7 +86,9 @@ async function fetchWithRetry(
   let lastErr = "";
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const auth = await getAuthHeader();
+      // Bei einem zweiten Versuch nach 401 holen wir aktiv ein neues
+      // Token, falls das gecachte abgelaufen / ungültig war.
+      const auth = await getAuthHeader(attempt > 0);
       const resp = await fetch(url, {
         method: "POST",
         headers: { Authorization: auth, "Content-Type": "application/json" },
@@ -86,8 +99,16 @@ async function fetchWithRetry(
       }
       const text = await resp.text();
       lastErr = `${resp.status}: ${text.slice(0, 300)}`;
+      // 401 = Token abgelaufen / ungültig → Cache leeren, einmal neu
+      // versuchen mit frischem Token.
+      if (resp.status === 401) {
+        invalidateTokenCache();
+      }
       const retriable =
-        resp.status === 429 || resp.status === 503 || resp.status === 500;
+        resp.status === 401 ||
+        resp.status === 429 ||
+        resp.status === 503 ||
+        resp.status === 500;
       if (!retriable || attempt === maxAttempts - 1) {
         throw new Error(`${label} fehlgeschlagen (${lastErr})`);
       }

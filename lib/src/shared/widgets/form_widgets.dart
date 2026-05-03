@@ -448,7 +448,11 @@ class StandardFormDialog extends StatelessWidget {
                     icon: icon,
                     onClose: saving ? null : onCancel),
                 Expanded(
-                  child: Container(color: AwTokens.white, child: body),
+                  // Dialog-Hintergrund in App-Grau („paper") — die
+                  // Eingabefelder bleiben weiß, sodass sich die Felder
+                  // visuell vom Hintergrund abheben (Material-Design-
+                  // Konsistenz mit dem restlichen App-Layout).
+                  child: Container(color: AwTokens.paper, child: body),
                 ),
                 DialogFooter(
                   onCancel: onCancel,

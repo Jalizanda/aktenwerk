@@ -154,6 +154,12 @@ class SettingsKeys {
   static const kiModellNormenChat = 'ki.modell.normen_chat';
   static const kiModellAudioTranskript = 'ki.modell.audio_transkript';
   static const kiModellBelegErfassung = 'ki.modell.beleg_erfassung';
+
+  // Gutachten-Editor Standard-Schriftart und -größe (siehe
+  // EinstellungenScreen → Briefkopf/Layout). Dropdown-Wert (z. B.
+  // 'Arial', 'Times New Roman', 'Standard') und PT-Wert ('10','11','12').
+  static const gutachtenFontFamily = 'gutachten.font_family';
+  static const gutachtenFontSize = 'gutachten.font_size';
 }
 
 class EinstellungenRepository {

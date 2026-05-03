@@ -44,8 +44,11 @@ class _LvInsertDialogState extends ConsumerState<_LvInsertDialog> {
     final lvs = ref.watch(lvListProvider(widget.auftragId));
     return Dialog(
       insetPadding: const EdgeInsets.all(32),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 880, maxHeight: 760),
+      child: SizedBox(
+        // Tight Constraints — sonst kollabiert das Expanded(LV-Liste) auf
+        // 0 Höhe und der Footer rutscht direkt unter den Titel.
+        width: 880,
+        height: 760,
         child: Column(
           children: [
             Padding(
