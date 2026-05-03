@@ -16,6 +16,15 @@ class Versand extends Table {
   TextColumn get inhalt => text().nullable()();
   TextColumn get trackingNr => text().nullable()();
 
+  /// Anzahl der versendeten Ausfertigungen (z. B. „5 Hefte" für Gericht).
+  IntColumn get anzahlAusfertigungen => integer().nullable()();
+
+  /// Optional: ID des versendeten Dokuments aus der `dokumente`-Tabelle.
+  /// `bezugBezeichnung` bleibt erhalten, wenn das Dokument später
+  /// gelöscht oder ausgetauscht wird.
+  IntColumn get dokumentId => integer().nullable()();
+  TextColumn get bezugBezeichnung => text().nullable()();
+
   TextColumn get status => text().withDefault(const Constant('versendet'))();
 
   TextColumn get extras => text().nullable()();

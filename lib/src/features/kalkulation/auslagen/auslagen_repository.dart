@@ -15,7 +15,7 @@ class AuslagenRepository {
   final AppDatabase _db;
 
   Stream<List<AuslageWithAuftrag>> watchAll(
-      {int? auftragId, bool? abgerechnet}) {
+      {int? auftragId, bool? abgerechnet, String? art}) {
     final q = _db.select(_db.auslagen).join([
       leftOuterJoin(
           _db.auftraege, _db.auftraege.id.equalsExp(_db.auslagen.auftragId)),
@@ -25,6 +25,9 @@ class AuslagenRepository {
     }
     if (abgerechnet != null) {
       q.where(_db.auslagen.abgerechnet.equals(abgerechnet));
+    }
+    if (art != null) {
+      q.where(_db.auslagen.art.equals(art));
     }
     q.orderBy([
       OrderingTerm(expression: _db.auslagen.datum, mode: OrderingMode.desc),
@@ -56,17 +59,22 @@ final auslagenRepositoryProvider = Provider<AuslagenRepository>((ref) {
 class AuslagenFilter {
   final int? auftragId;
   final bool? abgerechnet;
-  const AuslagenFilter({this.auftragId, this.abgerechnet});
+  /// Auslagen-Art (`fahrt`, `kopie_sw`, `lichtbilder` …). `null` = alle Arten.
+  final String? art;
+  const AuslagenFilter({this.auftragId, this.abgerechnet, this.art});
   AuslagenFilter copyWith({
     int? auftragId,
     bool? abgerechnet,
+    String? art,
     bool clearAuftrag = false,
     bool clearAbgerechnet = false,
+    bool clearArt = false,
   }) =>
       AuslagenFilter(
         auftragId: clearAuftrag ? null : (auftragId ?? this.auftragId),
         abgerechnet:
             clearAbgerechnet ? null : (abgerechnet ?? this.abgerechnet),
+        art: clearArt ? null : (art ?? this.art),
       );
 }
 
@@ -78,5 +86,5 @@ final auslagenListProvider =
   final f = ref.watch(auslagenFilterProvider);
   return ref
       .watch(auslagenRepositoryProvider)
-      .watchAll(auftragId: f.auftragId, abgerechnet: f.abgerechnet);
+      .watchAll(auftragId: f.auftragId, abgerechnet: f.abgerechnet, art: f.art);
 });

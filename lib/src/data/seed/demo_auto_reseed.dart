@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/auth/user_approval_service.dart';
 import '../../features/system/einstellungen/einstellungen_repository.dart';
+import '../../features/system/einstellungen/stammdaten_seed.dart';
 import '../../features/system/konten/debitor_service.dart';
 import '../../features/system/konten/konten_repository.dart';
 import '../database/app_database.dart';
@@ -52,6 +53,18 @@ final demoAutoReseedProvider = Provider<void>((ref) {
           await prefs.setBool(flag, true);
         }
       }
+
+      // 2b) Demo-Stammdaten (Firmenname/Anschrift/Logo/Bank) automatisch
+      //     setzen, sobald der Demo-Mandant aktiv ist und noch keine
+      //     Firmendaten gesetzt sind. Damit erscheinen Logo + Fußzeile
+      //     auf den PDFs ohne dass der Anwender erst manuell laden muss.
+      try {
+        final repo = ref.read(einstellungenRepositoryProvider);
+        final firma = await repo.get(SettingsKeys.firmaName);
+        if (firma == null || firma.trim().isEmpty) {
+          await applyStammdatenProfil(repo, stammdatenDemo);
+        }
+      } catch (_) {}
     }
 
     // 3) DATEV-Standard-Konten in jeder Organisation einmalig anlegen.

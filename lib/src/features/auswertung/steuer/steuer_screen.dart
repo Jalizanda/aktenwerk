@@ -13,6 +13,7 @@ import '../../../shared/charts/chart_theme.dart';
 import '../../../shared/pdf/document_pdf.dart';
 import '../../../shared/positionen/position_model.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import '../datev/datev_export.dart';
 
 class SteuerScreen extends ConsumerStatefulWidget {
   const SteuerScreen({super.key});
@@ -130,59 +131,77 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          Text('Umsatz pro Monat',
-              style: theme.textTheme.titleMedium),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 280,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                barTouchData: ChartStyle.barTouchData(
-                  format: (v) => NumberFormat.currency(
-                          locale: 'de_DE', symbol: '€', decimalDigits: 0)
-                      .format(v),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border:
+                  Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Umsatz pro Monat',
+                    style: theme.textTheme.titleMedium),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 280,
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      barTouchData: ChartStyle.barTouchData(
+                        format: (v) => NumberFormat.currency(
+                                locale: 'de_DE',
+                                symbol: '€',
+                                decimalDigits: 0)
+                            .format(v),
+                      ),
+                      barGroups: [
+                        for (var m = 0; m < 12; m++)
+                          BarChartGroupData(x: m, barRods: [
+                            ChartStyle.bar(einnahmen[m],
+                                from: AppTheme.accent600,
+                                to: AppTheme.accent500,
+                                width: 12),
+                            ChartStyle.bar(ausgaben[m],
+                                from: const Color(0xFF1D4ED8),
+                                to: const Color(0xFF3B82F6),
+                                width: 12),
+                          ]),
+                      ],
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 60,
+                                getTitlesWidget: (v, _) => Text(
+                                    v.toStringAsFixed(0),
+                                    style:
+                                        const TextStyle(fontSize: 11)))),
+                        rightTitles: ChartStyle.emptyAxis(),
+                        topTitles: ChartStyle.emptyAxis(),
+                        bottomTitles: ChartStyle.bottomLabels(const [
+                          'J', 'F', 'M', 'A', 'M', 'J',
+                          'J', 'A', 'S', 'O', 'N', 'D'
+                        ]),
+                      ),
+                      gridData: ChartStyle.gridData(),
+                      borderData: FlBorderData(show: false),
+                    ),
+                  ),
                 ),
-                barGroups: [
-                  for (var m = 0; m < 12; m++)
-                    BarChartGroupData(x: m, barRods: [
-                      ChartStyle.bar(einnahmen[m],
-                          from: AppTheme.accent600,
-                          to: AppTheme.accent500,
-                          width: 12),
-                      ChartStyle.bar(ausgaben[m],
-                          from: const Color(0xFF1D4ED8),
-                          to: const Color(0xFF3B82F6),
-                          width: 12),
-                    ]),
-                ],
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 60,
-                          getTitlesWidget: (v, _) => Text(
-                              v.toStringAsFixed(0),
-                              style: const TextStyle(fontSize: 11)))),
-                  rightTitles: ChartStyle.emptyAxis(),
-                  topTitles: ChartStyle.emptyAxis(),
-                  bottomTitles: ChartStyle.bottomLabels(const [
-                    'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'
-                  ]),
-                ),
-                gridData: ChartStyle.gridData(),
-                borderData: FlBorderData(show: false),
-              ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  _LegendItem(
+                      color: AppTheme.accent600, label: 'Einnahmen'),
+                  const SizedBox(width: 24),
+                  _LegendItem(
+                      color: const Color(0xFF1D4ED8), label: 'Ausgaben'),
+                ]),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Row(children: [
-            _LegendItem(
-                color: AppTheme.accent600, label: 'Einnahmen'),
-            const SizedBox(width: 24),
-            _LegendItem(
-                color: const Color(0xFF1D4ED8), label: 'Ausgaben'),
-          ]),
           const SizedBox(height: 28),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,6 +243,19 @@ class _SteuerScreenState extends ConsumerState<SteuerScreen> {
           ),
           const SizedBox(height: 10),
           _belegjournalMonate(context, rechnungen, money),
+          const SizedBox(height: 28),
+          Text('DATEV-Export für den Steuerberater',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Buchungsstapel-CSV (DATEV-Format „EXTF" v13) plus Belegjournal-ZIP '
+            'mit allen PDFs und einer Übersichts-CSV — direkt importierbar in '
+            'DATEV Kanzlei-Rechnungswesen oder DATEV Unternehmen Online.',
+            style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          _DatevExportSection(jahr: _jahr),
         ],
       ),
     );
@@ -613,33 +645,38 @@ class _KategorienPie extends StatelessWidget {
               ),
             )
           else
-            SizedBox(
-              height: 180,
+            // Höhe nicht mehr fix — das Container wächst mit der
+            // Legende mit, damit alle Kategorien sichtbar sind.
+            IntrinsicHeight(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     flex: 2,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 30,
-                        pieTouchData: PieTouchData(
-                          touchCallback: (event, response) {},
+                    child: SizedBox(
+                      height: 180,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 30,
+                          pieTouchData: PieTouchData(
+                            touchCallback: (event, response) {},
+                          ),
+                          sections: [
+                            for (var i = 0; i < entries.length; i++)
+                              PieChartSectionData(
+                                value: entries[i].value,
+                                color: _palette[i % _palette.length],
+                                title:
+                                    '${(entries[i].value / total * 100).toStringAsFixed(0)}%',
+                                radius: 55,
+                                titleStyle: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                          ],
                         ),
-                        sections: [
-                          for (var i = 0; i < entries.length; i++)
-                            PieChartSectionData(
-                              value: entries[i].value,
-                              color: _palette[i % _palette.length],
-                              title:
-                                  '${(entries[i].value / total * 100).toStringAsFixed(0)}%',
-                              radius: 55,
-                              titleStyle: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                        ],
                       ),
                     ),
                   ),
@@ -754,4 +791,165 @@ class _LegendItem extends StatelessWidget {
         const SizedBox(width: 6),
         Text(label),
       ]);
+}
+
+class _DatevExportSection extends ConsumerStatefulWidget {
+  const _DatevExportSection({required this.jahr});
+  final int jahr;
+  @override
+  ConsumerState<_DatevExportSection> createState() =>
+      _DatevExportSectionState();
+}
+
+class _DatevExportSectionState
+    extends ConsumerState<_DatevExportSection> {
+  late DateTime _von = DateTime(widget.jahr, 1, 1);
+  late DateTime _bis = DateTime(widget.jahr, 12, 31);
+  final _berater = TextEditingController();
+  final _mandant = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _berater.dispose();
+    _mandant.dispose();
+    super.dispose();
+  }
+
+  Future<void> _exportCsv() async {
+    setState(() => _busy = true);
+    try {
+      final bytes =
+          await ref.read(datevExportServiceProvider).erstelleBuchungsstapel(
+                vonDatum: _von,
+                bisDatum: _bis,
+                mandantNr: _mandant.text.trim(),
+                beraterNr: _berater.text.trim(),
+              );
+      final fname =
+          'DATEV_Buchungsstapel_${DateFormat('yyyyMMdd').format(_von)}_${DateFormat('yyyyMMdd').format(_bis)}.csv';
+      await Printing.sharePdf(bytes: bytes, filename: fname);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _exportZip() async {
+    setState(() => _busy = true);
+    try {
+      final bytes =
+          await ref.read(datevExportServiceProvider).erstelleBelegjournalZip(
+                vonDatum: _von,
+                bisDatum: _bis,
+              );
+      final fname =
+          'Belegjournal_${DateFormat('yyyyMMdd').format(_von)}_${DateFormat('yyyyMMdd').format(_bis)}.zip';
+      await Printing.sharePdf(bytes: bytes, filename: fname);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = DateFormat('dd.MM.yyyy', 'de');
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _von,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100));
+                  if (picked != null) setState(() => _von = picked);
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Von'),
+                  child: Text(fmt.format(_von)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _bis,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100));
+                  if (picked != null) setState(() => _bis = picked);
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Bis'),
+                  child: Text(fmt.format(_bis)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _berater,
+                decoration: const InputDecoration(
+                    labelText: 'Berater-Nr.',
+                    hintText: 'optional, vom Steuerberater'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _mandant,
+                decoration: const InputDecoration(
+                    labelText: 'Mandanten-Nr.',
+                    hintText: 'optional, vom Steuerberater'),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                icon: _busy
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.file_download_outlined, size: 18),
+                label: const Text('Buchungsstapel-CSV'),
+                onPressed: _busy ? null : _exportCsv,
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.folder_zip_outlined, size: 18),
+                label: const Text('Belegjournal als ZIP'),
+                onPressed: _busy ? null : _exportZip,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

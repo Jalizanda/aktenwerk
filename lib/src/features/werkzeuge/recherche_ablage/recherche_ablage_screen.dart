@@ -28,6 +28,7 @@ class _RechercheAblageScreenState
   String _query = '';
   int? _auftragFilter;
   bool _nurUnverwendet = false;
+  _RechercheSort _sort = _RechercheSort.neueste;
 
   static final _fmt = DateFormat('dd.MM.yyyy HH:mm');
 
@@ -66,6 +67,29 @@ class _RechercheAblageScreenState
               aktuell: _auftragFilter,
               onChanged: (id) => setState(() => _auftragFilter = id),
             ),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<_RechercheSort>(
+                value: _sort,
+                items: const [
+                  DropdownMenuItem(
+                      value: _RechercheSort.neueste,
+                      child: Text('Neueste zuerst')),
+                  DropdownMenuItem(
+                      value: _RechercheSort.aelteste,
+                      child: Text('Älteste zuerst')),
+                  DropdownMenuItem(
+                      value: _RechercheSort.titelAsc,
+                      child: Text('Titel A → Z')),
+                  DropdownMenuItem(
+                      value: _RechercheSort.titelDesc,
+                      child: Text('Titel Z → A')),
+                  DropdownMenuItem(
+                      value: _RechercheSort.quelle,
+                      child: Text('Nach Quelle')),
+                ],
+                onChanged: (v) => setState(() => _sort = v ?? _sort),
+              ),
+            ),
           ],
         ),
         const Divider(height: 1),
@@ -86,6 +110,29 @@ class _RechercheAblageScreenState
                 return n.titel.toLowerCase().contains(q) ||
                     n.inhalt.toLowerCase().contains(q);
               }).toList();
+              gefiltert.sort((a, b) {
+                switch (_sort) {
+                  case _RechercheSort.neueste:
+                    return b.updatedAt.compareTo(a.updatedAt);
+                  case _RechercheSort.aelteste:
+                    return a.updatedAt.compareTo(b.updatedAt);
+                  case _RechercheSort.titelAsc:
+                    return a.titel
+                        .toLowerCase()
+                        .compareTo(b.titel.toLowerCase());
+                  case _RechercheSort.titelDesc:
+                    return b.titel
+                        .toLowerCase()
+                        .compareTo(a.titel.toLowerCase());
+                  case _RechercheSort.quelle:
+                    final aq = (a.quelle ?? '').toLowerCase();
+                    final bq = (b.quelle ?? '').toLowerCase();
+                    final c = aq.compareTo(bq);
+                    return c == 0
+                        ? b.updatedAt.compareTo(a.updatedAt)
+                        : c;
+                }
+              });
               if (gefiltert.isEmpty) {
                 return const EmptyListState(
                   icon: Icons.bookmark_outline,
@@ -664,4 +711,12 @@ class _AlsTextbausteinDialogState
       ),
     );
   }
+}
+
+enum _RechercheSort {
+  neueste,
+  aelteste,
+  titelAsc,
+  titelDesc,
+  quelle,
 }

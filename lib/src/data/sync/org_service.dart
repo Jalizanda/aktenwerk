@@ -143,12 +143,20 @@ class OrgService {
     }
     final ref = _db.collection('organizations').doc();
 
+    // 14-Tage-Test ab Anlage; Super-Admin schaltet anschließend frei.
+    final now = DateTime.now();
+    final trialEnde = now.add(const Duration(days: 14));
+
     // 1) Org-Dokument (approved: false — wartet auf Super-Admin)
     await ref.set({
       'name': name,
       'beschreibung': beschreibung,
       'ownerUid': uid,
       'approved': false,
+      'subscriptionStatus': 'trial',
+      'trialStartedAt': Timestamp.fromDate(now),
+      'trialEndsAt': Timestamp.fromDate(trialEnde),
+      'pricePerUserCents': 790,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });

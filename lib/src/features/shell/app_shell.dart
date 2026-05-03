@@ -10,6 +10,7 @@ import '../../core/theme/aw_tokens.dart';
 import '../../data/sync/auth_service.dart';
 import '../../data/sync/auto_sync_service.dart';
 import '../../data/sync/org_service.dart';
+import '../auth/subscription_service.dart';
 import '../auth/user_approval_service.dart';
 import '../search/search_dialog.dart';
 import 'kalender_badge.dart';
@@ -123,6 +124,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               child: Column(
                 children: [
                   const _TopBar(),
+                  const _TrialBanner(),
                   Expanded(
                     child: Container(
                       color: scheme.surfaceContainerLow,
@@ -410,6 +412,8 @@ class _UserMenu extends ConsumerWidget {
           if (context.mounted) GoRouter.of(context).go('/organisation');
         } else if (value == 'einstellungen') {
           if (context.mounted) GoRouter.of(context).go('/einstellungen');
+        } else if (value == 'datenschutz') {
+          if (context.mounted) GoRouter.of(context).go('/datenschutz');
         } else if (value == 'abmelden') {
           final ok = await showDialog<bool>(
             context: context,
@@ -533,6 +537,14 @@ class _UserMenu extends ConsumerWidget {
             Icon(Icons.settings_outlined, size: 16),
             SizedBox(width: 8),
             Text('Einstellungen'),
+          ]),
+        ),
+        const PopupMenuItem<String>(
+          value: 'datenschutz',
+          child: Row(children: [
+            Icon(Icons.privacy_tip_outlined, size: 16),
+            SizedBox(width: 8),
+            Text('Datenschutz'),
           ]),
         ),
         const PopupMenuItem<String>(
@@ -1002,6 +1014,68 @@ class _VersionFooter extends StatelessWidget {
               color: AppTheme.accent600,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banner-Streifen oben unter der Top-Bar — nur sichtbar wenn der
+/// Trial-Zeitraum bald ausläuft oder schon abgelaufen ist.
+class _TrialBanner extends ConsumerWidget {
+  const _TrialBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sub = ref.watch(aktuelleOrgSubscriptionProvider).valueOrNull;
+    if (sub == null) return const SizedBox.shrink();
+    final eff = sub.effektiverStatus;
+    if (eff == SubscriptionStatus.master ||
+        eff == SubscriptionStatus.aktiv) {
+      return const SizedBox.shrink();
+    }
+    final tage = sub.tageVerbleibend;
+    // Trial: nur ab 7 Tagen oder weniger anzeigen
+    if (eff == SubscriptionStatus.trial &&
+        (tage == null || tage > 7)) {
+      return const SizedBox.shrink();
+    }
+    final scheme = Theme.of(context).colorScheme;
+    final abgelaufen = eff == SubscriptionStatus.trialAbgelaufen ||
+        eff == SubscriptionStatus.gekuendigt;
+    final bg = abgelaufen ? scheme.errorContainer : Colors.amber.shade100;
+    final fg = abgelaufen ? scheme.error : Colors.amber.shade900;
+    final text = abgelaufen
+        ? 'Test abgelaufen — Mandant aktivieren, um wieder schreibend arbeiten zu können.'
+        : (tage != null && tage <= 0
+            ? 'Test endet heute — bitte Abo abschließen.'
+            : (tage == 1
+                ? 'Test endet morgen.'
+                : 'Test endet in $tage Tagen — Abo abschließen.'));
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: bg,
+      child: Row(
+        children: [
+          Icon(
+            abgelaufen ? Icons.lock_outline : Icons.timer_outlined,
+            size: 16,
+            color: fg,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w600, color: fg),
+            ),
+          ),
+          if (sub.memberCount > 0)
+            Text(
+              '${sub.memberCount} Nutzer · ${(sub.memberCount * sub.pricePerUserCents / 100).toStringAsFixed(2)} €/Monat',
+              style: TextStyle(fontSize: 11.5, color: fg),
+            ),
         ],
       ),
     );

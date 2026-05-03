@@ -83,6 +83,20 @@ class AkteTabBar extends ConsumerWidget {
         count: c(ref.watch(erlaeuterungenCountProvider(auftragId))),
       ),
       const AkteTabData(
+        label: 'Gerichtssache',
+        icon: Icons.gavel_outlined,
+      ),
+      AkteTabData(
+        label: 'Nachfragen',
+        icon: Icons.help_outline,
+        count: c(ref.watch(nachfragenCountProvider(auftragId))),
+      ),
+      AkteTabData(
+        label: 'Versand',
+        icon: Icons.local_shipping_outlined,
+        count: c(ref.watch(versandCountProvider(auftragId))),
+      ),
+      const AkteTabData(
         label: 'Anschreiben',
         icon: Icons.drafts_outlined,
       ),
@@ -117,6 +131,11 @@ class AkteTabBar extends ConsumerWidget {
       const AkteTabData(
         label: 'Wirtschaftlichkeit',
         icon: Icons.euro_outlined,
+      ),
+      AkteTabData(
+        label: 'LV / Kalkulation',
+        icon: Icons.list_alt_outlined,
+        count: c(ref.watch(lvCountProvider(auftragId))),
       ),
     ];
 

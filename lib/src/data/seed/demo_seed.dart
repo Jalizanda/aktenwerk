@@ -72,6 +72,15 @@ class DemoSeeder {
           _asList(json['wiedervorlagen']), auftraegeMap, report);
       await _seedFortbildungen(
           _asList(json['fortbildungen']), report);
+      await _seedVersand(
+          _asList(json['versand']), auftraegeMap, report);
+      await _seedLvKatalog(_asList(json['lv_katalog']), report);
+      final lvKopfMap = await _seedLvKopf(
+          _asList(json['lv_kopf']), auftraegeMap, report);
+      final lvPosMap = await _seedLvPositionen(
+          _asList(json['lv_positionen']), lvKopfMap, report);
+      await _seedLvMengenzeilen(
+          _asList(json['lv_mengenzeilen']), lvPosMap, report);
       await _seedEinstellungen(_asList(json['einstellungen']), report);
     });
     return report;
@@ -261,6 +270,18 @@ class DemoSeeder {
             kostenvorschuss: Value(_asDouble(a['kostenvorschuss'])),
             aufwandSchaetzung: Value(_asDouble(a['aufwandSchaetzung'])),
             beteiligteJson: Value(_asJson(a['beteiligte'])),
+            befangenheitsGeprueftAm:
+                Value(_parseDate(a['befangenheitsGeprueftAm'])),
+            befangenheitsErgebnis:
+                Value(a['befangenheitsErgebnis']?.toString()),
+            befangenheitsNotiz:
+                Value(a['befangenheitsNotiz']?.toString()),
+            mehrkostenAnzeigeAm:
+                Value(_parseDate(a['mehrkostenAnzeigeAm'])),
+            mehrkostenBetrag: Value(_asDouble(a['mehrkostenBetrag'])),
+            mehrkostenBegruendung:
+                Value(a['mehrkostenBegruendung']?.toString()),
+            beweisfragenJson: Value(_asJson(a['beweisfragen'])),
             notiz:
                 Value(a['notizen']?.toString() ?? a['notiz']?.toString()),
           ));
@@ -350,7 +371,9 @@ class DemoSeeder {
           : <String, dynamic>{};
       await _db.into(_db.gutachten).insert(GutachtenCompanion.insert(
             auftragId: Value(_mapId(g['auftragId'], auftragMap)),
-            titel: Value(g['titel']?.toString() ?? g['nummer']?.toString()),
+            nummer: Value(g['nummer']?.toString()),
+            titel: Value(g['titel']?.toString()),
+            bezeichnung: Value(g['bezeichnung']?.toString()),
             status: Value(g['status']?.toString() ?? 'entwurf'),
             ortsterminAm: Value(_parseDate(g['ortsterminAm'])),
             abgabeAm: Value(_parseDate(g['abgabeAm'])),
@@ -421,6 +444,8 @@ class DemoSeeder {
             inhaltJson:
                 Value(jsonEncode([{'insert': '$text\n'}])),
             status: Value(a['status']?.toString() ?? 'entwurf'),
+            belegNr: Value(a['belegNr']?.toString()),
+            gedrucktAm: Value(_parseDate(a['gedrucktAm'])),
           ));
     }
     r.anschreiben = list.length;
@@ -487,13 +512,44 @@ class DemoSeeder {
     DemoSeedReport r,
   ) async {
     for (final f in list) {
+      // Mehrere Q&A-Paare pro Schriftsatz: bevorzugt `fragen[]`-Array,
+      // sonst Single-Frage-Fallback in das gleiche JSON-Schema umpacken.
+      final fragenList = f['fragen'];
+      String? fragenJson;
+      if (fragenList is List) {
+        fragenJson = jsonEncode(fragenList
+            .whereType<Map<String, dynamic>>()
+            .map((q) => {
+                  'nr': q['nr']?.toString() ?? '',
+                  'frage': q['frage']?.toString() ?? '',
+                  'antwort': q['antwort']?.toString() ?? '',
+                })
+            .toList());
+      } else if ((f['frage'] != null) || (f['antwort'] != null)) {
+        fragenJson = jsonEncode([
+          {
+            'nr': '1',
+            'frage': f['frage']?.toString() ?? '',
+            'antwort': f['antwort']?.toString() ?? '',
+          }
+        ]);
+      }
       await _db.into(_db.rueckfragen).insert(RueckfragenCompanion.insert(
             auftragId: Value(_mapId(f['auftragId'], auftragMap)),
             datum: Value(_parseDate(f['datum']) ?? DateTime.now()),
+            stellerArt: Value(f['stellerArt']?.toString()),
+            stellerName: Value(f['stellerName']?.toString()),
+            schriftsatzVom: Value(_parseDate(f['schriftsatzVom'])),
             empfaenger: Value(f['empfaenger']?.toString()),
             betreff: Value(f['betreff']?.toString()),
             frage: Value(f['frage']?.toString() ?? f['text']?.toString()),
             antwort: Value(f['antwort']?.toString()),
+            bemerkung: Value(f['bemerkung']?.toString()),
+            gutachtenBezugDatum:
+                Value(_parseDate(f['gutachtenBezugDatum'])),
+            gutachtenBezugNummer:
+                Value(f['gutachtenBezugNummer']?.toString()),
+            fragenJson: Value(fragenJson),
             status: Value(f['status']?.toString() ?? 'offen'),
             erledigtAm: Value(_parseDate(f['erledigtAm'])),
           ));
@@ -721,6 +777,152 @@ class DemoSeeder {
     r.textbausteine = list.length;
   }
 
+  Future<void> _seedVersand(
+    List<Map<String, dynamic>> list,
+    Map<int, int> auftragMap,
+    DemoSeedReport r,
+  ) async {
+    for (final v in list) {
+      await _db.into(_db.versand).insert(VersandCompanion.insert(
+            auftragId: Value(_mapId(v['auftragId'], auftragMap)),
+            datum: Value(_parseDate(v['datum']) ?? DateTime.now()),
+            art: Value(v['art']?.toString()),
+            empfaenger: Value(v['empfaenger']?.toString()),
+            betreff: Value(v['betreff']?.toString()),
+            inhalt: Value(v['inhalt']?.toString()),
+            trackingNr: Value(v['trackingNr']?.toString()),
+            anzahlAusfertigungen:
+                Value((v['anzahlAusfertigungen'] as num?)?.toInt()),
+            bezugBezeichnung: Value(v['bezugBezeichnung']?.toString()),
+            status: Value(v['status']?.toString() ?? 'versendet'),
+          ));
+    }
+    r.versand = list.length;
+  }
+
+  Future<void> _seedLvKatalog(
+      List<Map<String, dynamic>> list, DemoSeedReport r) async {
+    for (final k in list) {
+      await _db.into(_db.lvKatalog).insert(LvKatalogCompanion.insert(
+            kurztext: k['kurztext']?.toString() ?? '(ohne)',
+            langtext: Value(k['langtext']?.toString()),
+            einheit: Value(k['einheit']?.toString()),
+            einzelpreis: Value(_asDouble(k['einzelpreis'])),
+            din276: Value(k['din276']?.toString()),
+            gewerk: Value(k['gewerk']?.toString()),
+            tags: Value(k['tags']?.toString()),
+            quelle: Value(k['quelle']?.toString() ?? 'seed'),
+            preisstand: Value(_parseDate(k['preisstand'])),
+          ));
+    }
+    r.lvKatalog = list.length;
+  }
+
+  Future<Map<int, int>> _seedLvKopf(
+    List<Map<String, dynamic>> list,
+    Map<int, int> auftragMap,
+    DemoSeedReport r,
+  ) async {
+    final map = <int, int>{};
+    for (final k in list) {
+      final id = await _db.into(_db.lvKopf).insert(LvKopfCompanion.insert(
+            bezeichnung: k['bezeichnung']?.toString() ?? '(LV)',
+            untertitel: Value(k['untertitel']?.toString()),
+            nummer: Value(k['nummer']?.toString()),
+            auftragId: Value(_mapId(k['auftragId'], auftragMap)),
+            datum: Value(_parseDate(k['datum']) ?? DateTime.now()),
+            status: Value(k['status']?.toString() ?? 'entwurf'),
+            mwstSatz: Value(_asDouble(k['mwstSatz']) ?? 19),
+            indexStichtag: Value(k['indexStichtag']?.toString()),
+            indexWert: Value(_asDouble(k['indexWert'])),
+            bieterName: Value(k['bieterName']?.toString()),
+            notiz: Value(k['notiz']?.toString()),
+          ));
+      map[(k['id'] as num).toInt()] = id;
+    }
+    // Zweiter Lauf: basisLvId-Verknüpfungen — die alte Demo-ID auf die
+    // neue Drift-ID übersetzen.
+    for (final k in list) {
+      final basis = k['basisLvId'];
+      if (basis == null) continue;
+      final selfNew = map[(k['id'] as num).toInt()];
+      final basisNew = map[(basis as num).toInt()];
+      if (selfNew == null || basisNew == null) continue;
+      await (_db.update(_db.lvKopf)
+            ..where((t) => t.id.equals(selfNew)))
+          .write(LvKopfCompanion(basisLvId: Value(basisNew)));
+    }
+    r.lvKopf = list.length;
+    return map;
+  }
+
+  Future<Map<int, int>> _seedLvPositionen(
+    List<Map<String, dynamic>> list,
+    Map<int, int> lvMap,
+    DemoSeedReport r,
+  ) async {
+    // Erst alle Positionen anlegen, dann parent-Verknüpfung in einem
+    // zweiten Lauf — `parentId` bezieht sich auf die *alte* JSON-ID,
+    // die wir auf die neue Drift-ID übersetzen müssen.
+    final idMap = <int, int>{};
+    for (final p in list) {
+      final lvId = _mapId(p['lvId'], lvMap);
+      if (lvId == null) continue;
+      final neueId = await _db.into(_db.lvPositionen).insert(
+            LvPositionenCompanion.insert(
+              lvId: lvId,
+              art: Value(p['art']?.toString() ?? 'normal'),
+              oz: Value(p['oz']?.toString()),
+              sortIndex: Value((p['sortIndex'] as num?)?.toInt() ?? 0),
+              kurztext: p['kurztext']?.toString() ?? '(ohne)',
+              langtext: Value(p['langtext']?.toString()),
+              einheit: Value(p['einheit']?.toString()),
+              menge: Value(_asDouble(p['menge'])),
+              einzelpreis: Value(_asDouble(p['einzelpreis'])),
+              ustSatz: Value(_asDouble(p['ustSatz'])),
+              din276: Value(p['din276']?.toString()),
+              gewerk: Value(p['gewerk']?.toString()),
+              notiz: Value(p['notiz']?.toString()),
+            ),
+          );
+      idMap[(p['id'] as num).toInt()] = neueId;
+    }
+    // Parent-Verknüpfungen nachziehen.
+    for (final p in list) {
+      final parentJson = p['parentId'];
+      if (parentJson == null) continue;
+      final selfId = idMap[(p['id'] as num).toInt()];
+      final parentId = idMap[(parentJson as num).toInt()];
+      if (selfId == null || parentId == null) continue;
+      await (_db.update(_db.lvPositionen)
+            ..where((t) => t.id.equals(selfId)))
+          .write(LvPositionenCompanion(parentId: Value(parentId)));
+    }
+    r.lvPositionen = list.length;
+    return idMap;
+  }
+
+  Future<void> _seedLvMengenzeilen(
+    List<Map<String, dynamic>> list,
+    Map<int, int> posMap,
+    DemoSeedReport r,
+  ) async {
+    for (final z in list) {
+      final pos = _mapId(z['positionId'], posMap);
+      if (pos == null) continue;
+      await _db.into(_db.lvMengenzeilen).insert(
+            LvMengenzeilenCompanion.insert(
+              positionId: pos,
+              sortIndex: Value((z['sortIndex'] as num?)?.toInt() ?? 0),
+              bezeichnung: Value(z['bezeichnung']?.toString()),
+              formel: Value(z['formel']?.toString()),
+              ergebnis: Value(_asDouble(z['ergebnis']) ?? 0),
+            ),
+          );
+    }
+    r.lvMengenzeilen = list.length;
+  }
+
   Future<void> _seedEinstellungen(
       List<Map<String, dynamic>> list, DemoSeedReport r) async {
     for (final e in list) {
@@ -830,6 +1032,11 @@ class DemoSeedReport {
   int textbausteine = 0;
   int dokumente = 0;
   int einstellungen = 0;
+  int versand = 0;
+  int lvKopf = 0;
+  int lvPositionen = 0;
+  int lvKatalog = 0;
+  int lvMengenzeilen = 0;
 
   int get total =>
       kunden +
@@ -851,7 +1058,12 @@ class DemoSeedReport {
       erlaeuterungen +
       textbausteine +
       dokumente +
-      einstellungen;
+      einstellungen +
+      versand +
+      lvKopf +
+      lvPositionen +
+      lvKatalog +
+      lvMengenzeilen;
 
   @override
   String toString() => 'Demo-Seed: $total Datensätze\n'

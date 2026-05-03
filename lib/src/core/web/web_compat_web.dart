@@ -10,6 +10,18 @@ void openInNewWindow(String url,
   web.window.open(url, name, features);
 }
 
+/// Schließt das aktuelle Browser-Fenster — funktioniert nur, wenn das
+/// Fenster per Skript (window.open) geöffnet wurde, sonst ignoriert
+/// der Browser den Aufruf.
+void closeWindow() {
+  try {
+    web.window.close();
+  } catch (_) {
+    // Browser blockt den Close-Aufruf, wenn das Fenster nicht per
+    // Skript geöffnet wurde — dann passiert einfach nichts.
+  }
+}
+
 String get appOrigin => web.window.location.origin;
 
 Stream<void> get windowFocusStream =>

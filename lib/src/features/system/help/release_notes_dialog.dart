@@ -18,6 +18,361 @@ class _ReleaseNotesDialog extends StatelessWidget {
 
   static const _releases = <_Release>[
     _Release(
+      version: '0.18.1',
+      datum: '2026-05-02',
+      titel:
+          'LV-Polish: KI-Langtext-Generator, echtes Drag-and-drop, Demo-Bietervergleich, Demo MwSt-Mix',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Position-Editor: Neuer „KI-Langtext"-Button neben dem '
+            'Langtext-Feld. Generiert aus Kurztext + Gewerk + Einheit '
+            'einen fachlich präzisen Standardleistungstext (3–6 Sätze, '
+            'mit Norm-Bezug zu WTA/DIN/GAEB). Vorschau-Dialog vor der '
+            'Übernahme — kein automatisches Überschreiben des '
+            'bestehenden Textes.'),
+        _Change(_ChangeType.feature,
+            'Echtes Drag-and-drop in der Positions-Liste. Drag-Handle '
+            'links neben jeder Zeile (Punkt-Raster-Symbol). Beim Drop '
+            'wird der neue parent automatisch aus dem Vorgänger '
+            'abgeleitet (Position rutscht unter den Titel des '
+            'Vorgängers). Up/Down-Pfeile bleiben für die schnelle '
+            'Reihenfolge-Korrektur.'),
+        _Change(_ChangeType.design,
+            'Demo-Mandant erweitert: zwei Bieter-Antworten zu AW-0001-'
+            'Sanierung („Bauunternehmen Müller GmbH" und „Hilger Bau '
+            'e. K.") mit unterschiedlichen Preisen — Bietergegenüberstellung '
+            'sofort live testbar. Plus ein neues LV mit gemischten '
+            'USt-Sätzen (Standardarbeiten 19 %, künstlerische Leistungen '
+            'gem. § 12 Abs. 2 UStG mit 7 %) — Mischsumme im PDF.'),
+      ],
+    ),
+    _Release(
+      version: '0.18.0',
+      datum: '2026-05-02',
+      titel:
+          'LV-Welle 3: GAEB-Import, Indizierung, Bietervergleich, CSV, Mischsummen, OZ-Auto, Reorder, 200er Standard-Katalog',
+      changes: [
+        _Change(_ChangeType.feature,
+            'GAEB DA XML Import (Phasen X81 / X83 / X84). Architekt liefert '
+            'XML, Aktenwerk parst Titel und Positionen mit Hierarchie und '
+            'fügt sie ans LV an. Kompatibel mit ORCA AVA, California, '
+            'BKI Kostenplaner, nextbau.'),
+        _Change(_ChangeType.feature,
+            'Indizierungs-Dialog: alle EP eines LV per Destatis-'
+            'Baupreisindex auf einen neuen Stichtag hochrechnen — Ziel-'
+            'Quartal aus Dropdown wählen, Faktor wird live angezeigt, '
+            'mit einem Klick auf alle Positionen angewandt.'),
+        _Change(_ChangeType.feature,
+            'OZ-Auto-Numerierung: Button „OZ neu nummerieren" baut die '
+            'Hierarchie korrekt durch (1, 1.1, 1.2, 2, 2.1 …).'),
+        _Change(_ChangeType.feature,
+            'Up/Down-Pfeile pro Position zum Sortieren innerhalb '
+            'desselben Titels — schnelles Umsortieren ohne den '
+            'Position-Editor zu öffnen.'),
+        _Change(_ChangeType.feature,
+            'Bietergegenüberstellung: aus dem Original-LV per Klick '
+            'eine Bieter-Antwort klonen, der Bieter trägt eigene Preise '
+            'ein. Vergleichs-Tabelle zeigt alle Bieter nebeneinander '
+            'mit grüner/roter Markierung des günstigsten/teuersten.'),
+        _Change(_ChangeType.feature,
+            'CSV-Import/Export — UTF-8 mit BOM, Semikolon-getrennt '
+            '(Excel-DE-kompatibel). Auto-Mapping der Spalten (OZ, Art, '
+            'Kurztext, Langtext, Einheit, Menge, EP, DIN276, Gewerk).'),
+        _Change(_ChangeType.feature,
+            'Mehrwertsteuer pro Position: Dropdown im Position-Editor '
+            '(LV-Standard, 19 %, 7 %, 0 %). Im PDF werden bei mehreren '
+            'Sätzen Mischsummen separat ausgewiesen, sonst kompakt wie '
+            'bisher.'),
+        _Change(_ChangeType.feature,
+            'Standard-Katalog mit 200 Sanierungs-Positionen aus 17 '
+            'Gewerken (Erdarbeiten bis Baunebenkosten) mit '
+            'Marktpreis-Indikatoren Stand 2024/2025. Per „Standard-'
+            'Katalog importieren"-Button im Katalog-Screen einlesbar.'),
+        _Change(_ChangeType.feature,
+            'Destatis-API per Cloud-Function-Proxy: CORS-Workaround, '
+            'damit der Browser-Client die GENESIS-Online-API erreichen '
+            'kann. Credentials werden nicht mehr in der URL übertragen.'),
+      ],
+    ),
+    _Release(
+      version: '0.17.1',
+      datum: '2026-05-02',
+      titel:
+          'LV-Welle 2: Aufmaß-Mengenermittlung, Gutachten-Integration, Destatis-Anbindung',
+      changes: [
+        _Change(_ChangeType.feature,
+            'LV-Position-Dialog: Aufmaß-Panel mit Formelzeilen — '
+            'Bezeichnung + Formel (`L*B*H`, Klammern, Komma als '
+            'Dezimaltrenner). Live-Berechnung jeder Zeile, Summe oben, '
+            'Button „In Menge übernehmen" setzt die Position-Menge '
+            'automatisch auf die Aufmaß-Summe.'),
+        _Change(_ChangeType.feature,
+            'Gutachten-Editor: Neuer Button „LV-Positionen" pro '
+            'Abschnitt. Öffnet den LV-Picker (Akten-LVs links, '
+            'Positionen rechts mit Häkchen), Format wählbar '
+            '(Tabellarisch / Aufzählung / Fließtext) mit oder ohne '
+            'Preise. Fügt den fertigen Block ans Abschnitts-Feld an '
+            '— inkl. Summe und „BP"-Markierung für Bedarfspositionen.'),
+        _Change(_ChangeType.feature,
+            'Einstellungen → „Baupreisindex (Destatis)": GENESIS-'
+            'Online API-Anbindung. Username + Passwort eintragen, '
+            '„Verbindung testen" zeigt den jüngsten Indexwert für '
+            'Wohngebäude. Account ist bei www-genesis.destatis.de '
+            'kostenfrei.'),
+        _Change(_ChangeType.design,
+            'Demo-Mandant: 9 Aufmaß-Zeilen für drei Beispiel-'
+            'Positionen (KMB-Abdichtung mit Wand-Aufmaß und '
+            'Lichtschacht-Abzug, Sanierputz mit Raumumfang, '
+            'Schimmelpilzsanierung mit Tür-Abzügen).'),
+      ],
+    ),
+    _Release(
+      version: '0.17.0',
+      datum: '2026-05-02',
+      titel:
+          'Leistungsverzeichnis-Modul: Kostenschätzung, Ausschreibung, GAEB-Export, eigener Katalog',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Neues Modul „LV / Ausschreibung" (Sidebar + Akten-Tab '
+            '„LV / Kalkulation"). Vollwertiger Leistungsverzeichnis-'
+            'Editor mit hierarchischer Gliederung (Titel → Hauptposition → '
+            'Unterposition), 6 Positions-Arten (Normal, Bedarf, '
+            'Eventual, Stundenlohn, Grundtext ohne Preis, Strukturtitel) '
+            'und Live-Brutto-Summe in der Toolbar.'),
+        _Change(_ChangeType.feature,
+            'PDF-Druck in zwei Varianten: „Preis-LV" mit '
+            'Einzelpreisen, Gesamtpreis und Summenblock '
+            '(Kostenschätzung) und „Blanko-LV / Ausschreibung" '
+            'ohne Preise — geht direkt an Handwerker zur '
+            'Angebotsabgabe. Beide werden mit „Drucken & in Akte '
+            'ablegen" automatisch unter Kategorie '
+            '„Kostenschätzung (LV)" bzw. „Ausschreibung (Blanko-LV)" '
+            'archiviert.'),
+        _Change(_ChangeType.feature,
+            'GAEB DA XML 3.2-Export (Phase X81 LV-Übergabe und X83 '
+            'Ausschreibung) — Aktenwerk-LVs sind damit anschlussfähig '
+            'an ORCA AVA, California, nextbau und alle gängigen '
+            'Handwerker-Programme. Selbst implementiert mit dem '
+            'package:xml — keine Lizenzkosten.'),
+        _Change(_ChangeType.feature,
+            'DIN-276:2018 Kostengruppen 1./2./3. Ebene als Asset-JSON '
+            '(Wikipedia-Referenz, eigene Beschreibungen). Pro Position '
+            'als Dropdown auswählbar — Auswertungen nach KG 300 '
+            '(Baukonstruktionen) / KG 400 (TGA) etc. werden so möglich.'),
+        _Change(_ChangeType.feature,
+            'Eigener Positions-Katalog: Beim Anlegen einer Position '
+            'mit „Position zusätzlich in den eigenen Katalog '
+            'übernehmen" speichern, beim nächsten LV per Picker '
+            '(Such-Dialog mit Häufigkeit-Sortierung) wieder einfügen. '
+            'Lieferung mit 10 Seed-Positionen (Sanierputz, KMB-Abdichtung, '
+            'XPS-Dämmung, Schimmelpilzsanierung, Lüftung mit WRG …).'),
+        _Change(_ChangeType.feature,
+            'Destatis Genesis-Online API-Anbindung für Baupreisindex '
+            '(Tabelle 61261-0001 Wohngebäude). Kostenfreier Account '
+            'in Einstellungen hinterlegen — historische LVs lassen '
+            'sich auf aktuelles Preisniveau hochrechnen.'),
+        _Change(_ChangeType.design,
+            'Demo-Mandant: Zwei vollständige LVs (Sanierung Lindenweg '
+            'mit 14 Positionen, Schimmel/Wärmeschutz mit '
+            'Bedarfspositionen für den Ergänzungsbeschluss) sowie '
+            '10 Katalog-Einträge mit fachlich korrekten WTA-/UBA-'
+            'konformen Leistungstexten.'),
+      ],
+    ),
+    _Release(
+      version: '0.16.0',
+      datum: '2026-05-02',
+      titel:
+          'Gmail-Integration (Phase 1) + Datenschutzerklärung',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Anschreiben-Editor: Neuer Button „Mit Gmail senden". '
+            'Verbindet beim ersten Klick mit dem Google-Konto (Scope '
+            '`gmail.send`), versendet das PDF mit angehängtem Brief direkt '
+            'aus dem Browser. Die Mail erscheint in deinem Gmail-'
+            '„Gesendet"-Ordner und wird parallel als Akten-Dokument '
+            'archiviert. Auf Wunsch erweiterbar um den Lese-Scope für '
+            'künftigen Auto-Import.'),
+        _Change(_ChangeType.feature,
+            'Einstellungen → Cloud → „Gmail": Gmail-Verbindung verwalten, '
+            'Trennen, Berechtigungs-Status prüfen, optional Lese-Scope '
+            'für Phase 2 hinzufügen.'),
+        _Change(_ChangeType.feature,
+            'Datenschutzerklärung gem. Art. 13/14 DSGVO unter '
+            '/datenschutz. Erreichbar über Avatar-Menü → „Datenschutz". '
+            'Beschreibt verarbeitete Daten, Speicherort (Frankfurt), '
+            'eingesetzte Auftragsverarbeiter (Firebase, Vertex AI, '
+            'Google APIs), Aufbewahrungsfristen und Betroffenenrechte. '
+            'Vor Live-Verkauf rechtlich prüfen lassen!'),
+        _Change(_ChangeType.design,
+            'Hinweis: Die Gmail-Scopes sind bei Google als „sensitive" '
+            'eingestuft. Solange Aktenwerk noch nicht durch den OAuth-'
+            'Verifizierungsprozess gegangen ist, sehen externe Benutzer '
+            'beim Verbinden einen „nicht verifiziert"-Hinweis. Das ist '
+            'Standardverhalten und kein Sicherheitsproblem. Du als '
+            'Domain-Inhaber kannst die App sofort nutzen.'),
+      ],
+    ),
+    _Release(
+      version: '0.15.0',
+      datum: '2026-05-02',
+      titel:
+          'Anschreiben-Workflow: D-Belegnummer, Druck & Archivierung, Mailto-Versand, E-Mail-Ablage in der Akte',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Anschreiben-Editor: Neuer Button „Drucken & in Akte ablegen". '
+            'Vergibt eine fortlaufende interne D-Nummer (Format '
+            'D{YYYY}-{NNNN}) aus dem neuen Dokument-Nummernkreis, friert '
+            'das Anschreiben ein (Status „versendet" + `gedrucktAm`), '
+            'erzeugt das PDF und legt es als Akten-Dokument unter '
+            'Kategorie „Anschreiben (Ausgang)" ab.'),
+        _Change(_ChangeType.feature,
+            'Anschreiben-Editor: Neuer „Mailen"-Button öffnet das '
+            'Standard-Mailprogramm vorbefüllt mit Empfänger-Adresse, '
+            'Betreff und Begleittext (inkl. Aktenzeichen, Anrede, '
+            'Grußformel). Das PDF wird parallel in den Download-Ordner '
+            'geladen und muss als Anhang manuell angefügt werden — '
+            'browserseitig kann mailto: keine Anhänge übergeben.'),
+        _Change(_ChangeType.feature,
+            'Akten-Tab „Dokumente": Direkt-Upload mit vorausgewählter '
+            'Akte. Im Upload-Dialog jetzt Schnell-Chips für gängige '
+            'Kategorien („Eingangsmail", „Ausgangsmail", „Beweisbeschluss", '
+            '„Schriftsatz", „Anschreiben (Eingang/Ausgang)" …). '
+            '`.eml`/`.msg`-Dateien werden automatisch als „Eingangsmail" '
+            'vorbelegt — du kannst Mails einfach aus dem Mailprogramm '
+            'rausziehen und in den Upload-Dialog ziehen.'),
+        _Change(_ChangeType.design,
+            'Neuer Nummernkreis „Dokument" (Default `D{YYYY}-{NNNN}`) — '
+            'unter Einstellungen → Nummernkreise konfigurierbar. '
+            'Synchronisiert sich mit der höchsten vergebenen D-Nummer.'),
+      ],
+    ),
+    _Release(
+      version: '0.14.1',
+      datum: '2026-05-01',
+      titel:
+          'Compliance-Cockpit + Beweisfragen-Bezug in Stellungnahme- und Kostenvorschuss-PDF',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Akten-Liste: Vier Compliance-Tiles über der Tabelle '
+            '(„Befangenheit fehlt", „Kostenvorschuss offen", '
+            '„Beweisfragen fehlen", „Frist überfällig"). Klick filtert '
+            'die Liste auf Akten mit dem entsprechenden Mangel; '
+            'nochmaliger Klick hebt den Filter auf. Tiles mit Mängeln '
+            'sind orange hervorgehoben, „0 offen" bleibt grau.'),
+        _Change(_ChangeType.feature,
+            'Stellungnahme-PDF zeigt jetzt automatisch die Beweisfragen '
+            'aus dem Beweisbeschluss als nummerierten Bezugsblock — '
+            'hilft Richtern und Anwälten, die Antworten den ursprünglichen '
+            'Beweisfragen zuzuordnen.'),
+        _Change(_ChangeType.feature,
+            'Kostenvorschuss-Antrag-PDF blendet die Beweisfragen '
+            'ebenfalls als Bezugsblock ein. Das PDF läuft jetzt '
+            'mehrseitig, falls nötig (mit Seitenzahl im Footer).'),
+      ],
+    ),
+    _Release(
+      version: '0.14.0',
+      datum: '2026-05-01',
+      titel:
+          'Gerichts-Welle: Versand-Tracking, Befangenheits-Erklärung, Mehrkostenanzeige § 8a JVEG, strukturierte Beweisfragen',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Neuer Akten-Tab „Versand": Wer hat wann was bekommen — Post '
+            '/ Einschreiben / EGVP / E-Mail / Kurier mit Tracking-Nr., '
+            'Anzahl Ausfertigungen und Verknüpfung zum Akten-Dokument. '
+            'Status: versendet / zugestellt / unzustellbar.'),
+        _Change(_ChangeType.feature,
+            'Neuer Akten-Tab „Gerichtssache" mit drei Blöcken: '
+            'Befangenheits-Prüfung gem. §§ 406/407 ZPO, Mehrkostenanzeige '
+            'gem. § 8a Abs. 4 JVEG und strukturierte Beweisfragen aus '
+            'dem Beweisbeschluss.'),
+        _Change(_ChangeType.feature,
+            'Befangenheits-Erklärung: Datum + Ergebnis (unbefangen / '
+            'befangen) + Erläuterung. „Drucken & in Akte ablegen" '
+            'erzeugt das passende PDF (Erklärung zur Unbefangenheit '
+            'oder Anzeige der Befangenheit) und legt es als Akten-'
+            'Dokument unter Kategorie „Befangenheits-Erklärung" ab.'),
+        _Change(_ChangeType.feature,
+            'Mehrkostenanzeige § 8a Abs. 4 JVEG: Bisheriger und neuer '
+            'Kostenrahmen, Mehrbedarf wird live berechnet, Begründung '
+            'frei formulierbar. PDF mit Tabelle und Begründungs-Block; '
+            'Archivierung in der Akte.'),
+        _Change(_ChangeType.feature,
+            'Beweisfragen: Strukturierte nummerierte Liste statt '
+            'Freitext. Wird automatisch in Stellungnahmen und '
+            'künftig in Gutachten als Bezugs-Block übernommen.'),
+        _Change(_ChangeType.design,
+            'Demo-Mandant: Beide Gerichtsakten haben jetzt komplette '
+            'Befangenheits-Prüfung, AW-0004 zusätzlich eine '
+            'Mehrkostenanzeige + 5 Versand-Einträge mit Tracking-Nrn.'),
+      ],
+    ),
+    _Release(
+      version: '0.13.0',
+      datum: '2026-05-01',
+      titel:
+          'Akten-Welle: Nachfragen + Stellungnahme-PDF, Massen-Termin-Einladung, Kostenvorschuss-Antrag (§ 17 JVEG), Honorargruppen-Tabelle',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Neuer Akten-Tab „Nachfragen": Schriftsätze von Gericht / '
+            'Anwalt / Versicherung mit beliebig vielen nummerierten Fragen '
+            'erfassen, je Frage eine Stellungnahme verfassen. Bezug auf '
+            'das Ursprungs-Gutachten (Datum + Nummer) bleibt erhalten.'),
+        _Change(_ChangeType.feature,
+            'Stellungnahme-PDF: Druckfertige „Ergänzende gutachterliche '
+            'Stellungnahme" im Q&A-Layout (Frage hervorgehoben, '
+            'Stellungnahme darunter), inkl. Bezugsblock zum Gutachten '
+            'und Schriftsatz. Button „Drucken & in Akte ablegen" '
+            'speichert das PDF unter Kategorie „Ergänzende Stellungnahme".'),
+        _Change(_ChangeType.feature,
+            'Beteiligte-Tab → „Termin-Einladung an alle": Massen-'
+            'Anschreiben für Ortstermine. Termin, Ort und Hinweise einmal '
+            'eingeben — pro Beteiligten wird ein Anschreiben mit '
+            'passender Briefanrede angelegt.'),
+        _Change(_ChangeType.feature,
+            'Kostenvorschuss-Antrag (§ 17 JVEG): Dialog aus der '
+            'Gerichts-Akte heraus. Honorar (auto. aus Honorargruppe), '
+            'Auslagen (Fahrt, Schreibauslagen, Kopien, Lichtbilder, '
+            'Porto, Sonstiges) und USt. Druck mit Vorschau oder direkt '
+            '„Drucken & in Akte ablegen" — PDF wird unter Kategorie '
+            '„Kostenvorschuss-Antrag" archiviert, Brutto-Betrag im '
+            'Akten-Feld vermerkt.'),
+        _Change(_ChangeType.feature,
+            'Einstellungen → „JVEG-Honorargruppen (§ 9 JVEG)": M1, M2, '
+            'M3 und Sonstige individuell konfigurierbar. Stunden-Editor '
+            'und Kostenvorschuss-Dialog ziehen den Satz automatisch '
+            'aus der Honorargruppe der Akte.'),
+        _Change(_ChangeType.feature,
+            'Auslagen-KPI-Kacheln pro Art (Fahrt, Schreibauslagen, '
+            'Kopie s/w, Kopie farbig, Lichtbilder, Porto, '
+            'Fremdleistung, Sonstiges) — Klick filtert die Liste auf '
+            'die jeweilige Art, nochmaliger Klick hebt den Filter auf.'),
+        _Change(_ChangeType.feature,
+            'Sortierbare Spaltenköpfe in allen Listen (Auslagen, '
+            'Stunden, Messgeräte, Textbausteine, Normen, Recherche).'),
+        _Change(_ChangeType.feature,
+            'Editor-Prefill aus der Akte: Aus jedem Akten-Tab '
+            '(Rechnung, Angebot, AB, Anschreiben, Gutachten, Stunden, '
+            'Auslagen, Erläuterung) öffnen die jeweiligen Editor-'
+            'Dialoge bereits mit gesetztem Auftrag und Kontakt.'),
+        _Change(_ChangeType.feature,
+            'Auto-Akte: Beim Umwandeln eines eingefrorenen Dokuments '
+            '(Angebot → AB → Rechnung) wird die zugehörige Akte '
+            'automatisch übernommen oder neu angelegt.'),
+        _Change(_ChangeType.design,
+            'Aktenzeichen (AW-XXXX) ist jetzt sauber von den '
+            'Belegnummern (RE/AB/AN/AZ-Akonto) getrennt — die Akte '
+            'führt nur noch das AW-Az., die Belege ihre eigenen '
+            'Nummernkreise.'),
+        _Change(_ChangeType.feature,
+            'Multi-Tenant Subscription-Modell: 14-Tage-Trial, danach '
+            '7,90 €/Benutzer/Monat. Master-Mandant „Bauelemente-'
+            'Experte" verwaltet alle Mandanten und sieht Trial-'
+            'Restlaufzeiten je Benutzer.'),
+      ],
+    ),
+    _Release(
       version: '0.12.0',
       datum: '2026-04-21',
       titel:

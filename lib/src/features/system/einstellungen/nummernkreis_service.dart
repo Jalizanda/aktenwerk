@@ -11,6 +11,7 @@ enum NummernkreisTyp {
   auftragsbestaetigung,
   gutachten,
   fortbildung,
+  dokument,
 }
 
 class _NkKeys {
@@ -72,6 +73,13 @@ _NkKeys _keysFor(NummernkreisTyp t) {
         SettingsKeys.nummernkreisFortbildungReset,
         'nummernkreis.fortbildung.lastYear',
       );
+    case NummernkreisTyp.dokument:
+      return const _NkKeys(
+        SettingsKeys.nummernkreisDokument,
+        SettingsKeys.nummernkreisDokumentNaechste,
+        SettingsKeys.nummernkreisDokumentReset,
+        'nummernkreis.dokument.lastYear',
+      );
   }
 }
 
@@ -83,6 +91,7 @@ String _defaultPattern(NummernkreisTyp t) => switch (t) {
       NummernkreisTyp.akonto => 'AZ{YYYY}-{NNN}',
       NummernkreisTyp.gutachten => '{aktenzeichen}-G{N}',
       NummernkreisTyp.fortbildung => 'FB{YYYY}-{NN}',
+      NummernkreisTyp.dokument => 'D{YYYY}-{NNNN}',
     };
 
 String _defaultReset(NummernkreisTyp t) => switch (t) {

@@ -141,6 +141,11 @@ const List<AppModul> appModule = [
       icon: Icons.school_outlined,
       gruppe: 'Auswertung'),
   AppModul(
+      key: 'befangenheit',
+      label: 'Befangenheits-Register',
+      icon: Icons.gavel_outlined,
+      gruppe: 'Auswertung'),
+  AppModul(
       key: 'opos',
       label: 'OPOS / Mahnwesen',
       icon: Icons.warning_amber_outlined,

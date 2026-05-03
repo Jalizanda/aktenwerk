@@ -104,6 +104,25 @@ class Auftraege extends Table {
   TextColumn get notiz => text().nullable()();
   /// Standard-Zahlungsbedingung für aus diesem Auftrag erstellte Rechnungen.
   TextColumn get zahlungsbedingung => text().nullable()();
+
+  /// Befangenheits-Prüfung gem. §§ 406 / 407 ZPO. Wird vom SV bei
+  /// Auftragseingang vor allen weiteren Schritten dokumentiert.
+  DateTimeColumn get befangenheitsGeprueftAm => dateTime().nullable()();
+  /// 'unbefangen' | 'befangen' | null
+  TextColumn get befangenheitsErgebnis => text().nullable()();
+  TextColumn get befangenheitsNotiz => text().nullable()();
+
+  /// Mehrkostenanzeige § 8a Abs. 4 JVEG: SV muss das Gericht informieren,
+  /// wenn der bisher angesetzte Kostenrahmen sich erhöht.
+  DateTimeColumn get mehrkostenAnzeigeAm => dateTime().nullable()();
+  RealColumn get mehrkostenBetrag => real().nullable()();
+  TextColumn get mehrkostenBegruendung => text().nullable()();
+
+  /// Strukturierte Beweisfragen aus dem Beweisbeschluss als JSON-Liste:
+  /// `[{"nr":"1","frage":"…"}]`. Wird in PDFs (Gutachten, Stellungnahme,
+  /// Kostenvorschuss) als nummerierter Block angezeigt.
+  TextColumn get beweisfragenJson => text().nullable()();
+
   TextColumn get extras => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

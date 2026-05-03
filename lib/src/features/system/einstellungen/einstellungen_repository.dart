@@ -42,6 +42,13 @@ class SettingsKeys {
   static const stundensatzJveg = 'standard.stundensatz_jveg';
   static const standardUstSatz = 'standard.ust_satz';
   static const standardZahlungszielTage = 'standard.zahlungsziel_tage';
+  // JVEG-Honorargruppen — werden in Stunden, Kostenvorschuss und JVEG-
+  // Rechnungen automatisch angewendet, wenn die Akte einer Honorargruppe
+  // zugeordnet ist. Defaults entsprechen JVEG 2021.
+  static const honorargruppeM1Satz = 'honorar.gruppe_m1';
+  static const honorargruppeM2Satz = 'honorar.gruppe_m2';
+  static const honorargruppeM3Satz = 'honorar.gruppe_m3';
+  static const honorargruppeSonstigesSatz = 'honorar.gruppe_sonstiges';
 
   // ---------- JVEG-Sätze ----------
   static const jvegKmSatz = 'jveg.km_satz';
@@ -94,6 +101,12 @@ class SettingsKeys {
       'nummernkreis.fortbildung.naechste';
   static const nummernkreisFortbildungReset =
       'nummernkreis.fortbildung.reset';
+
+  // Interne Belegnummer für Anschreiben/Dokumente (D{YYYY}-{NNNN}).
+  static const nummernkreisDokument = 'nummernkreis.dokument';
+  static const nummernkreisDokumentNaechste =
+      'nummernkreis.dokument.naechste';
+  static const nummernkreisDokumentReset = 'nummernkreis.dokument.reset';
 
   // ---------- Texte / Fußzeilen ----------
   static const rechnungFusstext = 'rechnung.fusstext';

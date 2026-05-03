@@ -390,6 +390,21 @@ Future<Uint8List> buildMergedDocumentsPdf(
 
 double _mm(double mm) => mm * PdfPageFormat.mm;
 
+/// Öffentliche Variante: Logo aus Settings (data:-URL oder assets/-Pfad)
+/// als pdf-ImageProvider laden — wird auch von anderen PDF-Buildern
+/// (Gutachten, Stellungnahme, Kostenvorschuss) genutzt.
+Future<pw.ImageProvider?> loadLogoForPdf(String? pfad) => _loadLogo(pfad);
+
+/// Rastert SVG-Bytes (wenn nötig) in PNG, damit das pdf-Paket sie als
+/// `MemoryImage` einbetten kann. Liefert die Bytes unverändert zurück,
+/// wenn sie bereits ein Raster-Format (PNG/JPEG/GIF) sind.
+Future<Uint8List?> rasterizeIfSvg(Uint8List? bytes,
+    {int width = 1600, int height = 1200}) async {
+  if (bytes == null || bytes.isEmpty) return bytes;
+  if (!_looksLikeSvg(bytes)) return bytes;
+  return _rasterSvgToPng(bytes, width: width, height: height);
+}
+
 Future<pw.ImageProvider?> _loadLogo(String? pfad) async {
   if (pfad == null || pfad.trim().isEmpty) return null;
   try {

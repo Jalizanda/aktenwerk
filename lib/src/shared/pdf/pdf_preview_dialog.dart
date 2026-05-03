@@ -14,6 +14,16 @@ Future<void> showPdfPreviewDialog(
   required String title,
   required Future<Uint8List> Function() builder,
   String? dateiname,
+  /// Optional: zusätzlicher CSV-Export-Button. Wenn gesetzt, erscheint
+  /// rechts neben dem Drucken-Symbol ein „Excel"-Button, der die per
+  /// `csvBuilder` gelieferten Bytes als `.csv`-Datei zum Download anbietet.
+  Future<Uint8List> Function()? csvBuilder,
+  String? csvDateiname,
+  /// Optional: Obergrenze für die Dialog-Breite. Ohne Wert spannt sich der
+  /// Dialog wie bisher fast über die volle Bildschirmbreite. Praktisch
+  /// für Vorschauen, die schmaler dargestellt werden sollen (z. B.
+  /// Gutachten — DIN-A4-PDFs sehen schmaler natürlicher aus).
+  double? maxWidth,
 }) async {
   await showDialog(
     context: context,
@@ -22,6 +32,9 @@ Future<void> showPdfPreviewDialog(
       title: title,
       builder: builder,
       dateiname: dateiname,
+      csvBuilder: csvBuilder,
+      csvDateiname: csvDateiname,
+      maxWidth: maxWidth,
     ),
   );
 }
@@ -31,10 +44,16 @@ class _PdfPreviewDialog extends StatefulWidget {
     required this.title,
     required this.builder,
     this.dateiname,
+    this.csvBuilder,
+    this.csvDateiname,
+    this.maxWidth,
   });
   final String title;
   final Future<Uint8List> Function() builder;
   final String? dateiname;
+  final Future<Uint8List> Function()? csvBuilder;
+  final String? csvDateiname;
+  final double? maxWidth;
 
   @override
   State<_PdfPreviewDialog> createState() => _PdfPreviewDialogState();
@@ -43,7 +62,7 @@ class _PdfPreviewDialog extends StatefulWidget {
 class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    final dialog = Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -68,6 +87,19 @@ class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
                     );
                   },
                 ),
+                if (widget.csvBuilder != null)
+                  IconButton(
+                    tooltip: 'CSV-Export für Excel',
+                    icon: const Icon(Icons.table_chart_outlined),
+                    onPressed: () async {
+                      final bytes = await widget.csvBuilder!();
+                      await Printing.sharePdf(
+                        bytes: bytes,
+                        filename:
+                            widget.csvDateiname ?? 'export.csv',
+                      );
+                    },
+                  ),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () =>
@@ -96,6 +128,13 @@ class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
             ),
           ),
         ],
+      ),
+    );
+    if (widget.maxWidth == null) return dialog;
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: widget.maxWidth!),
+        child: dialog,
       ),
     );
   }

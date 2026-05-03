@@ -33,6 +33,12 @@ class Gutachten extends Table {
   TextColumn get geraeteJson => text().nullable()();
   TextColumn get lichtbildanlageJson => text().nullable()();
 
+  /// Anlagen (Dokumente, die ans Ende des PDFs gehängt werden) als JSON:
+  /// `[{"nr":1,"dokumentId":42,"titel":"…","datum":"YYYY-MM-DD"}]`.
+  /// Im Editor erscheinen sie als Referenz-Marker `[Anlage N — Titel]`,
+  /// im Druck folgen sie als angehängte Seiten hinter dem Hauptteil.
+  TextColumn get anlagenJson => text().nullable()();
+
   TextColumn get extras => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

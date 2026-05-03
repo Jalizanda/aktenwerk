@@ -45,6 +45,7 @@ const navSections = <NavSection>[
     NavItem('Stunden', 'stunden', '/stunden'),
     NavItem('Auslagen', 'auslagen', '/auslagen'),
     NavItem('Kalkulation', 'kalkulation', '/kalkulation'),
+    NavItem('LV / Ausschreibung', 'lv', '/lv'),
     NavItem('Anschreiben', 'anschreiben', '/anschreiben'),
     NavItem('Serienbriefe', 'serienbrief', '/serienbrief'),
     NavItem('Fotos', 'fotos', '/fotos'),
@@ -54,12 +55,14 @@ const navSections = <NavSection>[
   NavSection('Auswertung', [
     NavItem('OPOS / Mahnwesen', 'opos', '/opos'),
     NavItem('Steuer & Statistik', 'steuer', '/steuer'),
+    NavItem('Banking', 'banking', '/banking'),
     NavItem('Jahresbericht', 'jahresbericht', '/jahresbericht'),
     NavItem('CO₂-Tracker', 'co2', '/co2'),
   ]),
   NavSection('System', [
     NavItem('Einstellungen', 'einstellungen', '/einstellungen'),
     NavItem('Benutzer', 'benutzer', '/benutzer'),
+    NavItem('Befangenheits-Register', 'befangenheit', '/befangenheit'),
     NavItem('Administration', 'admin', '/admin', superAdminOnly: true),
   ]),
 ];

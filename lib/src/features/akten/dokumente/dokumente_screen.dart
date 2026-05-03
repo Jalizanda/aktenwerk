@@ -12,7 +12,23 @@ import '../../../data/sync/storage_service.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import 'dokument_viewer.dart';
 import 'dokumente_repository.dart';
+
+/// Öffnet den Dokumente-Upload-Dialog von außerhalb des Dokumente-Screens
+/// (z. B. aus dem Akten-Tab "Dokumente"). Optional kann eine Akte
+/// vorbelegt werden — dann landet das hochgeladene Dokument direkt unter
+/// dieser Akte.
+Future<void> showDokumenteUploadDialog(
+  BuildContext context, {
+  int? auftragId,
+}) async {
+  await showDialog<void>(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => _UploadDialog(initialAuftragId: auftragId),
+  );
+}
 
 class DokumenteScreen extends ConsumerWidget {
   const DokumenteScreen({super.key});
@@ -102,8 +118,11 @@ class DokumenteScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, DokumentWithAuftrag d) {
     final url = d.dokument.storageUrl;
     final hasCloud = url != null && url.isNotEmpty;
+    final hatBytes = (d.dokument.daten?.isNotEmpty ?? false);
     return DataRow(
-      onSelectChanged: (_) => _edit(context, ref, d),
+      onSelectChanged: (hasCloud || hatBytes)
+          ? (_) => openDokument(context, d.dokument)
+          : (_) => _edit(context, ref, d),
       cells: [
         DataCell(Text(_dateFmt.format(d.dokument.datum))),
         DataCell(Row(
@@ -128,11 +147,11 @@ class DokumenteScreen extends ConsumerWidget {
         DataCell(Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (hasCloud)
+            if (hasCloud || hatBytes)
               IconButton(
-                tooltip: 'Öffnen',
-                icon: const Icon(Icons.open_in_new, size: 20),
-                onPressed: () => launchUrlString(url),
+                tooltip: 'Öffnen / Vorschau',
+                icon: const Icon(Icons.visibility_outlined, size: 20),
+                onPressed: () => openDokument(context, d.dokument),
               ),
             IconButton(
               tooltip: 'Bearbeiten',
@@ -266,6 +285,7 @@ class _DokumentFormDialogState extends ConsumerState<_DokumentFormDialog> {
   @override
   Widget build(BuildContext context) {
     final url = widget.eintrag.dokument.storageUrl;
+    final hatDaten = (widget.eintrag.dokument.daten?.isNotEmpty ?? false);
     return StandardFormDialog(
       title: 'Dokument bearbeiten',
       saving: _saving,
@@ -274,6 +294,14 @@ class _DokumentFormDialogState extends ConsumerState<_DokumentFormDialog> {
       onCancel: () =>
           Navigator.of(context, rootNavigator: true).pop(false),
       onSave: _save,
+      footerLeading: (url != null || hatDaten)
+          ? OutlinedButton.icon(
+              icon: const Icon(Icons.visibility_outlined, size: 16),
+              label: const Text('Datei öffnen / Vorschau'),
+              onPressed: () =>
+                  openDokument(context, widget.eintrag.dokument),
+            )
+          : null,
       onDelete: () async {
         final storage = ref.read(storageServiceProvider);
         final p = widget.eintrag.dokument.storagePfad;
@@ -356,16 +384,38 @@ class _UploadDialog extends ConsumerStatefulWidget {
   ConsumerState<_UploadDialog> createState() => _UploadDialogState();
 }
 
+/// Vordefinierte Kategorien für die schnelle Zuordnung beim Upload.
+class _DokumenteScreenKategorien {
+  static const werte = <String>[
+    'Eingangsmail',
+    'Ausgangsmail',
+    'Beweisbeschluss',
+    'Schriftsatz',
+    'Anschreiben (Eingang)',
+    'Anschreiben (Ausgang)',
+    'Anlage',
+    'Foto',
+    'Sonstiges',
+  ];
+}
+
 class _UploadDialogState extends ConsumerState<_UploadDialog> {
   final List<_UploadEntry> _uploaded = [];
   bool _uploading = false;
   int? _auftragId;
   String _kategorie = '';
+  final _kategorieCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _auftragId = widget.initialAuftragId;
+  }
+
+  @override
+  void dispose() {
+    _kategorieCtrl.dispose();
+    super.dispose();
   }
 
   String _mime(String name) {
@@ -381,6 +431,8 @@ class _UploadDialogState extends ConsumerState<_UploadDialog> {
       'jpg' || 'jpeg' => 'image/jpeg',
       'png' => 'image/png',
       'gif' => 'image/gif',
+      'eml' => 'message/rfc822',
+      'msg' => 'application/vnd.ms-outlook',
       _ => 'application/octet-stream',
     };
   }
@@ -408,6 +460,14 @@ class _UploadDialogState extends ConsumerState<_UploadDialog> {
       for (final f in result.files) {
         if (f.bytes == null) continue;
         final mime = _mime(f.name);
+        // Wenn keine Kategorie gewählt wurde und die Datei eine Mail ist,
+        // automatisch als "Eingangsmail" markieren.
+        if (_kategorie.isEmpty &&
+            (mime == 'message/rfc822' ||
+                mime == 'application/vnd.ms-outlook')) {
+          _kategorie = 'Eingangsmail';
+          _kategorieCtrl.text = _kategorie;
+        }
         String? storageUrl;
         String? storagePfad;
         if (cloudReady) {
@@ -485,13 +545,38 @@ class _UploadDialogState extends ConsumerState<_UploadDialog> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-              child: TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Kategorie (optional)',
-                  hintText: 'z. B. Beweisbeschluss, Schriftsatz, Anlage',
-                  isDense: true,
-                ),
-                onChanged: (v) => _kategorie = v.trim(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  StatefulBuilder(builder: (ctx, setSt) {
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final k in _DokumenteScreenKategorien.werte)
+                          ChoiceChip(
+                            label: Text(k, style: const TextStyle(fontSize: 12)),
+                            selected: _kategorie == k,
+                            onSelected: (sel) => setSt(() {
+                              _kategorie = sel ? k : '';
+                              _kategorieCtrl.text = _kategorie;
+                            }),
+                          ),
+                      ],
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _kategorieCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Kategorie (optional, eigene Eingabe möglich)',
+                      hintText:
+                          'z. B. Beweisbeschluss, Schriftsatz, Eingangsmail, Anlage',
+                      isDense: true,
+                    ),
+                    onChanged: (v) => _kategorie = v.trim(),
+                  ),
+                ],
               ),
             ),
             const Divider(height: 1),

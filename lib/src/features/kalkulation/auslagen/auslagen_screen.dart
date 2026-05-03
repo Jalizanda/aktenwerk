@@ -17,12 +17,40 @@ import 'auslagen_repository.dart';
 
 final auslagenQueryProvider = StateProvider<String>((ref) => '');
 
-class AuslagenScreen extends ConsumerWidget {
+class AuslagenScreen extends ConsumerStatefulWidget {
   const AuslagenScreen({super.key});
-  static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuslagenScreen> createState() => _AuslagenScreenState();
+}
+
+class _AuslagenScreenState extends ConsumerState<AuslagenScreen> {
+  static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
+  int _sortCol = 0;
+  bool _sortAsc = false; // jüngstes Datum zuerst
+
+  void _onSort(int col, bool asc) =>
+      setState(() {
+        _sortCol = col;
+        _sortAsc = asc;
+      });
+
+  Comparable<Object> _key(AuslageWithAuftrag a, int col) {
+    String s(String? v) => (v ?? '').toLowerCase();
+    return switch (col) {
+      0 => a.auslage.datum.toIso8601String(),
+      1 => s(a.auftrag?.aktenzeichen),
+      2 => s(a.auslage.kategorie),
+      3 => s(a.auslage.beschreibung),
+      4 => a.auslage.menge,
+      5 => a.auslage.summe,
+      6 => a.auslage.abgerechnet ? '1' : '0',
+      _ => a.auslage.datum.toIso8601String(),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(auslagenListProvider);
     final filter = ref.watch(auslagenFilterProvider);
     final query = ref.watch(auslagenQueryProvider).trim().toLowerCase();
@@ -82,8 +110,19 @@ class AuslagenScreen extends ConsumerWidget {
             ),
           ],
         ),
+        // Live-Filter durch Suchfeld + Art-Tile vorab anwenden, sonst stimmen
+        // die KPI-Zahlen nicht zur sichtbaren Liste.
         async.maybeWhen(
-          data: (items) => _KpiStrip(items: applyQuery(items)),
+          data: (all) => _KpiStrip(
+            // ungefilterte Liste an die KPIs reichen, damit man immer alle
+            // Arten als Tile sieht — auch wenn aktuell eine gefiltert ist
+            items: applyQuery(all),
+            aktiveArt: filter.art,
+            onArt: (art) => ref
+                .read(auslagenFilterProvider.notifier)
+                .update((f) =>
+                    art == null ? f.copyWith(clearArt: true) : f.copyWith(art: art)),
+          ),
           orElse: () => const SizedBox.shrink(),
         ),
         const Divider(height: 1),
@@ -93,30 +132,39 @@ class AuslagenScreen extends ConsumerWidget {
             error: (e, _) => Center(child: Text('Fehler: $e')),
             data: (all) {
               final items = applyQuery(all);
-              return items.isEmpty
-                ? const EmptyListState(
+              if (items.isEmpty) {
+                return const EmptyListState(
                     icon: Icons.payments_outlined,
-                    title: 'Keine Auslagen erfasst')
-                : DataTableCard(
+                    title: 'Keine Auslagen erfasst');
+              }
+              final sorted = [...items]..sort((a, b) {
+                  final ka = _key(a, _sortCol);
+                  final kb = _key(b, _sortCol);
+                  final cmp = Comparable.compare(ka, kb);
+                  return _sortAsc ? cmp : -cmp;
+                });
+              return DataTableCard(
                     child: DataTable(
               showCheckboxColumn: false,
+                      sortColumnIndex: _sortCol,
+                      sortAscending: _sortAsc,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
                             .surfaceContainerHighest,
                       ),
-                      columns: const [
-                        DataColumn(label: Text('Datum')),
-                        DataColumn(label: Text('Auftrag')),
-                        DataColumn(label: Text('Kategorie')),
-                        DataColumn(label: Text('Beschreibung')),
-                        DataColumn(label: Text('Menge'), numeric: true),
-                        DataColumn(label: Text('Summe €'), numeric: true),
-                        DataColumn(label: Text('Abgerechnet')),
-                        DataColumn(label: Text('')),
+                      columns: [
+                        DataColumn(label: const Text('Datum'), onSort: _onSort),
+                        DataColumn(label: const Text('Auftrag'), onSort: _onSort),
+                        DataColumn(label: const Text('Kategorie'), onSort: _onSort),
+                        DataColumn(label: const Text('Beschreibung'), onSort: _onSort),
+                        DataColumn(label: const Text('Menge'), numeric: true, onSort: _onSort),
+                        DataColumn(label: const Text('Summe €'), numeric: true, onSort: _onSort),
+                        DataColumn(label: const Text('Abgerechnet'), onSort: _onSort),
+                        const DataColumn(label: Text('')),
                       ],
                       rows: [
-                        for (final a in items)
+                        for (final a in sorted)
                           DataRow(
                             onSelectChanged: (_) => _show(context, ref, a),
                             cells: [
@@ -179,75 +227,187 @@ Future<void> showAuslageEditor(BuildContext context,
 }
 
 class _KpiStrip extends StatelessWidget {
-  const _KpiStrip({required this.items});
+  const _KpiStrip({
+    required this.items,
+    required this.aktiveArt,
+    required this.onArt,
+  });
   final List<AuslageWithAuftrag> items;
+
+  /// Aktuell aktive Filter-Art (`null` = keine Filterung).
+  final String? aktiveArt;
+
+  /// Callback: `null` schaltet Filter aus, sonst wird auf die Art gefiltert.
+  final ValueChanged<String?> onArt;
+
   static final _money =
       NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
 
+  /// Reihenfolge + Labels der Auslagen-Arten (entspricht den JVEG-Posten,
+  /// plus Sonstiges am Ende).
+  static const _arten = <(String, String, IconData)>[
+    ('fahrt', 'Fahrt', Icons.directions_car_outlined),
+    ('schreibauslagen', 'Schreibauslagen', Icons.edit_note),
+    ('kopie_sw', 'Kopie s/w', Icons.content_copy),
+    ('kopie_farbe', 'Kopie farbig', Icons.palette_outlined),
+    ('lichtbilder', 'Lichtbilder', Icons.photo_camera_outlined),
+    ('porto', 'Porto', Icons.local_post_office_outlined),
+    ('fremdleistung', 'Fremdleistung', Icons.handyman_outlined),
+    ('sonstiges', 'Sonstiges', Icons.more_horiz),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final gesamt =
-        items.fold<double>(0, (s, a) => s + a.auslage.summe);
+    final gesamt = items.fold<double>(0, (s, a) => s + a.auslage.summe);
     final offen = items
         .where((a) => !a.auslage.abgerechnet)
         .fold<double>(0, (s, a) => s + a.auslage.summe);
-    final byArt = <String, double>{};
+    final byArt = <String, ({double summe, int anzahl})>{};
     for (final a in items) {
       final k = a.auslage.art ?? 'sonstiges';
-      byArt[k] = (byArt[k] ?? 0) + a.auslage.summe;
+      final cur = byArt[k];
+      byArt[k] = (
+        summe: (cur?.summe ?? 0) + a.auslage.summe,
+        anzahl: (cur?.anzahl ?? 0) + 1,
+      );
     }
-    final topArt = byArt.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final top = topArt.take(3).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: KpiCard(
-              icon: Icons.euro,
-              label: 'Gesamt',
-              value: _money.format(gesamt),
-              accent: BadgeColors.blueFg,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: KpiCard(
+                  icon: Icons.euro,
+                  label: 'Gesamt',
+                  value: _money.format(gesamt),
+                  accent: BadgeColors.blueFg,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: KpiCard(
+                  icon: Icons.hourglass_empty,
+                  label: 'noch offen',
+                  value: _money.format(offen),
+                  accent: BadgeColors.amberFg,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: KpiCard(
-              icon: Icons.hourglass_empty,
-              label: 'noch offen',
-              value: _money.format(offen),
-              accent: BadgeColors.amberFg,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: KpiCard(
-              icon: Icons.bar_chart,
-              label: top.isEmpty
-                  ? 'Top-Art'
-                  : 'Top: ${_labelForArt(top.first.key)}',
-              value: top.isEmpty
-                  ? '—'
-                  : _money.format(top.first.value),
-              accent: BadgeColors.greenFg,
-            ),
+          const SizedBox(height: 8),
+          // Per-Art-Tiles: Klick filtert die Liste; nochmaliger Klick auf
+          // den aktiven Tile entfernt den Filter wieder.
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (key, label, icon) in _arten)
+                _ArtTile(
+                  label: label,
+                  icon: icon,
+                  anzahl: byArt[key]?.anzahl ?? 0,
+                  summe: byArt[key]?.summe ?? 0,
+                  aktiv: aktiveArt == key,
+                  onTap: () => onArt(aktiveArt == key ? null : key),
+                ),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  static String _labelForArt(String a) => switch (a) {
-        'fahrt' => 'Fahrt',
-        'schreibauslagen' => 'Schreibauslagen',
-        'kopie_sw' => 'Kopie s/w',
-        'kopie_farbe' => 'Kopie farbig',
-        'lichtbilder' => 'Lichtbilder',
-        'porto' => 'Porto',
-        'fremdleistung' => 'Fremdleistung',
-        _ => 'Sonstiges',
-      };
+class _ArtTile extends StatelessWidget {
+  const _ArtTile({
+    required this.label,
+    required this.icon,
+    required this.anzahl,
+    required this.summe,
+    required this.aktiv,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final int anzahl;
+  final double summe;
+  final bool aktiv;
+  final VoidCallback onTap;
+
+  static final _money =
+      NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 0);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final muted = anzahl == 0;
+    return Material(
+      color: aktiv
+          ? scheme.primaryContainer
+          : (muted
+              ? scheme.surfaceContainerLow
+              : scheme.surfaceContainerHigh),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: anzahl == 0 ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16,
+                  color: aktiv
+                      ? scheme.onPrimaryContainer
+                      : (muted
+                          ? scheme.onSurfaceVariant.withValues(alpha: 0.5)
+                          : scheme.onSurfaceVariant)),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: aktiv ? FontWeight.w700 : FontWeight.w500,
+                  color: aktiv
+                      ? scheme.onPrimaryContainer
+                      : (muted
+                          ? scheme.onSurfaceVariant.withValues(alpha: 0.6)
+                          : scheme.onSurface),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: aktiv
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : scheme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('$anzahl',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: muted ? scheme.onSurfaceVariant : null,
+                    )),
+              ),
+              const SizedBox(width: 8),
+              Text(_money.format(summe),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: muted ? scheme.onSurfaceVariant : null,
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AuslageForm extends ConsumerStatefulWidget {

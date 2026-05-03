@@ -9,6 +9,12 @@ void openInNewWindow(String url,
   // Nicht unterstützt auf nativen Plattformen.
 }
 
+/// Schließt das aktuelle Browser-Fenster — auf nativen Plattformen
+/// ein No-Op.
+void closeWindow() {
+  // No-op
+}
+
 /// Aktuelle Origin der App (z. B. `https://aktenwerk-app.web.app`).
 /// Auf nativen Plattformen leer.
 String get appOrigin => '';

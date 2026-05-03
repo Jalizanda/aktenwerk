@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/seed/demo_seed.dart';
 import '../../../data/sync/org_service.dart';
 import '../../../data/sync/sync_service.dart';
+import '../../../features/auth/subscription_service.dart';
 import '../../../features/auth/user_approval_service.dart';
 import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/form_widgets.dart';
@@ -397,6 +398,8 @@ class _OrganisationsTab extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  _SubscriptionBadge(org: o),
+                  const SizedBox(width: 8),
                   if (o.approved)
                     const PillBadge(
                       text: 'freigeschaltet',
@@ -456,6 +459,9 @@ class _AdminOrg {
   final String ownerUid;
   final bool approved;
   final DateTime? createdAt;
+  final String? subscriptionStatus;
+  final DateTime? trialEndsAt;
+  final int pricePerUserCents;
   const _AdminOrg({
     required this.id,
     required this.name,
@@ -463,6 +469,9 @@ class _AdminOrg {
     required this.ownerUid,
     required this.approved,
     this.createdAt,
+    this.subscriptionStatus,
+    this.trialEndsAt,
+    this.pricePerUserCents = 790,
   });
 
   factory _AdminOrg.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
@@ -474,6 +483,10 @@ class _AdminOrg {
       ownerUid: m['ownerUid']?.toString() ?? '',
       approved: m['approved'] as bool? ?? false,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
+      subscriptionStatus: m['subscriptionStatus']?.toString(),
+      trialEndsAt: (m['trialEndsAt'] as Timestamp?)?.toDate(),
+      pricePerUserCents:
+          (m['pricePerUserCents'] as num?)?.toInt() ?? 790,
     );
   }
 }
@@ -481,6 +494,56 @@ class _AdminOrg {
 /// Nur als Unused-Guard damit OrgSummary nicht wegoptimiert wird.
 // ignore: unused_element
 final _unused = OrgSummary;
+
+/// Zeigt den Subscription-Zustand eines Mandanten als Badge — inkl.
+/// Mitgliederzahl und Restlaufzeit-Tagen für Trial-Mandanten.
+class _SubscriptionBadge extends StatelessWidget {
+  const _SubscriptionBadge({required this.org});
+  final _AdminOrg org;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = SubscriptionStatusX.fromRaw(org.subscriptionStatus);
+    final memberCol = FirebaseFirestore.instance
+        .collection('organizations')
+        .doc(org.id)
+        .collection('members');
+    return StreamBuilder<QuerySnapshot>(
+      stream: memberCol.snapshots(),
+      builder: (context, snap) {
+        final memberCount = snap.data?.size ?? 0;
+        final sub = OrgSubscription(
+          orgId: org.id,
+          status: status,
+          trialStartedAt: null,
+          trialEndsAt: org.trialEndsAt,
+          pricePerUserCents: org.pricePerUserCents,
+          memberCount: memberCount,
+        );
+        final eff = sub.effektiverStatus;
+        final (bg, fg) = switch (eff) {
+          SubscriptionStatus.master => (BadgeColors.blueBg, BadgeColors.blueFg),
+          SubscriptionStatus.aktiv =>
+            (BadgeColors.greenBg, BadgeColors.greenFg),
+          SubscriptionStatus.trial =>
+            (BadgeColors.amberBg, BadgeColors.amberFg),
+          SubscriptionStatus.trialAbgelaufen =>
+            (BadgeColors.redBg, BadgeColors.redFg),
+          SubscriptionStatus.gekuendigt =>
+            (BadgeColors.redBg, BadgeColors.redFg),
+        };
+        return Tooltip(
+          message: '${memberCount} aktive Nutzer',
+          child: PillBadge(
+            text: sub.anzeigetext,
+            background: bg,
+            foreground: fg,
+          ),
+        );
+      },
+    );
+  }
+}
 
 /// Tab zum Initialisieren des Demo-Mandanten mit Beispieldaten.
 /// Nur Super-Admin, der in der Demo-Org als aktive Organisation eingeloggt

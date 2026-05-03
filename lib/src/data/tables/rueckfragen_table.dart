@@ -23,6 +23,15 @@ class Rueckfragen extends Table {
   TextColumn get status => text().withDefault(const Constant('offen'))();
   DateTimeColumn get erledigtAm => dateTime().nullable()();
 
+  /// Bezugs-Gutachten (auf welches Gutachten bezieht sich die Stellungnahme).
+  DateTimeColumn get gutachtenBezugDatum => dateTime().nullable()();
+  TextColumn get gutachtenBezugNummer => text().nullable()();
+
+  /// Liste nummerierter Fragen + Antworten als JSON. Erlaubt mehrere Fragen
+  /// pro Schriftsatz / Stellungnahme. Format:
+  /// `[{"nr":"1","frage":"…","antwort":"…"}]`
+  TextColumn get fragenJson => text().nullable()();
+
   TextColumn get extras => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

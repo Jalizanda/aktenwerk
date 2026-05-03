@@ -39,6 +39,13 @@
           }
         },
         {
+          "source": "/api/destatis",
+          "function": {
+            "functionId": "destatisProxy",
+            "region": "europe-west1"
+          }
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }

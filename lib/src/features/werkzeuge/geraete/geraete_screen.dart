@@ -11,12 +11,37 @@ import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'geraete_repository.dart';
 
-class GeraeteScreen extends ConsumerWidget {
+class GeraeteScreen extends ConsumerStatefulWidget {
   const GeraeteScreen({super.key});
-  static final _fmt = DateFormat('dd.MM.yyyy', 'de');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GeraeteScreen> createState() => _GeraeteScreenState();
+}
+
+class _GeraeteScreenState extends ConsumerState<GeraeteScreen> {
+  static final _fmt = DateFormat('dd.MM.yyyy', 'de');
+  int _sortCol = 0;
+  bool _sortAsc = true;
+
+  void _onSort(int col, bool asc) =>
+      setState(() {
+        _sortCol = col;
+        _sortAsc = asc;
+      });
+
+  Comparable<Object> _key(GeraeteData g, int col) {
+    String l(String? v) => (v ?? '').toLowerCase();
+    return switch (col) {
+      0 => l(g.bezeichnung),
+      1 => l(g.hersteller),
+      2 => l(g.seriennummer),
+      3 => g.naechsteKalibrierung?.toIso8601String() ?? '9999',
+      _ => l(g.bezeichnung),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(geraeteListProvider);
     final filter = ref.watch(geraeteFilterProvider);
 
@@ -60,27 +85,37 @@ class GeraeteScreen extends ConsumerWidget {
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
-            data: (items) => items.isEmpty
-                ? const EmptyListState(
+            data: (items) {
+              if (items.isEmpty) {
+                return const EmptyListState(
                     icon: Icons.speed_outlined,
-                    title: 'Noch keine Messgeräte')
-                : DataTableCard(
+                    title: 'Noch keine Messgeräte');
+              }
+              final sorted = [...items]..sort((a, b) {
+                  final ka = _key(a, _sortCol);
+                  final kb = _key(b, _sortCol);
+                  final cmp = Comparable.compare(ka, kb);
+                  return _sortAsc ? cmp : -cmp;
+                });
+              return DataTableCard(
                     child: DataTable(
               showCheckboxColumn: false,
+                      sortColumnIndex: _sortCol,
+                      sortAscending: _sortAsc,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
                             .surfaceContainerHighest,
                       ),
-                      columns: const [
-                        DataColumn(label: Text('Bezeichnung')),
-                        DataColumn(label: Text('Hersteller')),
-                        DataColumn(label: Text('Seriennummer')),
-                        DataColumn(label: Text('Nächste Kalibrierung')),
-                        DataColumn(label: Text('')),
+                      columns: [
+                        DataColumn(label: const Text('Bezeichnung'), onSort: _onSort),
+                        DataColumn(label: const Text('Hersteller'), onSort: _onSort),
+                        DataColumn(label: const Text('Seriennummer'), onSort: _onSort),
+                        DataColumn(label: const Text('Nächste Kalibrierung'), onSort: _onSort),
+                        const DataColumn(label: Text('')),
                       ],
                       rows: [
-                        for (final g in items)
+                        for (final g in sorted)
                           DataRow(
                             onSelectChanged: (_) => _show(context, ref, g),
                             cells: [
@@ -99,7 +134,8 @@ class GeraeteScreen extends ConsumerWidget {
                           ),
                       ],
                     ),
-                  ),
+                  );
+            },
           ),
         ),
       ],

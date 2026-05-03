@@ -83,6 +83,22 @@
     {
       "key": "nummernkreis.aktenzeichen.reset",
       "wert": "nie"
+    },
+    {
+      "key": "honorar.gruppe_m1",
+      "wert": "70"
+    },
+    {
+      "key": "honorar.gruppe_m2",
+      "wert": "95"
+    },
+    {
+      "key": "honorar.gruppe_m3",
+      "wert": "130"
+    },
+    {
+      "key": "honorar.gruppe_sonstiges",
+      "wert": "95"
     }
   ],
   "kunden": [
@@ -222,6 +238,16 @@
       "status": "laufend",
       "stundensatz": 130,
       "aufwandSchaetzung": 18,
+      "kostenvorschuss": 3094.42,
+      "befangenheitsGeprueftAm": "2026-04-07",
+      "befangenheitsErgebnis": "unbefangen",
+      "befangenheitsNotiz": "Keine persönlichen, geschäftlichen oder verwandtschaftlichen Beziehungen zu den Beteiligten oder deren Bevollmächtigten.",
+      "beweisfragen": [
+        {"nr": "1", "frage": "Welche Schäden weist die Außenabdichtung des Kelleraußengeschosses gegenüber Bodenfeuchte und drückendem Wasser auf?"},
+        {"nr": "2", "frage": "Welche Sanierungsmaßnahmen sind nach den anerkannten Regeln der Technik zur dauerhaften Mängelbeseitigung erforderlich?"},
+        {"nr": "3", "frage": "Welche Kosten der Sanierung sind nach derzeitigem Marktpreisniveau zu erwarten?"},
+        {"nr": "4", "frage": "Sind die Schäden auf bauseitige Mängel der Errichtung 1972 oder auf zwischenzeitliche Veränderungen / Nutzungsverhalten zurückzuführen?"}
+      ],
       "gericht": "Amtsgericht Duisburg",
       "gerichtsort": "Duisburg",
       "verfahrensart": "Selbständiges Beweisverfahren (§ 485 ZPO)",
@@ -431,6 +457,19 @@
       "status": "laufend",
       "stundensatz": 130,
       "aufwandSchaetzung": 24,
+      "kostenvorschuss": 4382.18,
+      "befangenheitsGeprueftAm": "2026-03-25",
+      "befangenheitsErgebnis": "unbefangen",
+      "befangenheitsNotiz": "Keine persönlichen oder geschäftlichen Beziehungen zur Hausverwaltung Berger GmbH oder zu RA Schmidt; einmaliger geschäftlicher Kontakt zu RA Schmidt vor 8 Jahren in unverwandter Sache, dort kein begründungspflichtiger Einfluss.",
+      "mehrkostenAnzeigeAm": "2026-04-22",
+      "mehrkostenBetrag": 5800,
+      "mehrkostenBegruendung": "Aufgrund des Ergänzungsbeschlusses vom 06.04.2026 (Erweiterung um die Frage zum Wärmeschutz nach DIN 4108-2) sind zusätzlich ca. 8 Stunden Aktenstudium, eine weitere Bauteilöffnung sowie Thermografie-Aufnahmen erforderlich. Außerdem wird die Stellungnahme zu den Nachfragen der Beklagtenseite umfangreicher als ursprünglich kalkuliert.",
+      "beweisfragen": [
+        {"nr": "1", "frage": "Liegt im streitgegenständlichen Bereich der Wohnung ein Schimmelbefall vor und welcher Art / Umfang?"},
+        {"nr": "2", "frage": "Welche Ursachen sind hierfür anzunehmen — bauseitige Mängel oder Lüftungs-/Heizverhalten der Mietpartei?"},
+        {"nr": "3", "frage": "Welche Sanierungsmaßnahmen sind erforderlich und welche Kosten sind hierfür zu veranschlagen?"},
+        {"nr": "4", "frage": "Erfüllt die Außenwandkonstruktion die Mindestanforderungen an den Wärmeschutz gem. DIN 4108-2 (Ergänzungsbeschluss vom 06.04.2026)?"}
+      ],
       "gericht": "Landgericht Düsseldorf",
       "gerichtsort": "Düsseldorf",
       "verfahrensart": "Rechtsstreit / Hauptsacheverfahren",
@@ -1502,6 +1541,36 @@
       "filesize": 2048,
       "mimetype": "application/pdf",
       "id": 3
+    },
+    {
+      "auftragId": 1,
+      "kategorie": "Kostenvorschuss-Antrag",
+      "datum": "2026-04-12",
+      "beschreibung": "Kostenvorschuss-Antrag § 17 JVEG — geschätzter Aufwand 18 h × 130 €/h zzgl. Auslagen",
+      "filename": "Kostenvorschuss_AW-0001.pdf",
+      "filesize": 14336,
+      "mimetype": "application/pdf",
+      "id": 4
+    },
+    {
+      "auftragId": 4,
+      "kategorie": "Kostenvorschuss-Antrag",
+      "datum": "2026-04-08",
+      "beschreibung": "Kostenvorschuss-Antrag § 17 JVEG — voraussichtlich 24 h Honorar + Auslagen, 5-fache Ausfertigung",
+      "filename": "Kostenvorschuss_AW-0004.pdf",
+      "filesize": 16544,
+      "mimetype": "application/pdf",
+      "id": 5
+    },
+    {
+      "auftragId": 1,
+      "kategorie": "Termin-Einladung",
+      "datum": "2026-04-13",
+      "beschreibung": "Massen-Einladung Ortstermin 20.04.2026 — Anschreiben an alle vier Beteiligten",
+      "filename": "Ortstermin_AW-0001_Einladung.zip",
+      "filesize": 24576,
+      "mimetype": "application/zip",
+      "id": 6
     }
   ],
   "kalkulationen": [
@@ -2386,6 +2455,152 @@
       "einzelpreis": 1,
       "betrag": 24,
       "id": 7
+    },
+    {
+      "auftragId": 1,
+      "datum": "2026-04-19",
+      "art": "schreibauslagen",
+      "beschreibung": "Schreibauslagen § 12 Abs. 1 Nr. 3 JVEG (50.000 Anschläge à 1,80 €/1000)",
+      "menge": 50,
+      "einheit": "1000 Anschläge",
+      "einzelpreis": 1.8,
+      "betrag": 90,
+      "bemerkung": "Gutachten-Reinschrift",
+      "id": 8
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-19",
+      "art": "schreibauslagen",
+      "beschreibung": "Schreibauslagen Gutachten 5-fach Ausfertigung",
+      "menge": 72,
+      "einheit": "1000 Anschläge",
+      "einzelpreis": 1.8,
+      "betrag": 129.6,
+      "id": 9
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-20",
+      "art": "kopie_farbe",
+      "beschreibung": "Farbkopien Lichtbildanlage (5 Ausf. × 18 Seiten)",
+      "menge": 90,
+      "einheit": "Stk",
+      "einzelpreis": 1,
+      "betrag": 90,
+      "id": 10
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-21",
+      "art": "kopie_sw",
+      "beschreibung": "Aktenkopien Vortext (5 × 22 Seiten)",
+      "menge": 110,
+      "einheit": "Stk",
+      "einzelpreis": 0.5,
+      "betrag": 55,
+      "id": 11
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-22",
+      "art": "lichtbilder",
+      "beschreibung": "Lichtbilder Schimmelbefund (1. Bild 2,00 €, weitere à 1,00 €)",
+      "menge": 18,
+      "einheit": "Stk",
+      "einzelpreis": 1.06,
+      "betrag": 19,
+      "bemerkung": "§ 12 Abs. 1 Nr. 2 JVEG",
+      "id": 12
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-22",
+      "art": "porto",
+      "beschreibung": "Versand Gutachten an LG Düsseldorf (Einschreiben Wert)",
+      "menge": 1,
+      "einheit": "Pauschal",
+      "einzelpreis": 12.5,
+      "betrag": 12.5,
+      "id": 13
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-18",
+      "art": "fremdleistung",
+      "beschreibung": "Laboranalyse Materialprobe (Schimmel-Spezies-Bestimmung)",
+      "menge": 1,
+      "einheit": "Pauschal",
+      "einzelpreis": 185,
+      "betrag": 185,
+      "bemerkung": "Labor MikroBio Düsseldorf, RG-Nr. 2026-0412",
+      "id": 14
+    },
+    {
+      "auftragId": 1,
+      "datum": "2026-04-19",
+      "art": "fremdleistung",
+      "beschreibung": "Bauteilöffnung durch Fa. Weber GmbH (mit Wiederherstellung)",
+      "menge": 1,
+      "einheit": "Pauschal",
+      "einzelpreis": 320,
+      "betrag": 320,
+      "id": 15
+    },
+    {
+      "auftragId": 2,
+      "datum": "2026-04-22",
+      "art": "fahrt",
+      "beschreibung": "Ortstermin Hauptstraße 12, Duisburg",
+      "menge": 12,
+      "einheit": "km",
+      "einzelpreis": 0.42,
+      "betrag": 5.04,
+      "id": 16
+    },
+    {
+      "auftragId": 2,
+      "datum": "2026-04-22",
+      "art": "lichtbilder",
+      "beschreibung": "Lichtbilder Putzschäden Außenfassade",
+      "menge": 22,
+      "einheit": "Stk",
+      "einzelpreis": 1.05,
+      "betrag": 23,
+      "id": 17
+    },
+    {
+      "auftragId": 3,
+      "datum": "2026-04-26",
+      "art": "fahrt",
+      "beschreibung": "Anfahrt Bauzustandsdokumentation Königstraße 45a",
+      "menge": 96,
+      "einheit": "km",
+      "einzelpreis": 0.42,
+      "betrag": 40.32,
+      "id": 18
+    },
+    {
+      "auftragId": 3,
+      "datum": "2026-04-26",
+      "art": "lichtbilder",
+      "beschreibung": "Bauzustand Nachbargebäude (160 Aufnahmen)",
+      "menge": 160,
+      "einheit": "Stk",
+      "einzelpreis": 1.01,
+      "betrag": 161.5,
+      "id": 19
+    },
+    {
+      "auftragId": 1,
+      "datum": "2026-04-21",
+      "art": "sonstiges",
+      "beschreibung": "Klebematerial / Markierungsspray für Bauteilkennzeichnung",
+      "menge": 1,
+      "einheit": "Pauschal",
+      "einzelpreis": 14.9,
+      "betrag": 14.9,
+      "id": 20
     }
   ],
   "rueckfragen": [
@@ -2417,20 +2632,80 @@
       "schriftsatzVom": "2026-04-15",
       "stellerArt": "gericht",
       "stellerName": "Richter Dr. Schwerdtfeger",
-      "status": "offen",
+      "empfaenger": "Sehr geehrter Herr Richter Dr. Schwerdtfeger,",
+      "betreff": "Nachfragen zum Beweisbeschluss in der Sache 12 OH 4/26",
+      "status": "in_bearbeitung",
+      "gutachtenBezugDatum": "2026-04-12",
+      "gutachtenBezugNummer": "AW-0001-G1",
       "fragen": [
         {
           "nr": "1",
           "frage": "Bitte teilen Sie mit, ob die voraussichtlichen Sanierungskosten von 19.000 € auch eine Trockenlegung des Mauerwerks beinhalten oder nur die Abdichtung selbst.",
-          "antwort": ""
+          "antwort": "Die in der Kostenschätzung ausgewiesenen 19.000 € umfassen ausschließlich die fachgerechte vertikale Außenabdichtung gem. WTA-Merkblatt 4-6 sowie die Drainage. Die Trockenlegung des bestehenden Mauerwerks (z. B. durch Mauerwerksinjektage) ist als gesonderte Position auszuweisen und wurde mit ca. 2.300 € separat ergänzt (vgl. Position 3.1 der überarbeiteten Kostenaufstellung)."
         },
         {
           "nr": "2",
           "frage": "Wäre eine Innenabdichtung als kostengünstigere Alternative möglich? Bitte begründen.",
+          "antwort": "Eine reine Innenabdichtung ist im vorliegenden Fall fachlich nicht zu empfehlen. Die maßgeblichen Feuchtebelastungen entstehen durch drückendes Wasser von außen. Eine Innenabdichtung würde die Substanz der Außenwand nicht entlasten und mittelfristig zu weiteren Schäden (Salzsprengung, Putzabsprengung) führen. Sie ist daher nur als Übergangslösung anzusehen."
+        }
+      ],
+      "bemerkung": "Erst-Entwurf der Stellungnahme abgestimmt mit Bauhandwerks-Innung; finalisieren bis 25.04.",
+      "id": 2
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-22",
+      "schriftsatzVom": "2026-04-20",
+      "stellerArt": "anwalt_beklagter",
+      "stellerName": "Kanzlei Wiegand & Kollegen",
+      "empfaenger": "Sehr geehrte Damen und Herren,",
+      "betreff": "Nachfragen zum Gutachten vom 18.04.2026 — Schimmelbefall FES 88",
+      "status": "offen",
+      "gutachtenBezugDatum": "2026-04-18",
+      "gutachtenBezugNummer": "AW-0004-G1",
+      "fragen": [
+        {
+          "nr": "1",
+          "frage": "Auf welcher methodischen Grundlage stützen Sie Ihre Schlussfolgerung, dass der Schimmelbefall ursächlich auf bauseitige Mängel und nicht auf das Lüftungsverhalten der Mietpartei zurückzuführen ist?",
+          "antwort": ""
+        },
+        {
+          "nr": "2",
+          "frage": "Wurden die Wandtemperaturen messtechnisch erfasst (Hygrometer / Thermografie)? Bitte legen Sie die Messprotokolle bei.",
+          "antwort": ""
+        },
+        {
+          "nr": "3",
+          "frage": "Inwieweit haben Sie die im Gebäude vorhandene Lüftungsanlage und deren Wartungszustand in die Bewertung einbezogen?",
           "antwort": ""
         }
       ],
-      "id": 2
+      "id": 3
+    },
+    {
+      "auftragId": 4,
+      "datum": "2026-04-25",
+      "schriftsatzVom": "2026-04-23",
+      "stellerArt": "gericht",
+      "stellerName": "Vorsitzende Richterin Lehmann",
+      "empfaenger": "Sehr geehrte Frau Vorsitzende Richterin Lehmann,",
+      "betreff": "Ergänzungsbeschluss zum Beweisthema Wärmedämmung",
+      "status": "offen",
+      "gutachtenBezugDatum": "2026-04-18",
+      "gutachtenBezugNummer": "AW-0004-G1",
+      "fragen": [
+        {
+          "nr": "1",
+          "frage": "Welcher U-Wert ist für die Außenwand im streitgegenständlichen Bereich anzusetzen? Bitte mit Berechnung gem. DIN EN ISO 6946.",
+          "antwort": ""
+        },
+        {
+          "nr": "2",
+          "frage": "Erfüllt die Konstruktion die Mindestanforderungen an den Wärmeschutz nach DIN 4108-2 zum Zeitpunkt der Errichtung (1962) bzw. nach Sanierung?",
+          "antwort": ""
+        }
+      ],
+      "id": 4
     }
   ],
   "artikel": [
@@ -4458,5 +4733,566 @@
       "prioritaet": "niedrig",
       "erledigt": false
     }
+  ],
+  "versand": [
+    {
+      "id": 1,
+      "auftragId": 1,
+      "datum": "2026-04-12",
+      "art": "einschreiben",
+      "empfaenger": "Amtsgericht Duisburg, Postfach 2, 47042 Duisburg",
+      "betreff": "Antrag auf Kostenvorschuss in der Sache 12 OH 4/26",
+      "bezugBezeichnung": "Kostenvorschuss-Antrag § 17 JVEG",
+      "anzahlAusfertigungen": 1,
+      "trackingNr": "RR123456789DE",
+      "status": "zugestellt"
+    },
+    {
+      "id": 2,
+      "auftragId": 1,
+      "datum": "2026-04-13",
+      "art": "post",
+      "empfaenger": "alle Beteiligten (4 Empfänger)",
+      "betreff": "Termin-Einladung Ortstermin Lindenweg 7 — 20.04.2026 10:00",
+      "bezugBezeichnung": "Massen-Einladung zum Ortstermin (4 Beteiligte)",
+      "anzahlAusfertigungen": 4,
+      "status": "versendet"
+    },
+    {
+      "id": 3,
+      "auftragId": 4,
+      "datum": "2026-04-08",
+      "art": "einschreiben",
+      "empfaenger": "Landgericht Düsseldorf, Werdener Str. 1, 40227 Düsseldorf",
+      "betreff": "Antrag auf Kostenvorschuss in der Sache 4 O 188/26",
+      "bezugBezeichnung": "Kostenvorschuss-Antrag § 17 JVEG",
+      "anzahlAusfertigungen": 1,
+      "trackingNr": "RR456789012DE",
+      "status": "zugestellt"
+    },
+    {
+      "id": 4,
+      "auftragId": 4,
+      "datum": "2026-04-18",
+      "art": "einschreiben_rs",
+      "empfaenger": "Landgericht Düsseldorf — z. Hd. Vors. Ri'in Lehmann",
+      "betreff": "Gutachten in der Sache 4 O 188/26",
+      "bezugBezeichnung": "Gutachten AW-0004-G1 (5 Hefte zur Verteilung)",
+      "anzahlAusfertigungen": 5,
+      "trackingNr": "RR987654321DE",
+      "status": "zugestellt"
+    },
+    {
+      "id": 5,
+      "auftragId": 4,
+      "datum": "2026-04-22",
+      "art": "einschreiben",
+      "empfaenger": "Landgericht Düsseldorf",
+      "betreff": "Mehrkostenanzeige § 8a Abs. 4 JVEG",
+      "bezugBezeichnung": "Mehrkostenanzeige Erweiterung um 5.800 €",
+      "anzahlAusfertigungen": 1,
+      "trackingNr": "RR111222333DE",
+      "status": "versendet"
+    }
+  ],
+  "lv_katalog": [
+    {
+      "id": 1,
+      "kurztext": "Bituminöse Außenabdichtung Kellerwand, 2-lagig (KMB)",
+      "langtext": "Außenabdichtung der Kelleraußenwand gem. WTA-Merkblatt 4-6 in Form einer 2-lagigen kunststoffmodifizierten Bitumendickbeschichtung (KMB), Schichtdicke gem. Bemessungswasserbeanspruchung mind. 4 mm. Inkl. Vorbehandlung des Untergrundes (Reinigung, Voranstrich), 1 m² Aufmaß je m² fertige Fläche.",
+      "einheit": "m²",
+      "einzelpreis": 75,
+      "din276": "330",
+      "gewerk": "Abdichtung",
+      "tags": "feuchte, abdichtung, wta, kmb, keller",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 2,
+      "kurztext": "Perimeterdämmung XPS 80 mm, druckfest",
+      "langtext": "Perimeterdämmung aus extrudiertem Polystyrol-Hartschaum (XPS), Dicke 80 mm, druckbelastbar, WLG 035, Verlegung an die zuvor abgedichtete Außenwand (KMB) mit punktuell aufgesetztem Bitumenkleber. Stoßfugen umlaufend dicht.",
+      "einheit": "m²",
+      "einzelpreis": 38,
+      "din276": "330",
+      "gewerk": "Wärmedämmung",
+      "tags": "perimeter, xps, daemmung, keller",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 3,
+      "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen",
+      "langtext": "Verlegen eines flexiblen Drainagerohres DN 100 (geschlitzt, gefiltert) auf einer Sauberkeitsschicht aus Kies 16/32, Höhenlage gem. Vorgabe Tiefbau, inkl. Abdeckung mit gewaschenem Kies und Geotextil. Übergang zum Sammelschacht in einem Strang ausgeführt.",
+      "einheit": "m",
+      "einzelpreis": 48,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau",
+      "tags": "drainage, dn100, keller",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 4,
+      "kurztext": "Sanierputzsystem Kellerwand 3-lagig (WTA)",
+      "langtext": "Innen-Sanierputzsystem nach WTA-Merkblatt 2-9 in 3 Schichten: Spritzbewurf, Sanierputz-Grundputz mind. 10 mm, Sanierputz-Oberputz. Einsatz auf entsalzten / chloridbelasteten Kellerwänden zur Aufnahme von Salzen und zur kapillarbrechenden Funktion.",
+      "einheit": "m²",
+      "einzelpreis": 55,
+      "din276": "345",
+      "gewerk": "Putz / Stuck",
+      "tags": "sanierputz, wta, keller, salze",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 5,
+      "kurztext": "Anstrich Kellerwand diffusionsoffen, 2-fach",
+      "langtext": "2-facher Anstrich auf Sanierputz mit silikatischem oder Silikon-Harz-Anstrichsystem (mu < 0,3 m), abriebfest, weiß. Inkl. Vorbereitungsarbeiten (Abkleben, Abdecken).",
+      "einheit": "m²",
+      "einzelpreis": 14,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer",
+      "tags": "anstrich, keller, silikat",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 6,
+      "kurztext": "Erdaushub Kelleraußenwand freilegen",
+      "langtext": "Erdaushub bis Oberkante Sohle inkl. Wiederverfüllung mit gewaschenem, frostfreiem Kies-Sand-Gemisch in Lagen á 30 cm verdichtet. Aushub-Material wird vor Ort zwischengelagert (max. 4 Wochen) und für die Wiederverfüllung wiederverwendet, soweit geeignet.",
+      "einheit": "m³",
+      "einzelpreis": 65,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau",
+      "tags": "aushub, erde, keller",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 7,
+      "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)",
+      "langtext": "Herstellung einer nachträglichen Horizontalsperre durch drucklose Niederdruck-Injektion mit Silikonharz-Mikroemulsion. Bohrlöcher Ø 12 mm im Raster 12 cm, Tiefe = Wandstärke − 5 cm, im Winkel 30°. Anschließende Verschluss der Bohrlöcher mit kapillarbrechendem Mörtel.",
+      "einheit": "m",
+      "einzelpreis": 120,
+      "din276": "330",
+      "gewerk": "Maurer / Beton",
+      "tags": "horizontalsperre, injektion, silikonharz, keller",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 8,
+      "kurztext": "Schimmelpilzsanierung Wandfläche, mech. + chem.",
+      "langtext": "Schimmelpilzsanierung gem. UBA-Schimmelpilz-Leitfaden: a) mechanische Entfernung des Befalls (Bürsten, Spachteln) inkl. Staubsaugen mit HEPA-Filter, b) chemische Nachbehandlung mit Bioziden auf alkoholischer Basis (mind. 70% IPA), c) Versiegelung mit fungizider Grundierung. Inkl. Schutzkleidung und Entsorgung.",
+      "einheit": "m²",
+      "einzelpreis": 42,
+      "din276": "345",
+      "gewerk": "Schadstoff / Sanierung",
+      "tags": "schimmel, sanierung, hepa, fungizid",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 9,
+      "kurztext": "Lüftungstechnische Nachrüstung — dezentrales Gerät mit WRG",
+      "langtext": "Lieferung und Einbau eines dezentralen Lüftungsgerätes mit Wärmerückgewinnung (WRG ≥ 80 %), z. B. Lunos e²/Vento, Kernbohrung Ø 160 mm in Außenwand, Anschluss an Stromkreis, inkl. Außengitter und Innenblende. Pro Raum 2 gegenläufige Geräte für Push-Pull-Betrieb.",
+      "einheit": "Stk",
+      "einzelpreis": 850,
+      "din276": "430",
+      "gewerk": "Lüftung / TGA",
+      "tags": "lüftung, wrg, lunos, dezentral",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    },
+    {
+      "id": 10,
+      "kurztext": "Stundenlohnarbeiten Bauleitung",
+      "langtext": "Stundenlohnarbeiten der Bauleitung für nicht vorhersehbare Anpassungen während der Sanierung. Abrechnung nach Aufmaß und Stundennachweis.",
+      "einheit": "h",
+      "einzelpreis": 95,
+      "din276": "730",
+      "gewerk": "Baunebenkosten",
+      "tags": "bauleitung, stundenlohn",
+      "quelle": "seed",
+      "preisstand": "2026-01-15"
+    }
+  ],
+  "lv_kopf": [
+    {
+      "id": 1,
+      "auftragId": 1,
+      "nummer": "LV-2026-001",
+      "bezeichnung": "Sanierung Kellerfeuchte Lindenweg 7",
+      "untertitel": "Kostenschätzung gem. Beweisbeschluss vom 28.03.2026 — Sache 12 OH 4/26",
+      "datum": "2026-04-15",
+      "status": "freigegeben",
+      "mwstSatz": 19,
+      "indexStichtag": "2026-Q1",
+      "indexWert": 137.4,
+      "notiz": "Erstellt im Zuge des Sachverständigen-Gutachtens AW-0001-G1; Mengen aus Aufmaß vor Ort 12.04.2026."
+    },
+    {
+      "id": 2,
+      "auftragId": 4,
+      "nummer": "LV-2026-002",
+      "bezeichnung": "Schimmel- und Wärmeschutzsanierung Friedrich-Ebert-Straße 88",
+      "untertitel": "Kostenschätzung mit Bedarfspositionen — Sache 4 O 188/26",
+      "datum": "2026-04-22",
+      "status": "entwurf",
+      "mwstSatz": 19,
+      "notiz": "Position Wärmeschutz auf Bedarfsposition gesetzt — Entscheidung über Ergänzungsbeschluss steht aus."
+    },
+    {
+      "id": 3,
+      "auftragId": 1,
+      "nummer": "LV-2026-001-B1",
+      "bezeichnung": "Sanierung Kellerfeuchte Lindenweg 7 — Bieter Bauunternehmen Müller GmbH",
+      "untertitel": "Bieter-Antwort zur Ausschreibung LV-2026-001",
+      "datum": "2026-04-25",
+      "status": "freigegeben",
+      "mwstSatz": 19,
+      "basisLvId": 1,
+      "bieterName": "Bauunternehmen Müller GmbH",
+      "notiz": "Erste eingegangene Bieter-Antwort, Termin Auftrag bis 30.04.2026."
+    },
+    {
+      "id": 4,
+      "auftragId": 1,
+      "nummer": "LV-2026-001-B2",
+      "bezeichnung": "Sanierung Kellerfeuchte Lindenweg 7 — Bieter Hilger Bau e. K.",
+      "untertitel": "Bieter-Antwort zur Ausschreibung LV-2026-001",
+      "datum": "2026-04-26",
+      "status": "freigegeben",
+      "mwstSatz": 19,
+      "basisLvId": 1,
+      "bieterName": "Hilger Bau e. K.",
+      "notiz": "Zweite Bieter-Antwort. Etwas teurer, dafür kürzere Bauzeit angeboten."
+    },
+    {
+      "id": 5,
+      "auftragId": 2,
+      "nummer": "LV-2026-003",
+      "bezeichnung": "Außenanlagen-Erneuerung Hauptstraße 12 (gemischte USt-Sätze)",
+      "untertitel": "Kunst-am-Bau-Position 7 % USt., Standardarbeiten 19 % USt.",
+      "datum": "2026-04-28",
+      "status": "entwurf",
+      "mwstSatz": 19,
+      "notiz": "Beispiel für Mischsumme: § 12 Abs. 2 UStG nennt für künstlerische Leistungen einen ermäßigten Steuersatz."
+    }
+  ],
+  "lv_positionen": [
+    {
+      "id": 1,
+      "lvId": 1,
+      "art": "titel",
+      "oz": "1",
+      "sortIndex": 10,
+      "kurztext": "Erdarbeiten / Freilegung",
+      "din276": "310"
+    },
+    {
+      "id": 2,
+      "lvId": 1,
+      "parentId": 1,
+      "art": "normal",
+      "oz": "1.1",
+      "sortIndex": 11,
+      "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen",
+      "langtext": "Erdaushub bis Oberkante Sohle inkl. Wiederverfüllung in Lagen verdichtet. Aufmaß: 18 m³ (Länge 14 m × Tiefe 1,8 m × Breite 0,7 m).",
+      "einheit": "m³",
+      "menge": 18,
+      "einzelpreis": 65,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau"
+    },
+    {
+      "id": 3,
+      "lvId": 1,
+      "parentId": 1,
+      "art": "normal",
+      "oz": "1.2",
+      "sortIndex": 12,
+      "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen",
+      "langtext": "Verlegen eines flexiblen Drainagerohres DN 100 entlang der Außenwand inkl. Filterkies und Geotextil. Einbindung in vorhandenen Sammelschacht.",
+      "einheit": "m",
+      "menge": 14,
+      "einzelpreis": 48,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau"
+    },
+    {
+      "id": 4,
+      "lvId": 1,
+      "art": "titel",
+      "oz": "2",
+      "sortIndex": 20,
+      "kurztext": "Abdichtung und Wärmedämmung",
+      "din276": "330"
+    },
+    {
+      "id": 5,
+      "lvId": 1,
+      "parentId": 4,
+      "art": "grundtext",
+      "oz": "2.0",
+      "sortIndex": 21,
+      "kurztext": "Vorbemerkung Abdichtung",
+      "langtext": "Sämtliche Abdichtungsarbeiten sind gem. WTA-Merkblatt 4-6 (Außenabdichtung erdberührter Bauteile) auszuführen. Untergrund vor Beschichtung prüfen, Hohlkehlen aus Mörtel ausbilden. Bauteilanschlüsse fachgerecht ausbilden."
+    },
+    {
+      "id": 6,
+      "lvId": 1,
+      "parentId": 4,
+      "art": "normal",
+      "oz": "2.1",
+      "sortIndex": 22,
+      "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)",
+      "langtext": "Außenabdichtung der Kelleraußenwand gem. WTA-Merkblatt 4-6 in Form einer 2-lagigen kunststoffmodifizierten Bitumendickbeschichtung. Schichtdicke mind. 4 mm. Aufmaß ohne Abzug Abzweige < 0,5 m².",
+      "einheit": "m²",
+      "menge": 42,
+      "einzelpreis": 75,
+      "din276": "330",
+      "gewerk": "Abdichtung"
+    },
+    {
+      "id": 7,
+      "lvId": 1,
+      "parentId": 4,
+      "art": "normal",
+      "oz": "2.2",
+      "sortIndex": 23,
+      "kurztext": "Perimeterdämmung 80 mm XPS",
+      "langtext": "Perimeterdämmung aus XPS-Hartschaum, druckbelastbar, WLG 035, dicht gestoßen verlegt.",
+      "einheit": "m²",
+      "menge": 42,
+      "einzelpreis": 38,
+      "din276": "330",
+      "gewerk": "Wärmedämmung"
+    },
+    {
+      "id": 8,
+      "lvId": 1,
+      "art": "titel",
+      "oz": "3",
+      "sortIndex": 30,
+      "kurztext": "Mauerwerk / Horizontalsperre",
+      "din276": "330"
+    },
+    {
+      "id": 9,
+      "lvId": 1,
+      "parentId": 8,
+      "art": "normal",
+      "oz": "3.1",
+      "sortIndex": 31,
+      "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)",
+      "langtext": "Drucklose Niederdruck-Injektion gem. WTA-Merkblatt 4-4. Bohrlöcher im Winkel von 30°, Raster 12 cm, anschließend kapillarbrechender Mörtelverschluss.",
+      "einheit": "m",
+      "menge": 14,
+      "einzelpreis": 120,
+      "din276": "330",
+      "gewerk": "Maurer / Beton"
+    },
+    {
+      "id": 10,
+      "lvId": 1,
+      "art": "titel",
+      "oz": "4",
+      "sortIndex": 40,
+      "kurztext": "Innen-Sanierputz und Anstrich",
+      "din276": "345"
+    },
+    {
+      "id": 11,
+      "lvId": 1,
+      "parentId": 10,
+      "art": "normal",
+      "oz": "4.1",
+      "sortIndex": 41,
+      "kurztext": "Sanierputzsystem Kellerwände (3-lagig)",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 55,
+      "din276": "345",
+      "gewerk": "Putz / Stuck"
+    },
+    {
+      "id": 12,
+      "lvId": 1,
+      "parentId": 10,
+      "art": "normal",
+      "oz": "4.2",
+      "sortIndex": 42,
+      "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 14,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer"
+    },
+    {
+      "id": 13,
+      "lvId": 1,
+      "parentId": 10,
+      "art": "bedarf",
+      "oz": "4.3",
+      "sortIndex": 43,
+      "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz",
+      "langtext": "Falls bei Aufnahme der Wandbeläge zusätzlich Tapeten entfernt werden müssen.",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 8,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer"
+    },
+    {
+      "id": 14,
+      "lvId": 1,
+      "art": "stundenlohn",
+      "oz": "5.1",
+      "sortIndex": 50,
+      "kurztext": "Stundenlohn Bauleitung",
+      "langtext": "Pauschalierter Stundenrahmen für Bauleitung, Detailabstimmungen vor Ort.",
+      "einheit": "h",
+      "menge": 12,
+      "einzelpreis": 95,
+      "din276": "730",
+      "gewerk": "Baunebenkosten"
+    },
+
+    {
+      "id": 20,
+      "lvId": 2,
+      "art": "titel",
+      "oz": "1",
+      "sortIndex": 10,
+      "kurztext": "Schimmelpilzsanierung Innen",
+      "din276": "345"
+    },
+    {
+      "id": 21,
+      "lvId": 2,
+      "parentId": 20,
+      "art": "normal",
+      "oz": "1.1",
+      "sortIndex": 11,
+      "kurztext": "Schimmelpilzsanierung Wandfläche, mech. + chem.",
+      "langtext": "Sanierung gem. UBA-Schimmelpilz-Leitfaden: mech. Entfernung, chem. Nachbehandlung, Versiegelung. Inkl. Staubschutz/Personenschutz.",
+      "einheit": "m²",
+      "menge": 28,
+      "einzelpreis": 42,
+      "din276": "345",
+      "gewerk": "Schadstoff / Sanierung"
+    },
+    {
+      "id": 22,
+      "lvId": 2,
+      "art": "titel",
+      "oz": "2",
+      "sortIndex": 20,
+      "kurztext": "Lüftungstechnische Nachrüstung",
+      "din276": "430"
+    },
+    {
+      "id": 23,
+      "lvId": 2,
+      "parentId": 22,
+      "art": "bedarf",
+      "oz": "2.1",
+      "sortIndex": 21,
+      "kurztext": "BP: Dezentrales Lüftungsgerät mit WRG (Lunos o. glw.)",
+      "langtext": "Bedarfsposition für den Fall, dass die Beweisaufnahme die Notwendigkeit einer dauerhaften Lüftungsmaßnahme bestätigt. 4 Stk. (2 Räume × 2 Geräte für Push-Pull-Betrieb).",
+      "einheit": "Stk",
+      "menge": 4,
+      "einzelpreis": 850,
+      "din276": "430",
+      "gewerk": "Lüftung / TGA"
+    },
+    {
+      "id": 24,
+      "lvId": 2,
+      "art": "titel",
+      "oz": "3",
+      "sortIndex": 30,
+      "kurztext": "Wärmeschutz (Ergänzungsbeschluss)",
+      "din276": "330"
+    },
+    {
+      "id": 25,
+      "lvId": 2,
+      "parentId": 24,
+      "art": "grundtext",
+      "oz": "3.0",
+      "sortIndex": 31,
+      "kurztext": "Vorbemerkung Wärmeschutz",
+      "langtext": "Diese Position bezieht sich auf den Ergänzungsbeschluss vom 06.04.2026 zur Frage der Mindestanforderungen an den Wärmeschutz nach DIN 4108-2. Die Bedarfsposition entfällt, falls das Gericht im Hauptsacheverfahren den Wärmeschutz nicht zum Streitgegenstand erklärt."
+    },
+    {
+      "id": 26,
+      "lvId": 2,
+      "parentId": 24,
+      "art": "bedarf",
+      "oz": "3.1",
+      "sortIndex": 32,
+      "kurztext": "BP: Innendämmung Außenwand 60 mm Calciumsilikat",
+      "langtext": "Bedarfsposition zur Innendämmung mit kapillaraktivem Calciumsilikat-Plattensystem. Inkl. Spachtelung und vollflächigem Anschluss an Decke/Boden/Innenwand.",
+      "einheit": "m²",
+      "menge": 28,
+      "einzelpreis": 145,
+      "din276": "330",
+      "gewerk": "Innendämmung"
+    },
+
+    {"id": 100, "lvId": 3, "art": "titel", "oz": "1", "sortIndex": 10, "kurztext": "Erdarbeiten / Freilegung", "din276": "310"},
+    {"id": 101, "lvId": 3, "parentId": 100, "art": "normal", "oz": "1.1", "sortIndex": 11, "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen", "einheit": "m³", "menge": 18, "einzelpreis": 72, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
+    {"id": 102, "lvId": 3, "parentId": 100, "art": "normal", "oz": "1.2", "sortIndex": 12, "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen", "einheit": "m", "menge": 14, "einzelpreis": 52, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
+    {"id": 103, "lvId": 3, "art": "titel", "oz": "2", "sortIndex": 20, "kurztext": "Abdichtung und Wärmedämmung", "din276": "330"},
+    {"id": 104, "lvId": 3, "parentId": 103, "art": "normal", "oz": "2.1", "sortIndex": 22, "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)", "einheit": "m²", "menge": 42, "einzelpreis": 82, "din276": "330", "gewerk": "Abdichtung"},
+    {"id": 105, "lvId": 3, "parentId": 103, "art": "normal", "oz": "2.2", "sortIndex": 23, "kurztext": "Perimeterdämmung 80 mm XPS", "einheit": "m²", "menge": 42, "einzelpreis": 42, "din276": "330", "gewerk": "Wärmedämmung"},
+    {"id": 106, "lvId": 3, "art": "titel", "oz": "3", "sortIndex": 30, "kurztext": "Mauerwerk / Horizontalsperre", "din276": "330"},
+    {"id": 107, "lvId": 3, "parentId": 106, "art": "normal", "oz": "3.1", "sortIndex": 31, "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)", "einheit": "m", "menge": 14, "einzelpreis": 135, "din276": "330", "gewerk": "Maurer / Beton"},
+    {"id": 108, "lvId": 3, "art": "titel", "oz": "4", "sortIndex": 40, "kurztext": "Innen-Sanierputz und Anstrich", "din276": "345"},
+    {"id": 109, "lvId": 3, "parentId": 108, "art": "normal", "oz": "4.1", "sortIndex": 41, "kurztext": "Sanierputzsystem Kellerwände (3-lagig)", "einheit": "m²", "menge": 65, "einzelpreis": 62, "din276": "345", "gewerk": "Putz / Stuck"},
+    {"id": 110, "lvId": 3, "parentId": 108, "art": "normal", "oz": "4.2", "sortIndex": 42, "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach", "einheit": "m²", "menge": 65, "einzelpreis": 16, "din276": "345", "gewerk": "Maler / Tapezierer"},
+    {"id": 111, "lvId": 3, "parentId": 108, "art": "bedarf", "oz": "4.3", "sortIndex": 43, "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz", "einheit": "m²", "menge": 65, "einzelpreis": 9, "din276": "345", "gewerk": "Maler / Tapezierer"},
+    {"id": 112, "lvId": 3, "art": "stundenlohn", "oz": "5.1", "sortIndex": 50, "kurztext": "Stundenlohn Bauleitung", "einheit": "h", "menge": 12, "einzelpreis": 95, "din276": "730", "gewerk": "Baunebenkosten"},
+
+    {"id": 200, "lvId": 4, "art": "titel", "oz": "1", "sortIndex": 10, "kurztext": "Erdarbeiten / Freilegung", "din276": "310"},
+    {"id": 201, "lvId": 4, "parentId": 200, "art": "normal", "oz": "1.1", "sortIndex": 11, "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen", "einheit": "m³", "menge": 18, "einzelpreis": 78, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
+    {"id": 202, "lvId": 4, "parentId": 200, "art": "normal", "oz": "1.2", "sortIndex": 12, "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen", "einheit": "m", "menge": 14, "einzelpreis": 55, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
+    {"id": 203, "lvId": 4, "art": "titel", "oz": "2", "sortIndex": 20, "kurztext": "Abdichtung und Wärmedämmung", "din276": "330"},
+    {"id": 204, "lvId": 4, "parentId": 203, "art": "normal", "oz": "2.1", "sortIndex": 22, "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)", "einheit": "m²", "menge": 42, "einzelpreis": 78, "din276": "330", "gewerk": "Abdichtung"},
+    {"id": 205, "lvId": 4, "parentId": 203, "art": "normal", "oz": "2.2", "sortIndex": 23, "kurztext": "Perimeterdämmung 80 mm XPS", "einheit": "m²", "menge": 42, "einzelpreis": 45, "din276": "330", "gewerk": "Wärmedämmung"},
+    {"id": 206, "lvId": 4, "art": "titel", "oz": "3", "sortIndex": 30, "kurztext": "Mauerwerk / Horizontalsperre", "din276": "330"},
+    {"id": 207, "lvId": 4, "parentId": 206, "art": "normal", "oz": "3.1", "sortIndex": 31, "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)", "einheit": "m", "menge": 14, "einzelpreis": 142, "din276": "330", "gewerk": "Maurer / Beton"},
+    {"id": 208, "lvId": 4, "art": "titel", "oz": "4", "sortIndex": 40, "kurztext": "Innen-Sanierputz und Anstrich", "din276": "345"},
+    {"id": 209, "lvId": 4, "parentId": 208, "art": "normal", "oz": "4.1", "sortIndex": 41, "kurztext": "Sanierputzsystem Kellerwände (3-lagig)", "einheit": "m²", "menge": 65, "einzelpreis": 65, "din276": "345", "gewerk": "Putz / Stuck"},
+    {"id": 210, "lvId": 4, "parentId": 208, "art": "normal", "oz": "4.2", "sortIndex": 42, "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach", "einheit": "m²", "menge": 65, "einzelpreis": 18, "din276": "345", "gewerk": "Maler / Tapezierer"},
+    {"id": 211, "lvId": 4, "parentId": 208, "art": "bedarf", "oz": "4.3", "sortIndex": 43, "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz", "einheit": "m²", "menge": 65, "einzelpreis": 11, "din276": "345", "gewerk": "Maler / Tapezierer"},
+    {"id": 212, "lvId": 4, "art": "stundenlohn", "oz": "5.1", "sortIndex": 50, "kurztext": "Stundenlohn Bauleitung", "einheit": "h", "menge": 8, "einzelpreis": 105, "din276": "730", "gewerk": "Baunebenkosten"},
+
+    {"id": 300, "lvId": 5, "art": "titel", "oz": "1", "sortIndex": 10, "kurztext": "Standardarbeiten (19 % USt.)", "din276": "510"},
+    {"id": 301, "lvId": 5, "parentId": 300, "art": "normal", "oz": "1.1", "sortIndex": 11, "kurztext": "Pflasterung Hauseingang Granit", "langtext": "Hauseingang/Vorplatz pflastern mit Granit-Klein-Pflaster 8/10 cm.", "einheit": "m²", "menge": 35, "einzelpreis": 195, "ustSatz": 19, "din276": "510", "gewerk": "Garten / Außenanlagen"},
+    {"id": 302, "lvId": 5, "parentId": 300, "art": "normal", "oz": "1.2", "sortIndex": 12, "kurztext": "Stützmauer Beton Sichtbeton 40 cm dick, 2 m hoch", "einheit": "m", "menge": 12, "einzelpreis": 580, "ustSatz": 19, "din276": "530", "gewerk": "Maurer / Beton"},
+    {"id": 303, "lvId": 5, "parentId": 300, "art": "normal", "oz": "1.3", "sortIndex": 13, "kurztext": "Doppelstabmatten-Zaun 2 m hoch verzinkt", "einheit": "m", "menge": 28, "einzelpreis": 95, "ustSatz": 19, "din276": "550", "gewerk": "Garten / Außenanlagen"},
+    {"id": 304, "lvId": 5, "art": "titel", "oz": "2", "sortIndex": 20, "kurztext": "Künstlerische Leistungen (7 % USt. gem. § 12 Abs. 2 UStG)", "din276": "640"},
+    {"id": 305, "lvId": 5, "parentId": 304, "art": "normal", "oz": "2.1", "sortIndex": 21, "kurztext": "Schmiedeeisen-Geländer historisch nachbilden", "langtext": "Restaurierung Schmiedeeisen-Geländer im historischen Stil, schwarz lackiert. Künstlerische Leistung gem. § 12 Abs. 2 UStG mit ermäßigtem Steuersatz 7 %.", "einheit": "m", "menge": 8, "einzelpreis": 480, "ustSatz": 7, "din276": "640", "gewerk": "Schmiede / Metallbau"},
+    {"id": 306, "lvId": 5, "parentId": 304, "art": "normal", "oz": "2.2", "sortIndex": 22, "kurztext": "Kunststein-Skulptur als Brunnen-Element", "langtext": "Liefern und Aufstellen einer Kunststein-Skulptur 80 × 60 × 40 cm als Mittelpunkt eines kleinen Brunnens. Künstlerische Leistung — 7 % USt.", "einheit": "Stk", "menge": 1, "einzelpreis": 2800, "ustSatz": 7, "din276": "640", "gewerk": "Künstlerische Ausstattung"},
+    {"id": 307, "lvId": 5, "art": "titel", "oz": "3", "sortIndex": 30, "kurztext": "Stundenlohn Bauleitung (19 %)", "din276": "730"},
+    {"id": 308, "lvId": 5, "parentId": 307, "art": "stundenlohn", "oz": "3.1", "sortIndex": 31, "kurztext": "Bauleitung Vor-Ort-Abstimmungen", "einheit": "h", "menge": 6, "einzelpreis": 95, "ustSatz": 19, "din276": "730", "gewerk": "Baunebenkosten"}
+
+  ],
+  "lv_mengenzeilen": [
+    {"positionId": 6, "sortIndex": 10, "bezeichnung": "Wand Nordseite (L × H)", "formel": "14*1,80", "ergebnis": 25.2},
+    {"positionId": 6, "sortIndex": 20, "bezeichnung": "Wand Ostseite (L × H)", "formel": "9,5*1,80", "ergebnis": 17.1},
+    {"positionId": 6, "sortIndex": 30, "bezeichnung": "Abzug Lichtschacht", "formel": "-(1,2*0,8)", "ergebnis": -0.96},
+
+    {"positionId": 11, "sortIndex": 10, "bezeichnung": "Kellerraum 1 — Wandflächen umlaufend", "formel": "(4,5+3,8)*2*2,30", "ergebnis": 38.18},
+    {"positionId": 11, "sortIndex": 20, "bezeichnung": "Kellerraum 2 — Wandflächen umlaufend", "formel": "(3,2+3,5)*2*2,30", "ergebnis": 30.82},
+    {"positionId": 11, "sortIndex": 30, "bezeichnung": "Abzug Türöffnungen", "formel": "-(2*0,9*2,1)", "ergebnis": -3.78},
+
+    {"positionId": 21, "sortIndex": 10, "bezeichnung": "Schlafzimmer Außenwand", "formel": "4,2*2,55", "ergebnis": 10.71},
+    {"positionId": 21, "sortIndex": 20, "bezeichnung": "Wohnzimmer Außenecke", "formel": "(3,8+2,5)*2,55", "ergebnis": 16.07},
+    {"positionId": 21, "sortIndex": 30, "bezeichnung": "Bad fensterseitig", "formel": "1,8*2,55-0,9*1,2", "ergebnis": 3.51}
   ]
 }

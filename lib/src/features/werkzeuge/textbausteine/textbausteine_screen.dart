@@ -11,11 +11,37 @@ import '../../../shared/widgets/module_scaffold.dart';
 import 'sv_vorlagen_seed.dart';
 import 'textbausteine_repository.dart';
 
-class TextbausteineScreen extends ConsumerWidget {
+class TextbausteineScreen extends ConsumerStatefulWidget {
   const TextbausteineScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TextbausteineScreen> createState() =>
+      _TextbausteineScreenState();
+}
+
+class _TextbausteineScreenState extends ConsumerState<TextbausteineScreen> {
+  int _sortCol = 1;
+  bool _sortAsc = true;
+
+  void _onSort(int col, bool asc) =>
+      setState(() {
+        _sortCol = col;
+        _sortAsc = asc;
+      });
+
+  Comparable<Object> _key(TextbausteineData b, int col) {
+    String l(String? v) => (v ?? '').toLowerCase();
+    return switch (col) {
+      1 => l(b.titel),
+      2 => l(b.kategorie),
+      3 => l(b.sachgebiet),
+      4 => l(b.inhalt),
+      _ => l(b.titel),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(textbausteineListProvider);
     final kats = ref.watch(textbausteinKategorienProvider);
     final filter = ref.watch(textbausteineFilterProvider);
@@ -86,32 +112,42 @@ class TextbausteineScreen extends ConsumerWidget {
           child: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Fehler: $e')),
-            data: (items) => items.isEmpty
-                ? const EmptyListState(
+            data: (items) {
+              if (items.isEmpty) {
+                return const EmptyListState(
                     icon: Icons.text_snippet_outlined,
-                    title: 'Keine Textbausteine')
-                : DataTableCard(
+                    title: 'Keine Textbausteine');
+              }
+              final sorted = [...items]..sort((a, b) {
+                  final ka = _key(a, _sortCol);
+                  final kb = _key(b, _sortCol);
+                  final cmp = Comparable.compare(ka, kb);
+                  return _sortAsc ? cmp : -cmp;
+                });
+              return DataTableCard(
                     child: DataTable(
                       showCheckboxColumn: false,
+                      sortColumnIndex: _sortCol,
+                      sortAscending: _sortAsc,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
                             .surfaceContainerLow,
                       ),
-                      columns: const [
-                        DataColumn(
+                      columns: [
+                        const DataColumn(
                             label: SizedBox(width: 28, child: Text(''))),
-                        DataColumn(label: Text('Titel / Kürzel')),
-                        DataColumn(label: Text('Kategorie')),
-                        DataColumn(label: Text('Sachgebiet')),
-                        DataColumn(label: Text('Inhalt (Vorschau)')),
-                        DataColumn(
+                        DataColumn(label: const Text('Titel / Kürzel'), onSort: _onSort),
+                        DataColumn(label: const Text('Kategorie'), onSort: _onSort),
+                        DataColumn(label: const Text('Sachgebiet'), onSort: _onSort),
+                        DataColumn(label: const Text('Inhalt (Vorschau)'), onSort: _onSort),
+                        const DataColumn(
                             label: SizedBox(width: 28, child: Text(''))),
-                        DataColumn(
+                        const DataColumn(
                             label: SizedBox(width: 28, child: Text(''))),
                       ],
                       rows: [
-                        for (final b in items)
+                        for (final b in sorted)
                           DataRow(
                             onSelectChanged: (_) => _show(context, ref, b),
                             cells: [
@@ -181,7 +217,8 @@ class TextbausteineScreen extends ConsumerWidget {
                           ),
                       ],
                     ),
-                  ),
+                  );
+            },
           ),
         ),
       ],

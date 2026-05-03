@@ -13,6 +13,8 @@ import '../../features/akten/lieferanten/lieferanten_screen.dart';
 import '../../features/akten/rechnungen/rechnungen_screen.dart';
 import '../../features/angebote/angebote/angebote_screen.dart';
 import '../../features/angebote/anschreiben/anschreiben_screen.dart';
+import '../../features/auswertung/banking/banking_screen.dart';
+import '../../features/auswertung/befangenheit/befangenheit_screen.dart';
 import '../../features/auswertung/co2/co2_screen.dart';
 import '../../features/auswertung/fortbildungen/fortbildungen_screen.dart';
 import '../../features/auswertung/jahresbericht/jahresbericht_screen.dart';
@@ -25,8 +27,13 @@ import '../../features/kalkulation/kalkulation/kalkulation_screen.dart';
 import '../../features/kalkulation/stunden/stunden_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/system/benutzer/benutzer_screen.dart';
+import '../../features/akten/gutachten/gutachten_abschnitt_editor.dart';
+import '../../features/akten/lv/lv_editor_screen.dart';
+import '../../features/akten/lv/lv_katalog_screen.dart';
+import '../../features/akten/lv/lv_screen.dart';
 import '../../features/system/admin/admin_screen.dart';
 import '../../features/system/einstellungen/einstellungen_screen.dart';
+import '../../features/system/legal/datenschutz_screen.dart';
 import '../../features/system/org/organisation_screen.dart';
 import '../../features/werkzeuge/fotos/fotos_screen.dart';
 import '../../features/werkzeuge/geraete/geraete_screen.dart';
@@ -120,9 +127,23 @@ GoRouter buildRouter() {
               path: '/fortbildungen',
               builder: (_, _) => const FortbildungenScreen()),
           GoRoute(
+              path: '/befangenheit',
+              builder: (_, _) => const BefangenheitScreen()),
+          GoRoute(
+              path: '/banking',
+              builder: (_, _) => const BankingScreen()),
+          GoRoute(
               path: '/qualifikationen',
               builder: (_, _) => const QualifikationenScreen()),
           GoRoute(path: '/co2', builder: (_, _) => const Co2Screen()),
+          GoRoute(path: '/lv', builder: (_, _) => const LvScreen()),
+          GoRoute(
+              path: '/lv/katalog',
+              builder: (_, _) => const LvKatalogScreen()),
+          GoRoute(
+              path: '/lv/:id',
+              builder: (_, state) => LvEditorScreen(
+                  lvId: int.parse(state.pathParameters['id']!))),
           GoRoute(
               path: '/einstellungen',
               builder: (_, _) => const EinstellungenScreen()),
@@ -132,6 +153,9 @@ GoRouter buildRouter() {
               path: '/organisation',
               builder: (_, _) => const OrganisationScreen()),
           GoRoute(path: '/admin', builder: (_, _) => const AdminScreen()),
+          GoRoute(
+              path: '/datenschutz',
+              builder: (_, _) => const DatenschutzScreen()),
         ],
       ),
       // Standalone-Route außerhalb der Shell: wird als eigenes Browser-
@@ -139,6 +163,13 @@ GoRouter buildRouter() {
       GoRoute(
           path: '/normen/chat',
           builder: (_, _) => const NormenChatScreen()),
+      GoRoute(
+        path: '/gutachten-abschnitt/:gid/:key',
+        builder: (_, state) => GutachtenAbschnittEditorScreen(
+          gutachtenId: int.parse(state.pathParameters['gid']!),
+          abschnittKey: state.pathParameters['key']!,
+        ),
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(title: const Text('Nicht gefunden')),

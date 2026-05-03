@@ -25,6 +25,14 @@ class Anschreiben extends Table {
   TextColumn get inhaltJson => text().nullable()();
 
   TextColumn get status => text().withDefault(const Constant('entwurf'))();
+
+  /// Interne Beleg-Nummer (Format z. B. `D2026-0001`). Wird beim
+  /// „Drucken & in Akte ablegen" aus dem Dokument-Nummernkreis vergeben.
+  /// Bleibt leer, solange das Anschreiben noch im Entwurf ist.
+  TextColumn get belegNr => text().nullable()();
+  /// Zeitpunkt des Druckens — markiert das Anschreiben als eingefroren.
+  DateTimeColumn get gedrucktAm => dateTime().nullable()();
+
   TextColumn get extras => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

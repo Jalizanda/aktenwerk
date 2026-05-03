@@ -26,31 +26,49 @@ class KiModellInfo {
 }
 
 const kiModelle = <KiModellInfo>[
+  // ---------- Gemini 3 (aktuelle Generation, Nov 2025) ----------
+  KiModellInfo(
+    id: 'gemini-3-flash',
+    label: 'Gemini 3 Flash',
+    beschreibung:
+        'Aktueller Allrounder — schneller und besser als 2.5 Flash bei nahezu gleichem Preis. Empfohlen für die meisten Aufgaben.',
+    preisInput: 0.30,
+    preisOutput: 2.50,
+  ),
+  KiModellInfo(
+    id: 'gemini-3-pro',
+    label: 'Gemini 3 Pro',
+    beschreibung:
+        'Stärkste Reasoning-Fähigkeit aktuell — empfohlen für Normen-Chat, juristische Texte, lange Kontexte.',
+    preisInput: 2.00,
+    preisOutput: 12.00,
+  ),
+  // ---------- Gemini 2.5 (vorige Generation, weiterhin nutzbar) ----------
   KiModellInfo(
     id: 'gemini-2.5-flash-lite',
     label: 'Gemini 2.5 Flash-Lite',
-    beschreibung: 'Sehr günstig, schnell — reicht für Rechtschreibkorrektur.',
+    beschreibung:
+        'Sehr günstig, schnell — reicht für simple Rechtschreibkorrektur.',
     preisInput: 0.10,
     preisOutput: 0.40,
   ),
   KiModellInfo(
     id: 'gemini-2.5-flash',
     label: 'Gemini 2.5 Flash',
-    beschreibung: 'Guter Allrounder — empfohlen für die meisten Aufgaben.',
+    beschreibung: 'Vorgängermodell — etwas günstiger als 3 Flash.',
     preisInput: 0.30,
     preisOutput: 2.50,
   ),
   KiModellInfo(
     id: 'gemini-2.5-pro',
     label: 'Gemini 2.5 Pro',
-    beschreibung:
-        'Stärkste Reasoning-Fähigkeit — empfohlen für Normen-Chat & juristische Texte.',
+    beschreibung: 'Vorgängermodell — etwas günstiger als 3 Pro.',
     preisInput: 1.25,
     preisOutput: 10.00,
   ),
 ];
 
-const kiModellFallback = 'gemini-2.5-flash';
+const kiModellFallback = 'gemini-3-flash';
 
 /// Liefert Modell-Info zu einer ID, oder den Flash-Default.
 KiModellInfo kiModellInfo(String id) {
@@ -103,9 +121,9 @@ extension KiAufgabeKonfig on KiAufgabe {
   String get defaultModell => switch (this) {
         // Reasoning-lastige Features brauchen Pro; simple Text-Transforms
         // laufen billig mit Flash.
-        KiAufgabe.juristisch => 'gemini-2.5-pro',
-        KiAufgabe.normenChat => 'gemini-2.5-pro',
-        _ => 'gemini-2.5-flash',
+        KiAufgabe.juristisch => 'gemini-3-pro',
+        KiAufgabe.normenChat => 'gemini-3-pro',
+        _ => 'gemini-3-flash',
       };
 }
 

@@ -27,12 +27,19 @@ import '../../kalkulation/stunden/stunden_screen.dart';
 import '../../kalkulation/auslagen/auslagen_repository.dart';
 import '../../kalkulation/auslagen/auslagen_screen.dart';
 import '../gutachten/gutachten_screen.dart';
+import '../dokumente/dokument_viewer.dart';
 import '../dokumente/dokumente_repository.dart';
 import '../dokumente/dokumente_screen.dart';
 import '../erlaeuterungen/erlaeuterungen_repository.dart';
 import '../erlaeuterungen/erlaeuterungen_screen.dart';
+import '../gerichtssache/gerichtssache_tab.dart';
+import '../lv/lv_repository.dart';
+import '../lv/lv_screen.dart';
+import '../nachfragen/nachfragen_tab.dart';
+import '../versand/versand_tab.dart';
 import '../../angebote/anschreiben/anschreiben_repository.dart';
 import '../../angebote/anschreiben/anschreiben_screen.dart';
+import 'kostenvorschuss_dialog.dart';
 import '../bauteiloeffnungen/bauteiloeffnung_tab.dart';
 import '../journal/journal_tab.dart';
 import '../maengel/maengel_tab.dart';
@@ -62,7 +69,7 @@ class AkteScreen extends ConsumerStatefulWidget {
 
 class _AkteScreenState extends ConsumerState<AkteScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 20, vsync: this);
+  late final TabController _tabs = TabController(length: 24, vsync: this);
 
   @override
   void dispose() {
@@ -123,6 +130,9 @@ class _AkteScreenState extends ConsumerState<AkteScreen>
               _NormenTab(auftragId: a.id),
               _GeraeteTab(auftragId: a.id),
               _ErlaeuterungenTab(auftragId: a.id),
+              GerichtssacheTab(auftrag: a),
+              NachfragenTab(auftrag: a),
+              VersandTab(auftrag: a),
               _AnschreibenTab(auftragId: a.id, kundeId: a.kundeId),
               ProtokolleTab(auftrag: a),
               JournalTab(auftragId: a.id),
@@ -132,6 +142,7 @@ class _AkteScreenState extends ConsumerState<AkteScreen>
               MesswerteTab(auftragId: a.id),
               WertermittlungTab(auftragId: a.id),
               WirtschaftlichkeitTab(auftragId: a.id),
+              _LvTab(auftragId: a.id),
             ],
           ),
         ),
@@ -192,6 +203,21 @@ class _AkteHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              if (auftrag.art == 'gericht') ...[
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.payments_outlined, size: 18),
+                  label: const Text('Kostenvorschuss-Antrag'),
+                  onPressed: () => showDialog(
+                    context: context,
+                    useRootNavigator: true,
+                    builder: (_) => KostenvorschussDialog(
+                      auftrag: auftrag,
+                      kunde: kunde,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               OutlinedButton.icon(
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text('Stammdaten bearbeiten'),
@@ -1356,13 +1382,17 @@ class _DokumenteTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyTab(ctx, Icons.attach_file_outlined,
               'Keine Dokumente hinterlegt.', '/dokumente',
-              createLabel: '+ Dokument hinzufügen');
+              createLabel: '+ Dokument / E-Mail hochladen',
+              onCreate: () => showDokumenteUploadDialog(ctx,
+                  auftragId: auftragId));
         }
         return _listWrapper(
           ctx,
           header: '${items.length} Dokumente',
           onOpen: () => ctx.go('/dokumente'),
-          createLabel: '+ Dokument',
+          createLabel: '+ Dokument / E-Mail',
+          onCreate: () =>
+              showDokumenteUploadDialog(ctx, auftragId: auftragId),
           table: DataTable(
             showCheckboxColumn: false,
             columns: const [
@@ -1370,20 +1400,13 @@ class _DokumenteTab extends ConsumerWidget {
               DataColumn(label: Text('Titel')),
               DataColumn(label: Text('Kategorie')),
               DataColumn(label: Text('MIME')),
-              DataColumn(label: Text('Größe')),
+              DataColumn(label: Text('Größe'), numeric: true),
+              DataColumn(label: Text('')),
             ],
             rows: [
               for (final d in items)
                 DataRow(
-                  onSelectChanged: (_) async {
-                    final db = ref.read(appDatabaseProvider);
-                    final auf = await (db.select(db.auftraege)
-                          ..where((t) => t.id.equals(auftragId)))
-                        .getSingleOrNull();
-                    if (!ctx.mounted) return;
-                    await showDokumentEditor(ctx,
-                        eintrag: DokumentWithAuftrag(d, auf));
-                  },
+                  onSelectChanged: (_) => openDokument(ctx, d),
                   cells: [
                     DataCell(Text(_dateFmt.format(d.datum))),
                     DataCell(Text(d.titel ?? '')),
@@ -1392,6 +1415,100 @@ class _DokumenteTab extends ConsumerWidget {
                     DataCell(Text(d.dateigroesse == null
                         ? ''
                         : '${(d.dateigroesse! / 1024).toStringAsFixed(1)} KB')),
+                    DataCell(Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.visibility_outlined,
+                              size: 18),
+                          tooltip: 'Öffnen / Vorschau',
+                          onPressed: () => openDokument(ctx, d),
+                        ),
+                        IconButton(
+                          icon:
+                              const Icon(Icons.edit_outlined, size: 18),
+                          tooltip: 'Metadaten bearbeiten',
+                          onPressed: () async {
+                            final db = ref.read(appDatabaseProvider);
+                            final auf = await (db.select(db.auftraege)
+                                  ..where((t) =>
+                                      t.id.equals(auftragId)))
+                                .getSingleOrNull();
+                            if (!ctx.mounted) return;
+                            await showDokumentEditor(ctx,
+                                eintrag:
+                                    DokumentWithAuftrag(d, auf));
+                          },
+                        ),
+                      ],
+                    )),
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Tab "LV / Kalkulation" innerhalb der Akte. Listet alle LVs zur Akte
+/// und öffnet auf Klick den LV-Editor unter `/lv/:id`.
+class _LvTab extends ConsumerWidget {
+  const _LvTab({required this.auftragId});
+  final int auftragId;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final list = ref.watch(lvListProvider(auftragId));
+    return list.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Fehler: $e')),
+      data: (rows) {
+        if (rows.isEmpty) {
+          return _emptyTab(
+            context,
+            Icons.list_alt_outlined,
+            'Noch kein Leistungsverzeichnis erstellt.',
+            '/lv',
+            createLabel: '+ LV / Kalkulation anlegen',
+            onCreate: () async {
+              final id = await showLvAnlegenDialog(context,
+                  auftragId: auftragId);
+              if (id != null && context.mounted) {
+                context.go('/lv/$id');
+              }
+            },
+          );
+        }
+        return _listWrapper(
+          context,
+          header: '${rows.length} LV / Kalkulation',
+          onOpen: () => context.go('/lv'),
+          createLabel: '+ Neues LV',
+          onCreate: () async {
+            final id = await showLvAnlegenDialog(context,
+                auftragId: auftragId);
+            if (id != null && context.mounted) {
+              context.go('/lv/$id');
+            }
+          },
+          table: DataTable(
+            showCheckboxColumn: false,
+            columns: const [
+              DataColumn(label: Text('Datum')),
+              DataColumn(label: Text('Bezeichnung')),
+              DataColumn(label: Text('LV-Nr.')),
+              DataColumn(label: Text('Status')),
+            ],
+            rows: [
+              for (final r in rows)
+                DataRow(
+                  onSelectChanged: (_) => context.go('/lv/${r.id}'),
+                  cells: [
+                    DataCell(Text(_dateFmt.format(r.datum))),
+                    DataCell(Text(r.bezeichnung)),
+                    DataCell(Text(r.nummer ?? '')),
+                    DataCell(Text(r.status)),
                   ],
                 ),
             ],

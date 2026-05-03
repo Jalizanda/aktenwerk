@@ -5,12 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/ai/anschreiben_chat_service.dart';
 import '../../../core/ai/rechtschreibung_service.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
+import '../../../data/sync/google_mail_service.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../features/akten/dokumente/dokumente_repository.dart';
 import '../../../features/akten/gutachten/gutachten_repository.dart';
 import '../../../features/akten/kunden/kunden_picker.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
@@ -20,6 +24,7 @@ import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../features/system/einstellungen/absender_service.dart';
+import '../../../features/system/einstellungen/nummernkreis_service.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'anschreiben_chat_dialog.dart';
 import 'anschreiben_repository.dart';
@@ -230,10 +235,12 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
     }
   }
 
-  /// Öffnet die PDF-Vorschau (Print-Dialog) für das aktuell angezeigte
-  /// Anschreiben. Speichert vorher NICHT — du siehst den aktuellen
-  /// Editor-Stand.
-  Future<void> _previewPdf() async {
+  /// Baut die Anschreiben-PDF-Daten (Empfänger, Akte, Absender) aus dem
+  /// aktuellen Editor-Stand zusammen. Optional mit überschriebener
+  /// Belegnummer (für den Druck-Pfad, der erst die D-Nummer vergibt).
+  Future<AnschreibenPdfData> _baueAnschreibenPdfData({
+    String? dokumentNr,
+  }) async {
     final db = ref.read(appDatabaseProvider);
     KundenData? kunde;
     final kid = _kundeId;
@@ -249,8 +256,8 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
     }
     final absender = await absenderFromSettings(ref);
     final brieftext = plainTextFromDeltaJson(_inhaltJson);
-    if (!mounted) return;
-    await previewAnschreibenPdf(AnschreibenPdfData(
+    return AnschreibenPdfData(
+      dokumentNr: dokumentNr ?? widget.eintrag?.anschreiben.belegNr,
       datum: _datum,
       betreff: _betreff.text.trim().isEmpty ? null : _betreff.text.trim(),
       aktenzeichen: auftrag?.aktenzeichen,
@@ -263,7 +270,321 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
       gerichtsAktenzeichen: auftrag?.gerichtsAktenzeichen,
       klaeger: auftrag?.klaeger,
       beklagter: auftrag?.beklagter,
-    ));
+    );
+  }
+
+  /// Öffnet die PDF-Vorschau (Print-Dialog) für das aktuell angezeigte
+  /// Anschreiben. Speichert vorher NICHT — du siehst den aktuellen
+  /// Editor-Stand.
+  Future<void> _previewPdf() async {
+    final daten = await _baueAnschreibenPdfData();
+    if (!mounted) return;
+    await previewAnschreibenPdf(daten);
+  }
+
+  /// Druckt das Anschreiben, vergibt eine fortlaufende D-Nummer aus dem
+  /// Dokument-Nummernkreis, friert das Anschreiben ein (Status „versendet"
+  /// + `gedrucktAm`) und legt das PDF als Akten-Dokument unter Kategorie
+  /// „Anschreiben (Ausgang)" ab.
+  Future<int?> _druckenUndArchivieren() async {
+    if (_saving) return null;
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(anschreibenRepositoryProvider);
+      // Erst speichern, falls noch nicht im _save() durchgelaufen.
+      final db = ref.read(appDatabaseProvider);
+      // Belegnummer: bestehende behalten, sonst neue ziehen.
+      var belegNr = widget.eintrag?.anschreiben.belegNr;
+      if (belegNr == null || belegNr.isEmpty) {
+        belegNr = await ref
+            .read(nummernkreisServiceProvider)
+            .nextNumber(NummernkreisTyp.dokument);
+      }
+      final companion = AnschreibenCompanion(
+        id: _isEdit
+            ? Value(widget.eintrag!.anschreiben.id)
+            : const Value.absent(),
+        kundeId: Value(_kundeId),
+        auftragId: Value(_auftragId),
+        datum: Value(_datum),
+        status: const Value('versendet'),
+        gedrucktAm: Value(DateTime.now()),
+        belegNr: Value(belegNr),
+        betreff: Value(_betreff.text.trim().isEmpty
+            ? null
+            : _betreff.text.trim()),
+        anrede: Value(
+            _anrede.text.trim().isEmpty ? null : _anrede.text.trim()),
+        gruss: Value(
+            _gruss.text.trim().isEmpty ? null : _gruss.text.trim()),
+        inhaltJson: Value(_inhaltJson),
+      );
+      final id = await repo.upsert(companion);
+
+      // PDF erzeugen.
+      final daten = await _baueAnschreibenPdfData(dokumentNr: belegNr);
+      final bytes = await buildAnschreibenPdf(daten);
+
+      // PDF in der Akte ablegen — Kategorie „Anschreiben (Ausgang)".
+      if (_auftragId != null) {
+        final dateiname =
+            '${belegNr}_${(_betreff.text.trim().isEmpty ? "Anschreiben" : _betreff.text.trim()).replaceAll(RegExp(r"[^A-Za-z0-9-_]"), "_")}.pdf';
+        await ref.read(dokumenteRepositoryProvider).upsert(
+              DokumenteCompanion.insert(
+                titel: Value(dateiname),
+                mimeType: const Value('application/pdf'),
+                dateigroesse: Value(bytes.length),
+                daten: Value(bytes),
+                auftragId: Value(_auftragId!),
+                kategorie: const Value('Anschreiben (Ausgang)'),
+                datum: Value(DateTime.now()),
+                beschreibung: Value(_betreff.text.trim()),
+              ),
+            );
+      }
+
+      // Editor-State aktualisieren, damit Folgeklicks die D-Nummer sehen.
+      if (mounted) {
+        setState(() {
+          _status = 'versendet';
+        });
+      }
+
+      // Druck-Dialog öffnen.
+      await previewAnschreibenPdf(daten);
+
+      // Counter an höchste vergebene D-Nummer angleichen (defensiv,
+      // wenn jemand den Zähler manuell verändert hat).
+      final all = await db.select(db.anschreiben).get();
+      await ref
+          .read(nummernkreisServiceProvider)
+          .syncCounterToHighestUsed(
+              NummernkreisTyp.dokument, all.map((a) => a.belegNr));
+
+      if (!mounted) return id;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Anschreiben $belegNr eingefroren und als PDF in der Akte abgelegt.')));
+      return id;
+    } catch (e) {
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+      return null;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Lädt das aktuelle PDF herunter und öffnet das Standard-Mailprogramm
+  /// vorbefüllt mit Empfänger-Mail, Betreff und einem kurzen Begleittext.
+  /// Anhang muss aus dem Download-Ordner manuell angefügt werden — ein
+  /// Browser kann mit `mailto:` keine Attachments übergeben.
+  Future<void> _mailen() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      // Erst drucken & archivieren, damit eine D-Nummer existiert und
+      // das PDF im Download-Ordner liegt.
+      final daten = await _baueAnschreibenPdfData(
+          dokumentNr: widget.eintrag?.anschreiben.belegNr);
+      final bytes = await buildAnschreibenPdf(daten);
+      final dateiname =
+          '${daten.dokumentNr ?? "Anschreiben"}_${(daten.betreff ?? "Anschreiben").replaceAll(RegExp(r"[^A-Za-z0-9-_]"), "_")}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: dateiname);
+
+      // Mailto öffnen.
+      final empfaengerMail = daten.empfaenger?.email ?? '';
+      final betreff = daten.betreff ?? 'Schreiben';
+      final body = StringBuffer()
+        ..writeln(daten.anrede ?? 'Sehr geehrte Damen und Herren,')
+        ..writeln()
+        ..writeln(
+            'anbei übersende ich Ihnen das Schreiben${(daten.aktenzeichen ?? "").isNotEmpty ? " in der Sache ${daten.aktenzeichen}" : ""}.')
+        ..writeln()
+        ..writeln(
+            'Den heruntergeladenen PDF-Anhang ($dateiname) bitte vor dem Senden manuell anhängen.')
+        ..writeln()
+        ..writeln(daten.gruss ?? 'Mit freundlichen Grüßen')
+        ..writeln(
+            [daten.absender?.vorname, daten.absender?.nachname].whereType<String>().where((s) => s.trim().isNotEmpty).join(' '));
+
+      final uri = Uri(
+        scheme: 'mailto',
+        path: empfaengerMail,
+        query: _encodeMailtoQuery({
+          'subject': betreff,
+          'body': body.toString(),
+        }),
+      );
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Kein Mailprogramm gefunden. PDF wurde heruntergeladen.')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  String _encodeMailtoQuery(Map<String, String> params) =>
+      params.entries
+          .map((e) =>
+              '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+          .join('&');
+
+  /// Sendet das Anschreiben direkt über Gmail mit angehängtem PDF.
+  /// Vergibt vorher (falls noch nicht geschehen) eine D-Belegnummer und
+  /// archiviert das PDF in der Akte — analog zum „Drucken & in Akte
+  /// ablegen"-Flow. Setzt den Status auf „versendet".
+  Future<void> _gmailSenden() async {
+    if (_saving) return;
+    final mailService = ref.read(googleMailServiceProvider);
+    final connected = await mailService.isConnected();
+    if (!connected) {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        useRootNavigator: true,
+        builder: (_) => AlertDialog(
+          title: const Text('Gmail verbinden?'),
+          content: const Text(
+              'Aktenwerk benötigt einmalig die Berechtigung „E-Mails in '
+              'deinem Namen senden", um Anschreiben mit Anhang direkt '
+              'aus der App zu verschicken. Die Mail erscheint danach in '
+              'deinem Gmail-„Gesendet"-Ordner.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Abbrechen')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Gmail verbinden')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      try {
+        final ok2 = await mailService.connect();
+        if (!ok2) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Gmail-Verbindung abgebrochen.')));
+          return;
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        return;
+      }
+    }
+
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(anschreibenRepositoryProvider);
+
+      // Belegnummer ziehen, falls noch nicht vorhanden.
+      var belegNr = widget.eintrag?.anschreiben.belegNr;
+      if (belegNr == null || belegNr.isEmpty) {
+        belegNr = await ref
+            .read(nummernkreisServiceProvider)
+            .nextNumber(NummernkreisTyp.dokument);
+      }
+
+      // Editor-State persistieren (eingefroren).
+      final companion = AnschreibenCompanion(
+        id: _isEdit
+            ? Value(widget.eintrag!.anschreiben.id)
+            : const Value.absent(),
+        kundeId: Value(_kundeId),
+        auftragId: Value(_auftragId),
+        datum: Value(_datum),
+        status: const Value('versendet'),
+        gedrucktAm: Value(DateTime.now()),
+        belegNr: Value(belegNr),
+        betreff: Value(_betreff.text.trim().isEmpty
+            ? null
+            : _betreff.text.trim()),
+        anrede: Value(
+            _anrede.text.trim().isEmpty ? null : _anrede.text.trim()),
+        gruss: Value(
+            _gruss.text.trim().isEmpty ? null : _gruss.text.trim()),
+        inhaltJson: Value(_inhaltJson),
+      );
+      await repo.upsert(companion);
+
+      // PDF erzeugen + in Akte ablegen.
+      final daten = await _baueAnschreibenPdfData(dokumentNr: belegNr);
+      final bytes = await buildAnschreibenPdf(daten);
+      final empfaengerEmail = (daten.empfaenger?.email ?? '').trim();
+      if (empfaengerEmail.isEmpty) {
+        throw StateError(
+            'Empfänger hat keine E-Mail-Adresse hinterlegt. '
+            'Bitte zuerst beim Kontakt eintragen.');
+      }
+      final betreff = daten.betreff?.isNotEmpty == true
+          ? daten.betreff!
+          : 'Schreiben';
+      final dateiname =
+          '${belegNr}_${betreff.replaceAll(RegExp(r"[^A-Za-z0-9-_]"), "_")}.pdf';
+
+      if (_auftragId != null) {
+        await ref.read(dokumenteRepositoryProvider).upsert(
+              DokumenteCompanion.insert(
+                titel: Value(dateiname),
+                mimeType: const Value('application/pdf'),
+                dateigroesse: Value(bytes.length),
+                daten: Value(bytes),
+                auftragId: Value(_auftragId!),
+                kategorie: const Value('Anschreiben (Ausgang)'),
+                datum: Value(DateTime.now()),
+                beschreibung: Value(betreff),
+              ),
+            );
+      }
+
+      // Mail-Body bauen.
+      final body = StringBuffer()
+        ..writeln(daten.anrede ?? 'Sehr geehrte Damen und Herren,')
+        ..writeln()
+        ..writeln(
+            'anbei übersende ich Ihnen das Schreiben${(daten.aktenzeichen ?? "").isNotEmpty ? " in der Sache ${daten.aktenzeichen}" : ""} (Beleg-Nr. $belegNr).')
+        ..writeln()
+        ..writeln(daten.gruss ?? 'Mit freundlichen Grüßen')
+        ..writeln(
+            [daten.absender?.vorname, daten.absender?.nachname].whereType<String>().where((s) => s.trim().isNotEmpty).join(' '));
+
+      await mailService.sendMessage(
+        to: empfaengerEmail,
+        subject: betreff,
+        body: body.toString(),
+        attachment: GmailAttachment(
+          filename: dateiname,
+          mimeType: 'application/pdf',
+          bytes: bytes,
+        ),
+      );
+
+      if (mounted) {
+        setState(() => _status = 'versendet');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Anschreiben $belegNr per Gmail an $empfaengerEmail versendet und in der Akte abgelegt.')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   /// Öffnet den KI-Chat zum Entwerfen eines Anschreibens. Nimmt dem
@@ -466,6 +787,29 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
             icon: const Icon(Icons.article_outlined, size: 16),
             label: const Text('Vorlage einfügen …'),
             onPressed: _vorlageEinfuegen,
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.send_outlined, size: 16),
+            label: const Text('Mit Gmail senden'),
+            onPressed: _saving ? null : _gmailSenden,
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.email_outlined, size: 16),
+            label: const Text('Mail-App'),
+            onPressed: _saving ? null : _mailen,
+          ),
+          const SizedBox(width: 6),
+          FilledButton.icon(
+            icon: _saving
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.archive_outlined, size: 16),
+            label: const Text('Drucken & in Akte ablegen'),
+            onPressed: _saving ? null : _druckenUndArchivieren,
           ),
         ],
       ),

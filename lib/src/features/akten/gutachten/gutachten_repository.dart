@@ -158,13 +158,25 @@ const List<GutachtenAbschnitt> gutachtenAbschnitte = [
     textbausteinKategorie: 'fazit',
   ),
   GutachtenAbschnitt(
+    key: 's_normenverzeichnis',
+    nummer: -2,
+    label: 'Normenverzeichnis',
+    gruppe: 'abschluss',
+    rows: 3,
+    placeholder:
+        'wird automatisch aus den Normen der Akte gefüllt — keine '
+            'manuelle Pflege nötig',
+    textbausteinKategorie: 'normen',
+  ),
+  GutachtenAbschnitt(
     key: 's_anlagen',
     nummer: -1,
     label: 'Anlagenverzeichnis',
     gruppe: 'abschluss',
     rows: 3,
     placeholder:
-        'eine Anlage pro Zeile, z. B. „Anlage 1 – Lichtbilddokumentation"',
+        'Klick auf „Fotos + Dokumente" oben rechts: Auswahl der Fotos und '
+            'Dokumente, die als Anlagen ans Gutachten angehängt werden',
     textbausteinKategorie: 'anlagen',
   ),
 ];
@@ -425,7 +437,8 @@ List<String> get gutachtenAbschnittsKeys =>
 class GutachtenWithAuftrag {
   final GutachtenData gutachten;
   final AuftraegeData? auftrag;
-  const GutachtenWithAuftrag(this.gutachten, this.auftrag);
+  final KundenData? kunde;
+  const GutachtenWithAuftrag(this.gutachten, this.auftrag, [this.kunde]);
 }
 
 class GutachtenRepository {
@@ -436,6 +449,8 @@ class GutachtenRepository {
     final q = _db.select(_db.gutachten).join([
       leftOuterJoin(_db.auftraege,
           _db.auftraege.id.equalsExp(_db.gutachten.auftragId)),
+      leftOuterJoin(_db.kunden,
+          _db.kunden.id.equalsExp(_db.auftraege.kundeId)),
     ]);
     if (query.trim().isNotEmpty) {
       final like = '%${query.trim().toLowerCase()}%';
@@ -452,6 +467,7 @@ class GutachtenRepository {
         .map((r) => GutachtenWithAuftrag(
               r.readTable(_db.gutachten),
               r.readTableOrNull(_db.auftraege),
+              r.readTableOrNull(_db.kunden),
             ))
         .toList());
   }
@@ -482,6 +498,66 @@ Map<String, String> abschnitteFromJson(String? json) {
 }
 
 String abschnitteToJson(Map<String, String> map) => jsonEncode(map);
+
+/// Eine Anlage am Gutachten — Verweis auf ein Dokument aus der Akte.
+/// Wird im Text als `[Anlage N — Titel]` referenziert und beim Druck
+/// hinten ans PDF angehängt.
+class GutachtenAnlage {
+  const GutachtenAnlage({
+    required this.nr,
+    required this.dokumentId,
+    required this.titel,
+    this.kategorie,
+    this.datum,
+  });
+  final int nr;
+  final int dokumentId;
+  final String titel;
+  final String? kategorie;
+  final DateTime? datum;
+
+  Map<String, dynamic> toJson() => {
+        'nr': nr,
+        'dokumentId': dokumentId,
+        'titel': titel,
+        if (kategorie != null) 'kategorie': kategorie,
+        if (datum != null) 'datum': datum!.toIso8601String(),
+      };
+
+  static GutachtenAnlage? fromJson(Map<String, dynamic> j) {
+    final nr = j['nr'];
+    final id = j['dokumentId'];
+    final titel = j['titel'];
+    if (nr is! int || id is! int || titel is! String) return null;
+    final dat = j['datum'];
+    return GutachtenAnlage(
+      nr: nr,
+      dokumentId: id,
+      titel: titel,
+      kategorie: j['kategorie']?.toString(),
+      datum: dat is String ? DateTime.tryParse(dat) : null,
+    );
+  }
+}
+
+List<GutachtenAnlage> anlagenFromJson(String? json) {
+  if (json == null || json.trim().isEmpty) return const [];
+  try {
+    final parsed = jsonDecode(json);
+    if (parsed is! List) return const [];
+    return parsed
+        .whereType<Map>()
+        .map((m) => GutachtenAnlage.fromJson(m.cast<String, dynamic>()))
+        .whereType<GutachtenAnlage>()
+        .toList()
+      ..sort((a, b) => a.nr.compareTo(b.nr));
+  } catch (_) {
+    return const [];
+  }
+}
+
+String anlagenToJson(List<GutachtenAnlage> anlagen) =>
+    jsonEncode(anlagen.map((a) => a.toJson()).toList());
 
 final gutachtenRepositoryProvider = Provider<GutachtenRepository>((ref) {
   return GutachtenRepository(ref.watch(appDatabaseProvider));

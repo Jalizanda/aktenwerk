@@ -22,15 +22,7 @@ class FortbildungenScreen extends ConsumerStatefulWidget {
 
 class _FortbildungenScreenState
     extends ConsumerState<FortbildungenScreen>
-    with SingleTickerProviderStateMixin {
-  late final _tabs = TabController(length: 2, vsync: this);
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
+    {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(fortbildungenListProvider);
@@ -41,8 +33,9 @@ class _FortbildungenScreenState
       children: [
         ModuleHeader(
           icon: Icons.school_outlined,
-          title: 'Fortbildungen & Befangenheit',
-          subtitle: 'Nachweise für die Wiederbestellung + Befangenheits-Register',
+          title: 'Fortbildungen',
+          subtitle:
+              'Nachweise für die Wiederbestellung — Befangenheits-Register liegt unter „Auswertung".',
           actions: [
             FilledButton.icon(
               icon: const Icon(Icons.add),
@@ -55,27 +48,11 @@ class _FortbildungenScreenState
               .read(fortbildungenFilterProvider.notifier)
               .update((f) => f.copyWith(query: v)),
         ),
-        TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'Fortbildungen'),
-            Tab(text: 'Befangenheits-Register'),
-          ],
-          labelColor: Theme.of(context).colorScheme.primary,
-          indicatorColor: Theme.of(context).colorScheme.primary,
-        ),
-        const Divider(height: 1),
         Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            children: [
-              _FortbildungenTab(
-                async: async,
-                summen: summen,
-                onShow: (f) => _show(context, ref, f),
-              ),
-              const _BefangenheitsTab(),
-            ],
+          child: _FortbildungenTab(
+            async: async,
+            summen: summen,
+            onShow: (f) => _show(context, ref, f),
           ),
         ),
       ],

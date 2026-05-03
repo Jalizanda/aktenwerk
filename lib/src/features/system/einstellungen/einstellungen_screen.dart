@@ -9,8 +9,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../konten/datev_export.dart';
 import '../sync/sync_section.dart';
+import 'aktenzeichen_migration_section.dart';
 import 'backup_section.dart';
+import 'baupreisindex_section.dart';
 import 'demo_seed_section.dart';
+import 'google_mail_section.dart';
 import 'einstellungen_repository.dart';
 import 'google_calendar_section.dart';
 import 'ki_modelle_section.dart';
@@ -58,6 +61,7 @@ class _EinstellungenFormState
       _ustId, _steuerNr,
       _bankInhaber, _bankName, _iban, _bic,
       _satz, _satzJveg, _ust, _zahlungsziel,
+      _gruppeM1, _gruppeM2, _gruppeM3, _gruppeSonstiges,
       _jvegKm, _jvegSchreib, _jvegKopieSw, _jvegKopieFarbe,
       _jvegFotoErst, _jvegFotoWeit,
       _nkAkte, _nkAkteNext, _nkRn, _nkRnNext, _nkAkonto, _nkAkontoNext,
@@ -98,6 +102,13 @@ class _EinstellungenFormState
   late final _zahlungsziel =
       _tec(SettingsKeys.standardZahlungszielTage, '14');
 
+  // ---------- JVEG-Honorargruppen (Stundensätze gem. JVEG § 9) ----------
+  late final _gruppeM1 = _tec(SettingsKeys.honorargruppeM1Satz, '70');
+  late final _gruppeM2 = _tec(SettingsKeys.honorargruppeM2Satz, '95');
+  late final _gruppeM3 = _tec(SettingsKeys.honorargruppeM3Satz, '130');
+  late final _gruppeSonstiges =
+      _tec(SettingsKeys.honorargruppeSonstigesSatz, '95');
+
   // ---------- JVEG ----------
   late final _jvegKm = _tec(SettingsKeys.jvegKmSatz, '0.42');
   late final _jvegSchreib = _tec(SettingsKeys.jvegSchreibsatz, '1.80');
@@ -107,7 +118,10 @@ class _EinstellungenFormState
   late final _jvegFotoWeit = _tec(SettingsKeys.jvegLichtbildWeitere, '1.00');
 
   // ---------- Nummernkreise ----------
-  late final _nkAkte = _tec(SettingsKeys.nummernkreisAktenzeichen, '{YYYY}-{NNN}');
+  // Aktenzeichen folgen dem AW-Schema (AW-0001, AW-0002, ...). Belegnummern
+  // (Rechnung/Angebot/AB/Akonto) sind getrennt und haben jeweils eigene
+  // Präfixe (RE/AN/AB/AZ).
+  late final _nkAkte = _tec(SettingsKeys.nummernkreisAktenzeichen, 'AW-{NNNN}');
   late final _nkAkteNext =
       _tec(SettingsKeys.nummernkreisAktenzeichenNaechste, '1');
   late String _nkAkteReset;
@@ -497,6 +511,11 @@ class _EinstellungenFormState
     // Honorar
     await repo.set(SettingsKeys.standardStundensatz, _satz.text.trim());
     await repo.set(SettingsKeys.stundensatzJveg, _satzJveg.text.trim());
+    await repo.set(SettingsKeys.honorargruppeM1Satz, _gruppeM1.text.trim());
+    await repo.set(SettingsKeys.honorargruppeM2Satz, _gruppeM2.text.trim());
+    await repo.set(SettingsKeys.honorargruppeM3Satz, _gruppeM3.text.trim());
+    await repo.set(SettingsKeys.honorargruppeSonstigesSatz,
+        _gruppeSonstiges.text.trim());
     await repo.set(SettingsKeys.standardUstSatz, _ust.text.trim());
     await repo.set(SettingsKeys.standardZahlungszielTage,
         _zahlungsziel.text.trim());
@@ -848,6 +867,55 @@ class _EinstellungenFormState
                             keyboardType: TextInputType.number,
                           ),
                         ),
+                      ),
+                    ],
+                  ),
+                  _Section(
+                    'JVEG-Honorargruppen (§ 9 JVEG)',
+                    subtitle:
+                        'Stundensätze pro Honorargruppe. Wird automatisch in Stunden, Kostenvorschuss und JVEG-Rechnungen angewendet, sobald die Akte einer Gruppe zugeordnet ist.',
+                    children: [
+                      _Row3(
+                        a: _L(
+                          'M1 — einfache Gutachten (€/h)',
+                          TextField(
+                            controller: _gruppeM1,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                          ),
+                        ),
+                        b: _L(
+                          'M2 — Standard (€/h)',
+                          TextField(
+                            controller: _gruppeM2,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                          ),
+                        ),
+                        c: _L(
+                          'M3 — komplex (€/h)',
+                          TextField(
+                            controller: _gruppeM3,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _Row2(
+                        left: _L(
+                          'Sonstige (Default-Satz, €/h)',
+                          TextField(
+                            controller: _gruppeSonstiges,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                          ),
+                        ),
+                        right: const SizedBox.shrink(),
                       ),
                     ],
                   ),
@@ -1280,12 +1348,30 @@ class _EinstellungenFormState
                   ),
                   _Section('Datensicherung',
                       children: const [DemoSeedSection()]),
+                  _Section(
+                    'Aktenzeichen-Migration',
+                    subtitle:
+                        'Einmaliger Helfer für Bestandsdaten: Akten ohne AW-Präfix auf den aktuellen Nummernkreis umbenennen.',
+                    children: const [AktenzeichenMigrationSection()],
+                  ),
                   _Section('Cloud', children: const [SyncSection()]),
                   _Section(
                     'Google Kalender',
                     subtitle:
                         'Ortstermine, Fristen, Erläuterungen & Wiedervorlagen in einen Google-Kalender spiegeln.',
                     children: const [GoogleCalendarSection()],
+                  ),
+                  _Section(
+                    'Gmail',
+                    subtitle:
+                        'Mit deinem Google-Konto verbinden, um Anschreiben & Co. direkt mit PDF-Anhang aus der App zu versenden.',
+                    children: const [GoogleMailSection()],
+                  ),
+                  _Section(
+                    'Baupreisindex (Destatis GENESIS)',
+                    subtitle:
+                        'Kostenfreie API für die Indizierung historischer LVs und Kostenkennwerte.',
+                    children: const [BaupreisindexSection()],
                   ),
                     ],
                   ),

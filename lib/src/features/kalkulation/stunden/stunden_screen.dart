@@ -10,6 +10,8 @@ import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/partner/partner_repository.dart';
 import '../../../features/system/benutzer/benutzer_repository.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
+import '../../../features/system/einstellungen/honorargruppe_service.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
@@ -18,11 +20,39 @@ import 'stunden_repository.dart';
 
 final stundenQueryProvider = StateProvider<String>((ref) => '');
 
-class StundenScreen extends ConsumerWidget {
+class StundenScreen extends ConsumerStatefulWidget {
   const StundenScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StundenScreen> createState() => _StundenScreenState();
+}
+
+class _StundenScreenState extends ConsumerState<StundenScreen> {
+  int _sortCol = 0;
+  bool _sortAsc = false;
+
+  void _onSort(int col, bool asc) =>
+      setState(() {
+        _sortCol = col;
+        _sortAsc = asc;
+      });
+
+  Comparable<Object> _key(StundenWithAuftrag s, int col) {
+    String l(String? v) => (v ?? '').toLowerCase();
+    return switch (col) {
+      0 => s.stunde.datum.toIso8601String(),
+      1 => l(s.auftrag?.aktenzeichen),
+      2 => l(s.stunde.taetigkeit),
+      3 => s.stunde.minuten,
+      4 => s.stunde.satz ?? 0,
+      5 => (s.stunde.minuten / 60.0) * (s.stunde.satz ?? 0),
+      6 => s.stunde.abgerechnet ? '1' : '0',
+      _ => s.stunde.datum.toIso8601String(),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(stundenListProvider);
     final filter = ref.watch(stundenFilterProvider);
     final query = ref.watch(stundenQueryProvider).trim().toLowerCase();
@@ -94,30 +124,39 @@ class StundenScreen extends ConsumerWidget {
             error: (e, _) => Center(child: Text('Fehler: $e')),
             data: (all) {
               final items = applyQuery(all);
-              return items.isEmpty
-                ? const EmptyListState(
+              if (items.isEmpty) {
+                return const EmptyListState(
                     icon: Icons.schedule_outlined,
-                    title: 'Keine Zeit-Buchungen')
-                : DataTableCard(
+                    title: 'Keine Zeit-Buchungen');
+              }
+              final sorted = [...items]..sort((a, b) {
+                  final ka = _key(a, _sortCol);
+                  final kb = _key(b, _sortCol);
+                  final cmp = Comparable.compare(ka, kb);
+                  return _sortAsc ? cmp : -cmp;
+                });
+              return DataTableCard(
                     child: DataTable(
               showCheckboxColumn: false,
+                      sortColumnIndex: _sortCol,
+                      sortAscending: _sortAsc,
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context)
                             .colorScheme
                             .surfaceContainerHighest,
                       ),
-                      columns: const [
-                        DataColumn(label: Text('Datum')),
-                        DataColumn(label: Text('Auftrag')),
-                        DataColumn(label: Text('Tätigkeit')),
-                        DataColumn(label: Text('Dauer'), numeric: true),
-                        DataColumn(label: Text('Satz €'), numeric: true),
-                        DataColumn(label: Text('Betrag €'), numeric: true),
-                        DataColumn(label: Text('Abgerechnet')),
-                        DataColumn(label: Text('')),
+                      columns: [
+                        DataColumn(label: const Text('Datum'), onSort: _onSort),
+                        DataColumn(label: const Text('Auftrag'), onSort: _onSort),
+                        DataColumn(label: const Text('Tätigkeit'), onSort: _onSort),
+                        DataColumn(label: const Text('Dauer'), numeric: true, onSort: _onSort),
+                        DataColumn(label: const Text('Satz €'), numeric: true, onSort: _onSort),
+                        DataColumn(label: const Text('Betrag €'), numeric: true, onSort: _onSort),
+                        DataColumn(label: const Text('Abgerechnet'), onSort: _onSort),
+                        const DataColumn(label: Text('')),
                       ],
                       rows: [
-                        for (final s in items) _row(context, ref, s),
+                        for (final s in sorted) _row(context, ref, s),
                       ],
                     ),
                   );
@@ -497,9 +536,25 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
 
   Future<void> _prefillSatz() async {
     if (_satz.text.isNotEmpty) return;
-    final settingSatz = await ref
-        .read(einstellungenRepositoryProvider)
-        .getDouble(SettingsKeys.standardStundensatz);
+    final repo = ref.read(einstellungenRepositoryProvider);
+    // 1) Wenn die zugeordnete Akte einer JVEG-Honorargruppe (M1/M2/M3)
+    //    angehört, deren Satz aus den Einstellungen ziehen.
+    if (_auftragId != null) {
+      final db = ref.read(appDatabaseProvider);
+      final auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(_auftragId!)))
+          .getSingleOrNull();
+      final hg = auftrag?.honorargruppe;
+      if (hg != null && hg.trim().isNotEmpty) {
+        final hgSatz = await stundensatzFuerHonorargruppe(repo, hg);
+        if (mounted && hgSatz > 0) {
+          _satz.text = hgSatz.toStringAsFixed(2);
+          return;
+        }
+      }
+    }
+    // 2) Fallback: Standard-Stundensatz aus Einstellungen / Benutzer.
+    final settingSatz = await repo.getDouble(SettingsKeys.standardStundensatz);
     final benutzer = await ref.read(benutzerRepositoryProvider).getActive();
     final s = settingSatz ?? benutzer?.standardStundensatz;
     if (mounted && s != null) _satz.text = s.toStringAsFixed(2);

@@ -110,3 +110,30 @@ final wiedervorlagenCountProvider =
       .watch()
       .map((l) => l.length);
 });
+
+final nachfragenCountProvider =
+    StreamProvider.family<int, int>((ref, auftragId) {
+  final db = ref.watch(appDatabaseProvider);
+  return (db.select(db.rueckfragen)
+        ..where((t) => t.auftragId.equals(auftragId)))
+      .watch()
+      .map((l) => l.length);
+});
+
+final versandCountProvider =
+    StreamProvider.family<int, int>((ref, auftragId) {
+  final db = ref.watch(appDatabaseProvider);
+  return (db.select(db.versand)
+        ..where((t) => t.auftragId.equals(auftragId)))
+      .watch()
+      .map((l) => l.length);
+});
+
+final lvCountProvider =
+    StreamProvider.family<int, int>((ref, auftragId) {
+  final db = ref.watch(appDatabaseProvider);
+  return (db.select(db.lvKopf)
+        ..where((t) => t.auftragId.equals(auftragId)))
+      .watch()
+      .map((l) => l.length);
+});

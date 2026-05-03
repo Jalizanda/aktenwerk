@@ -7,7 +7,9 @@ import '../tables/artikel_table.dart';
 import '../tables/auftraege_geraete_table.dart';
 import '../tables/auftraege_table.dart';
 import '../tables/auslagen_table.dart';
+import '../tables/bank_bewegungen_table.dart';
 import '../tables/bauteiloeffnungen_table.dart';
+import '../tables/befangenheits_eintraege_table.dart';
 import '../tables/benutzer_table.dart';
 import '../tables/dokumente_table.dart';
 import '../tables/eingangsrechnungen_table.dart';
@@ -22,6 +24,7 @@ import '../tables/kalkulationen_table.dart';
 import '../tables/konten_table.dart';
 import '../tables/kunden_table.dart';
 import '../tables/lieferanten_table.dart';
+import '../tables/lv_table.dart';
 import '../tables/maengel_table.dart';
 import '../tables/messwerte_table.dart';
 import '../tables/norm_chats_table.dart';
@@ -76,11 +79,17 @@ part 'app_database.g.dart';
   Uebergaben,
   Qualifikationen,
   Bauteiloeffnungen,
+  BankBewegungen,
+  BefangenheitsEintraege,
   Messwerte,
   Wertermittlungen,
   Serienbriefe,
   RechercheNotizen,
   NormChats,
+  LvKopf,
+  LvPositionen,
+  LvMengenzeilen,
+  LvKatalog,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._(super.executor);
@@ -109,7 +118,7 @@ class AppDatabase extends _$AppDatabase {
         ));
 
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -305,6 +314,88 @@ class AppDatabase extends _$AppDatabase {
           // v26 → v27: Persistente Chat-Verläufe für den Normen-RAG-Chat.
           if (from < 27) {
             await m.createTable(normChats);
+          }
+
+          // v27 → v28: Strukturierte Nachfragen (mehrere Q&A pro Schriftsatz)
+          // + Bezug auf das jeweilige Gutachten für die Stellungnahme.
+          if (from < 28) {
+            await m.addColumn(rueckfragen, rueckfragen.gutachtenBezugDatum);
+            await m.addColumn(rueckfragen, rueckfragen.gutachtenBezugNummer);
+            await m.addColumn(rueckfragen, rueckfragen.fragenJson);
+          }
+
+          // v28 → v29: Versand-Tracking (Anzahl Ausfertigungen + Dokument-
+          // referenz), Befangenheits-Erklärung gem. §§ 406/407 ZPO,
+          // Mehrkostenanzeige § 8a Abs. 4 JVEG und strukturierte
+          // Beweisfragen pro Akte.
+          if (from < 29) {
+            await m.addColumn(versand, versand.anzahlAusfertigungen);
+            await m.addColumn(versand, versand.dokumentId);
+            await m.addColumn(versand, versand.bezugBezeichnung);
+
+            await m.addColumn(
+                auftraege, auftraege.befangenheitsGeprueftAm);
+            await m.addColumn(
+                auftraege, auftraege.befangenheitsErgebnis);
+            await m.addColumn(auftraege, auftraege.befangenheitsNotiz);
+
+            await m.addColumn(auftraege, auftraege.mehrkostenAnzeigeAm);
+            await m.addColumn(auftraege, auftraege.mehrkostenBetrag);
+            await m.addColumn(
+                auftraege, auftraege.mehrkostenBegruendung);
+
+            await m.addColumn(auftraege, auftraege.beweisfragenJson);
+          }
+
+          // v29 → v30: Anschreiben-Belegnummer + Druck-Zeitstempel (zum
+          // Einfrieren des Schriftstücks beim "Drucken & in Akte ablegen").
+          if (from < 30) {
+            await m.addColumn(anschreiben, anschreiben.belegNr);
+            await m.addColumn(anschreiben, anschreiben.gedrucktAm);
+          }
+
+          // v30 → v31: Leistungsverzeichnis-Modul (LV-Kopf, Positionen,
+          // Mengenermittlung, eigener Katalog) — neues Modul neben der
+          // alten Kalkulationen-Tabelle.
+          if (from < 31) {
+            await m.createTable(lvKopf);
+            await m.createTable(lvPositionen);
+            await m.createTable(lvMengenzeilen);
+            await m.createTable(lvKatalog);
+          }
+
+          // v31 → v32: Bietergegenüberstellung (basisLvId + bieterName
+          // auf lv_kopf) und MwSt. pro Position (ustSatz auf
+          // lv_positionen) für gemischte Steuersätze.
+          if (from < 32) {
+            await m.addColumn(lvKopf, lvKopf.basisLvId);
+            await m.addColumn(lvKopf, lvKopf.bieterName);
+            await m.addColumn(lvPositionen, lvPositionen.ustSatz);
+          }
+
+          // v32 → v33: Bieter-Kontakt (Kunden-Verknüpfung) auf lv_kopf,
+          // damit Adresse/Mail des Bieters aus den Kontakten gezogen
+          // werden kann.
+          if (from < 33) {
+            await m.addColumn(lvKopf, lvKopf.bieterKundeId);
+          }
+
+          // v33 → v34: Gutachten-Anlagen als referenzierbare Dokumente,
+          // die hinten ans PDF angehängt werden.
+          if (from < 34) {
+            await m.addColumn(gutachten, gutachten.anlagenJson);
+          }
+
+          // v34 → v35: Befangenheits-Register mit manuellen Einträgen
+          // (zusätzlich zu den automatisch aggregierten aus den Akten).
+          if (from < 35) {
+            await m.createTable(befangenheitsEintraege);
+          }
+
+          // v35 → v36: Banking-Modul — Kontoauszug-Zeilen, die mit
+          // Ausgangs-/Eingangsrechnungen verknüpft werden können.
+          if (from < 36) {
+            await m.createTable(bankBewegungen);
           }
         },
       );

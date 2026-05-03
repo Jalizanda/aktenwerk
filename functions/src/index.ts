@@ -443,3 +443,83 @@ export const normChatHttp = onRequest(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// 4) Destatis GENESIS-Online Proxy (CORS-Workaround)
+//
+// Destatis liefert keine CORS-Header, daher kann der Flutter-Web-Client
+// die API nicht direkt aufrufen. Wir tunneln durch eine Cloud Function.
+// Body: { username, password, tableId }, Response: CSV als Text.
+// ---------------------------------------------------------------------------
+
+interface DestatisRequest {
+  username?: string;
+  password?: string;
+  tableId?: string;
+}
+
+export const destatisProxy = onRequest(
+  {
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    cors: true,
+  },
+  async (req: Request, res: Response) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "method_not_allowed" });
+      return;
+    }
+
+    // Auth-Check via Bearer-Token (Firebase ID Token)
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "missing_auth_header" });
+      return;
+    }
+    try {
+      await getAuth().verifyIdToken(auth.slice(7));
+    } catch (err) {
+      logger.warn("Token verification failed", err);
+      res.status(401).json({ error: "invalid_token" });
+      return;
+    }
+
+    const data = (req.body ?? {}) as DestatisRequest;
+    const username = (data.username ?? "").trim();
+    const password = data.password ?? "";
+    const tableId = (data.tableId ?? "61261-0001").trim();
+    if (!username || !password) {
+      res.status(400).json({ error: "credentials_required" });
+      return;
+    }
+
+    const params = new URLSearchParams({
+      username,
+      password,
+      name: tableId,
+      area: "all",
+      format: "csv",
+      compress: "false",
+      transpose: "false",
+      language: "de",
+    });
+    const url = `https://www-genesis.destatis.de/genesisWS/rest/2020/data/tablefile?${params.toString()}`;
+
+    try {
+      const r = await fetch(url, { method: "GET" });
+      const body = await r.text();
+      // Destatis liefert auch bei API-Fehlern HTTP 200 mit Fehlertext im
+      // Body — wir reichen die Original-Response durch, der Client parst.
+      res
+        .status(r.status)
+        .set("Content-Type", "text/csv; charset=utf-8")
+        .send(body);
+    } catch (err) {
+      logger.error("destatisProxy failed", err);
+      res.status(502).json({
+        error: "upstream_failed",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+);

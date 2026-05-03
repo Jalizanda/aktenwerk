@@ -25,11 +25,47 @@ class AktenScreen extends ConsumerStatefulWidget {
   ConsumerState<AktenScreen> createState() => _AktenScreenState();
 }
 
+/// Compliance-Checks, die als Filter-Tiles über der Akten-Liste erscheinen.
+/// Jedes Tile zeigt die Anzahl der Akten mit dem entsprechenden Mangel und
+/// filtert die Liste auf Klick.
+enum _ComplianceCheck {
+  befangenheitFehlt,
+  kostenvorschussFehlt,
+  beweisfragenFehlen,
+  fristUeberfaellig,
+}
+
+bool _istGerichtsakte(String? art) =>
+    art == 'gericht' || art == 'beweissicherung';
+
+bool _hatMangel(_ComplianceCheck c, AuftragWithKunde a) {
+  final auf = a.auftrag;
+  return switch (c) {
+    _ComplianceCheck.befangenheitFehlt =>
+      _istGerichtsakte(auf.art) && auf.befangenheitsGeprueftAm == null,
+    _ComplianceCheck.kostenvorschussFehlt =>
+      _istGerichtsakte(auf.art) &&
+          (auf.kostenvorschuss == null || auf.kostenvorschuss == 0),
+    _ComplianceCheck.beweisfragenFehlen =>
+      _istGerichtsakte(auf.art) &&
+          (auf.beweisfragenJson == null ||
+              auf.beweisfragenJson!.trim().isEmpty ||
+              auf.beweisfragenJson == '[]'),
+    _ComplianceCheck.fristUeberfaellig =>
+      auf.fristAm != null &&
+          auf.fristAm!.isBefore(DateTime.now()) &&
+          auf.status != 'abgeschlossen' &&
+          auf.status != 'abgerechnet' &&
+          auf.status != 'storniert',
+  };
+}
+
 class _AktenScreenState extends ConsumerState<AktenScreen> {
   int _sortCol = 0;
   bool _sortAsc = false;
   String _query = '';
   bool _nurAktiv = true;
+  _ComplianceCheck? _complianceFilter;
   static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
   static final _money =
       NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
@@ -72,6 +108,16 @@ class _AktenScreenState extends ConsumerState<AktenScreen> {
           ],
         ),
         const Divider(height: 1),
+        async.maybeWhen(
+          data: (all) => _ComplianceTiles(
+            akten: all,
+            aktiver: _complianceFilter,
+            onTap: (c) => setState(() {
+              _complianceFilter = (_complianceFilter == c) ? null : c;
+            }),
+          ),
+          orElse: () => const SizedBox(),
+        ),
         Expanded(
           child: async.when(
             loading: () =>
@@ -228,6 +274,9 @@ class _AktenScreenState extends ConsumerState<AktenScreen> {
         ].whereType<String>().map((s) => s.toLowerCase()).join(' ');
         return parts.contains(q);
       }).toList();
+    }
+    if (_complianceFilter != null) {
+      list = list.where((a) => _hatMangel(_complianceFilter!, a)).toList();
     }
     return list;
   }
@@ -393,6 +442,150 @@ class _InhalteCell extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ComplianceTiles extends StatelessWidget {
+  const _ComplianceTiles({
+    required this.akten,
+    required this.aktiver,
+    required this.onTap,
+  });
+  final List<AuftragWithKunde> akten;
+  final _ComplianceCheck? aktiver;
+  final ValueChanged<_ComplianceCheck> onTap;
+
+  static const _defs = <(_ComplianceCheck, String, IconData)>[
+    (
+      _ComplianceCheck.befangenheitFehlt,
+      'Befangenheit fehlt',
+      Icons.verified_user_outlined,
+    ),
+    (
+      _ComplianceCheck.kostenvorschussFehlt,
+      'Kostenvorschuss offen',
+      Icons.payments_outlined,
+    ),
+    (
+      _ComplianceCheck.beweisfragenFehlen,
+      'Beweisfragen fehlen',
+      Icons.gavel_outlined,
+    ),
+    (
+      _ComplianceCheck.fristUeberfaellig,
+      'Frist überfällig',
+      Icons.warning_amber_outlined,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = <_ComplianceCheck, int>{};
+    for (final (c, _, _) in _defs) {
+      counts[c] = akten.where((a) => _hatMangel(c, a)).length;
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final (check, label, icon) in _defs) ...[
+              _ComplianceTile(
+                label: label,
+                icon: icon,
+                count: counts[check] ?? 0,
+                aktiv: aktiver == check,
+                onTap: () => onTap(check),
+              ),
+              const SizedBox(width: 10),
+            ],
+            if (aktiver != null)
+              TextButton.icon(
+                icon: const Icon(Icons.close, size: 14),
+                label: const Text('Filter aufheben'),
+                onPressed: () => onTap(aktiver!),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ComplianceTile extends StatelessWidget {
+  const _ComplianceTile({
+    required this.label,
+    required this.icon,
+    required this.count,
+    required this.aktiv,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final int count;
+  final bool aktiv;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasIssues = count > 0;
+    final theme = Theme.of(context);
+    // Tile mit Akzent-Hintergrund, wenn es Mängel gibt; grau, wenn alles ok.
+    final bg = aktiv
+        ? AppTheme.accent600
+        : (hasIssues
+            ? Colors.orange.withValues(alpha: 0.10)
+            : theme.colorScheme.surfaceContainerHigh);
+    final fg = aktiv
+        ? Colors.white
+        : (hasIssues
+            ? Colors.orange[800]!
+            : theme.colorScheme.onSurfaceVariant);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: hasIssues ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: aktiv
+                ? AppTheme.accent700
+                : (hasIssues
+                    ? Colors.orange.withValues(alpha: 0.35)
+                    : theme.colorScheme.outlineVariant),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: fg),
+            const SizedBox(width: 6),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: fg,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: fg,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

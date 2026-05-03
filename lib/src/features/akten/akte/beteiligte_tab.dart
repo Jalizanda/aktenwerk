@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
+import '../../../data/database/database_provider.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../auftraege/auftraege_repository.dart';
 
@@ -141,6 +142,14 @@ class _BeteiligteTabState extends ConsumerState<BeteiligteTab> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const Spacer(),
+              if (_liste.isNotEmpty) ...[
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.event_outlined, size: 16),
+                  label: const Text('Termin-Einladung an alle'),
+                  onPressed: () => _massenEinladung(context),
+                ),
+                const SizedBox(width: 8),
+              ],
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Beteiligten hinzufügen'),
@@ -187,6 +196,156 @@ class _BeteiligteTabState extends ConsumerState<BeteiligteTab> {
         ],
       ),
     );
+  }
+
+  /// Öffnet einen kleinen Dialog zur Eingabe von Termin-Datum + Ort und
+  /// erzeugt anschließend für jeden Beteiligten ein vorgefülltes
+  /// Anschreiben. Der User kann sie danach im Anschreiben-Modul oder im
+  /// Akte-Anschreiben-Tab bearbeiten/drucken.
+  Future<void> _massenEinladung(BuildContext context) async {
+    final terminCtrl = TextEditingController();
+    final ortCtrl = TextEditingController(
+      text: [
+        widget.auftrag.objektStrasse,
+        '${widget.auftrag.objektPlz ?? ''} ${widget.auftrag.objektOrt ?? ''}'
+            .trim(),
+      ].whereType<String>().where((s) => s.trim().isNotEmpty).join(', '),
+    );
+    final betreffCtrl = TextEditingController(
+        text: 'Einladung zum Ortstermin');
+    final hinweisCtrl = TextEditingController(
+        text:
+            'Bitte teilen Sie uns kurz mit, ob Sie den Termin wahrnehmen können.');
+
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Termin-Einladung an alle Beteiligten'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: terminCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Termin (z. B. 14.05.2026 um 10:00 Uhr)',
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: ortCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Ort / Anschrift Ortstermin',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: betreffCtrl,
+                decoration: const InputDecoration(labelText: 'Betreff'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: hinweisCtrl,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Zusätzlicher Hinweis (optional)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${_liste.length} Anschreiben werden als Entwurf erzeugt.',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(true),
+              child: const Text('Erzeugen')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    final db = ref.read(appDatabaseProvider);
+    final ortText = ortCtrl.text.trim();
+    final terminText = terminCtrl.text.trim();
+    final hinweisText = hinweisCtrl.text.trim();
+    final betreff = betreffCtrl.text.trim().isEmpty
+        ? 'Einladung zum Ortstermin'
+        : betreffCtrl.text.trim();
+    int erstellt = 0;
+    for (final b in _liste) {
+      if (b.name.trim().isEmpty) continue;
+      final anrede = _briefanredeFuer(b.name, b.rolle);
+      final brief = StringBuffer()
+        ..writeln(
+            'in oben genannter Sache lade ich Sie hiermit zum Ortstermin ein.')
+        ..writeln()
+        ..writeln('Termin: ${terminText.isEmpty ? "wird gesondert mitgeteilt" : terminText}')
+        ..writeln('Ort: ${ortText.isEmpty ? "—" : ortText}')
+        ..writeln();
+      if (hinweisText.isNotEmpty) {
+        brief.writeln(hinweisText);
+        brief.writeln();
+      }
+      brief.write('Mit freundlichen Grüßen');
+
+      // Beteiligten-Adresse als JSON in extras ablegen, damit das PDF-
+      // Rendering sie als Empfänger nutzen kann.
+      final extras = jsonEncode({
+        'beteiligterRolle': b.rolle,
+        'beteiligterName': b.name,
+        'beteiligterAnschrift': b.anschrift,
+        'terminText': terminText,
+        'ortText': ortText,
+      });
+      await db.into(db.anschreiben).insert(AnschreibenCompanion.insert(
+            auftragId: Value(widget.auftrag.id),
+            betreff: Value(betreff),
+            datum: Value(DateTime.now()),
+            anrede: Value(anrede),
+            briefText: Value(brief.toString()),
+            gruss: const Value('Mit freundlichen Grüßen'),
+            status: const Value('entwurf'),
+            extras: Value(extras),
+          ));
+      erstellt++;
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          '$erstellt Anschreiben als Entwurf erzeugt. Im Tab „Anschreiben" der Akte einsehbar.'),
+    ));
+  }
+
+  /// Baut „Sehr geehrte Frau X," / „Sehr geehrter Herr Y," aus dem Namen.
+  String _briefanredeFuer(String name, String rolle) {
+    final n = name.trim();
+    if (n.isEmpty) return 'Sehr geehrte Damen und Herren,';
+    // Für Anwälte / Gericht-Rollen Standard-Anrede mit Frau/Herr Nachname
+    final teile = n.split(RegExp(r'\s+'));
+    final nachname = teile.isNotEmpty ? teile.last : n;
+    final lower = n.toLowerCase();
+    if (lower.contains(' frau ') || lower.startsWith('frau ')) {
+      return 'Sehr geehrte Frau $nachname,';
+    }
+    if (lower.contains(' herr ') || lower.startsWith('herr ')) {
+      return 'Sehr geehrter Herr $nachname,';
+    }
+    // Bei Firmennamen / unklarem Geschlecht: neutrale Anrede
+    return 'Sehr geehrte Damen und Herren,';
   }
 }
 
