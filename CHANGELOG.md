@@ -5,6 +5,11 @@ Alle signifikanten Änderungen an diesem Projekt ("Aktenwerk") werden in dieser 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt hält sich an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased] - 2026-05-19
+### Hinzugefügt
+- feat: ortstermin weather integration and UI refinements
+
+
 ## [1.1.0] - 2026-05-17
 ### Hinzugefügt
 - **Daten-Import:** Vollständiger Import aus dem Altsystem (IndexedDB-Export-JSON) über den Einstellungsbereich (`BackupSection`).

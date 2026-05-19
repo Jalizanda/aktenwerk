@@ -103,8 +103,19 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
         return;
       }
 
-      bool success = false;
       String msg = '';
+      final w = await wetterNotiz(pos);
+      if (w != null && mounted) {
+        setState(() {
+          _eintraege.insert(0, _NotizEintrag(zeit: DateTime.now(), text: w));
+        });
+        msg = 'Wetterdaten & GPS geladen. ';
+      } else if (mounted) {
+        setState(() {
+          _eintraege.insert(0, _NotizEintrag(zeit: DateTime.now(), text: '📍 Standort-Koordinaten: ${pos.lat}, ${pos.lon}'));
+        });
+        msg = 'GPS geladen. ';
+      }
 
       // Akte bereits gewählt → Koordinaten auf dieser Akte speichern.
       if (_auftragId != null) {
@@ -114,8 +125,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
           objektLat: Value(pos.lat),
           objektLon: Value(pos.lon),
         ));
-        success = true;
-        msg = 'Standort für diese Akte gespeichert.';
+        msg += 'Standort für Akte gespeichert.';
       } else {
         final db = ref.read(appDatabaseProvider);
         final auftraege = await db.select(db.auftraege).get();
@@ -127,106 +137,92 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
         }
         kandidaten.sort((x, y) => x.$2.compareTo(y.$2));
         if (kandidaten.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text(
-                  'Keine Akten mit Geo-Daten gefunden. Adresse in der Akte hinterlegen.'),
-            ));
-          }
-          return;
-        }
-        final naechste = kandidaten.first;
-        // Bis 0.3 km automatisch wählen — mehr Distanz → User bestätigen.
-        if (naechste.$2 <= 0.3) {
-          setState(() => _auftragId = naechste.$1.id);
-          success = true;
-          msg = 'Akte „${naechste.$1.aktenzeichen ?? naechste.$1.id}" gewählt (≈${(naechste.$2 * 1000).round()} m).';
+          msg += 'Keine Akten in der Nähe.';
         } else {
-          // Auswahl-Dialog mit Top-3.
-          if (!mounted) return;
-          final picked = await showDialog<int>(
-            context: context,
-            useRootNavigator: true,
-            builder: (_) => SimpleDialog(
-              title: const Text('Akte in der Nähe wählen'),
-              children: [
-                for (final (a, km) in kandidaten.take(3))
-                  SimpleDialogOption(
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(a.id),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 18, color: AwTokens.orange),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                a.aktenzeichen ?? '(o. A.)',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AwTokens.orange,
+          final naechste = kandidaten.first;
+          // Bis 0.3 km automatisch wählen — mehr Distanz → User bestätigen.
+          if (naechste.$2 <= 0.3) {
+            setState(() => _auftragId = naechste.$1.id);
+            msg += 'Akte „${naechste.$1.aktenzeichen ?? naechste.$1.id}" gewählt.';
+          } else {
+            // Auswahl-Dialog mit Top-3.
+            if (!mounted) return;
+            final picked = await showDialog<int>(
+              context: context,
+              useRootNavigator: true,
+              builder: (_) => SimpleDialog(
+                title: const Text('Akte in der Nähe wählen'),
+                children: [
+                  for (final (a, km) in kandidaten.take(3))
+                    SimpleDialogOption(
+                      onPressed: () =>
+                          Navigator.of(context, rootNavigator: true).pop(a.id),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined,
+                              size: 18, color: AwTokens.orange),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  a.aktenzeichen ?? '(o. A.)',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AwTokens.orange,
+                                  ),
                                 ),
-                              ),
-                              if ((a.bezeichnung ?? '').isNotEmpty)
-                                Text(a.bezeichnung!,
-                                    style: const TextStyle(fontSize: 12)),
-                              Text(
-                                [
-                                  a.objektStrasse,
-                                  [a.objektPlz, a.objektOrt]
+                                if ((a.bezeichnung ?? '').isNotEmpty)
+                                  Text(a.bezeichnung!,
+                                      style: const TextStyle(fontSize: 12)),
+                                Text(
+                                  [
+                                    a.objektStrasse,
+                                    [a.objektPlz, a.objektOrt]
+                                        .whereType<String>()
+                                        .where((s) => s.isNotEmpty)
+                                        .join(' '),
+                                  ]
                                       .whereType<String>()
                                       .where((s) => s.isNotEmpty)
-                                      .join(' '),
-                                ]
-                                    .whereType<String>()
-                                    .where((s) => s.isNotEmpty)
-                                    .join(', '),
-                                style: const TextStyle(
-                                    fontSize: 11, color: AwTokens.mute),
-                              ),
-                            ],
+                                      .join(', '),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: AwTokens.mute),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          km < 1
-                              ? '${(km * 1000).round()} m'
-                              : '${km.toStringAsFixed(1)} km',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AwTokens.mute,
+                          const SizedBox(width: 12),
+                          Text(
+                            km < 1
+                                ? '${(km * 1000).round()} m'
+                                : '${km.toStringAsFixed(1)} km',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AwTokens.mute,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          );
-          if (picked != null) {
-            setState(() => _auftragId = picked);
-            success = true;
-            msg = 'Akte aus der Nähe gewählt.';
+                ],
+              ),
+            );
+            if (picked != null) {
+              setState(() => _auftragId = picked);
+              msg += 'Akte gewählt.';
+            } else {
+              msg += 'Keine Akte verknüpft.';
+            }
           }
         }
       }
 
-      if (success && mounted) {
-        final w = await wetterNotiz(pos);
-        if (w != null && mounted) {
-          setState(() {
-            _eintraege.insert(0, _NotizEintrag(zeit: DateTime.now(), text: w));
-          });
-          msg += ' Wetterdaten geladen.';
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.trim())));
       }
     } finally {
       if (mounted) setState(() => _geoSucheLaeuft = false);
