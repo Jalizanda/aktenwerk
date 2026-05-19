@@ -1,10 +1,14 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/geo/geo_service.dart';
 import '../../../core/geo/plz_autofill.dart';
+import '../../../data/seed/lastzonen.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../features/system/benutzer/benutzer_repository.dart';
@@ -43,8 +47,7 @@ class _AuftragFormDialog extends ConsumerStatefulWidget {
   final AuftraegeData? auftrag;
 
   @override
-  ConsumerState<_AuftragFormDialog> createState() =>
-      _AuftragFormDialogState();
+  ConsumerState<_AuftragFormDialog> createState() => _AuftragFormDialogState();
 }
 
 class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
@@ -69,6 +72,16 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   DateTime? _bb2;
   DateTime? _bb3;
 
+  // Geo & Zonen
+  double? _objektLat;
+  double? _objektLon;
+  double? _objektHoehe;
+  String? _schneelastzone;
+  double? _schneelastKnm2;
+  String? _windlastzone;
+  String? _zonenQuelle;
+  bool _fetchingGeo = false;
+
   // Controller
   late final _aktenzeichen = _tec(widget.auftrag?.aktenzeichen);
   late final _azExtern = _tec(widget.auftrag?.azExtern);
@@ -85,12 +98,11 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   late final _gerichtsort = _tec(widget.auftrag?.gerichtsort);
   late final _gerichtsAz = _tec(widget.auftrag?.gerichtsAktenzeichen);
   late final _verfahrensart = _tec(widget.auftrag?.verfahrensart);
-  late final _ausfertigungen =
-      _tec(widget.auftrag?.anzahlAusfertigungen?.toString());
-  late final _aktenSeitenVon =
-      _tec(widget.auftrag?.aktenSeitenVon?.toString());
-  late final _aktenSeitenBis =
-      _tec(widget.auftrag?.aktenSeitenBis?.toString());
+  late final _ausfertigungen = _tec(
+    widget.auftrag?.anzahlAusfertigungen?.toString(),
+  );
+  late final _aktenSeitenVon = _tec(widget.auftrag?.aktenSeitenVon?.toString());
+  late final _aktenSeitenBis = _tec(widget.auftrag?.aktenSeitenBis?.toString());
   late final _richter = _tec(widget.auftrag?.richter);
   late final _richterAnrede = _tec(widget.auftrag?.richterAnrede);
   late final _richterBrief = _tec(widget.auftrag?.richterBriefanrede);
@@ -98,10 +110,10 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   late final _beklagter = _tec(widget.auftrag?.beklagter);
   late final _stundensatz = _tec(_money(widget.auftrag?.stundensatz));
   late final _kostenLimit = _tec(_money(widget.auftrag?.kostenLimit));
-  late final _kostenvorschuss =
-      _tec(_money(widget.auftrag?.kostenvorschuss));
-  late final _aufwandSchaetzung =
-      _tec(widget.auftrag?.aufwandSchaetzung?.toStringAsFixed(1));
+  late final _kostenvorschuss = _tec(_money(widget.auftrag?.kostenvorschuss));
+  late final _aufwandSchaetzung = _tec(
+    widget.auftrag?.aufwandSchaetzung?.toStringAsFixed(1),
+  );
   late final _honorargruppe = _tec(widget.auftrag?.honorargruppe);
   String? _zahlungsbedingungKey;
   late final _notiz = _tec(widget.auftrag?.notiz);
@@ -110,8 +122,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   UploadedFile? _beweisbeschlussFile;
   UploadedFile? _objektFoto;
 
-  TextEditingController _tec(String? v) =>
-      TextEditingController(text: v ?? '');
+  TextEditingController _tec(String? v) => TextEditingController(text: v ?? '');
 
   static const _objektarten = [
     'Einfamilienhaus',
@@ -165,6 +176,13 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
     _bb1 = a?.beweisbeschluss1;
     _bb2 = a?.beweisbeschluss2;
     _bb3 = a?.beweisbeschluss3;
+    _objektLat = a?.objektLat;
+    _objektLon = a?.objektLon;
+    _objektHoehe = a?.objektHoehe;
+    _schneelastzone = a?.schneelastzone;
+    _schneelastKnm2 = a?.schneelastKnm2;
+    _windlastzone = a?.windlastzone;
+    _zonenQuelle = a?.zonenQuelle;
     if (a?.beweisbeschlussStorageUrl != null &&
         a!.beweisbeschlussStorageUrl!.isNotEmpty) {
       _beweisbeschlussFile = UploadedFile(
@@ -212,14 +230,35 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
     _plzAutoFillDispose();
     _tabs.dispose();
     for (final c in [
-      _aktenzeichen, _azExtern, _betreff, _bezeichnung,
-      _objStrasse, _objPlz, _objOrt, _baujahr, _sachgebiet,
-      _objektart, _kategorie,
-      _gericht, _gerichtsort, _gerichtsAz, _verfahrensart, _klaeger, _beklagter,
-      _ausfertigungen, _aktenSeitenVon, _aktenSeitenBis,
-      _richter, _richterAnrede, _richterBrief,
-      _stundensatz, _kostenLimit, _kostenvorschuss,
-      _aufwandSchaetzung, _honorargruppe, _notiz,
+      _aktenzeichen,
+      _azExtern,
+      _betreff,
+      _bezeichnung,
+      _objStrasse,
+      _objPlz,
+      _objOrt,
+      _baujahr,
+      _sachgebiet,
+      _objektart,
+      _kategorie,
+      _gericht,
+      _gerichtsort,
+      _gerichtsAz,
+      _verfahrensart,
+      _klaeger,
+      _beklagter,
+      _ausfertigungen,
+      _aktenSeitenVon,
+      _aktenSeitenBis,
+      _richter,
+      _richterAnrede,
+      _richterBrief,
+      _stundensatz,
+      _kostenLimit,
+      _kostenvorschuss,
+      _aufwandSchaetzung,
+      _honorargruppe,
+      _notiz,
     ]) {
       c.dispose();
     }
@@ -227,6 +266,58 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   }
 
   bool get _isEdit => widget.auftrag != null;
+
+  Future<void> _fetchGeoAndLastzonen() async {
+    final plz = _objPlz.text.trim();
+    final ort = _objOrt.text.trim();
+    final strasse = _objStrasse.text.trim();
+
+    if (plz.isEmpty && ort.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bitte PLZ oder Ort für den Lookup eingeben.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _fetchingGeo = true);
+
+    try {
+      // 1. Lastzonen
+      final zone = await LastzonenRepository.instance.find(ort: ort, ags: plz);
+      if (zone.schnee != null || zone.wind != null) {
+        _schneelastzone = zone.schnee;
+        _windlastzone = zone.wind;
+        _zonenQuelle = 'DIN EN 1991 / DIBt Verwaltungsgrenzen';
+      }
+
+      // 2. Geocoding
+      final query = [strasse, plz, ort].where((e) => e.isNotEmpty).join(', ');
+      final coords = await adresseZuKoordinaten(query);
+      if (coords != null) {
+        _objektLat = coords.lat;
+        _objektLon = coords.lon;
+        // 3. Open-Meteo Elevation
+        try {
+          final uri = Uri.parse(
+            'https://api.open-meteo.com/v1/elevation?latitude=${coords.lat}&longitude=${coords.lon}',
+          );
+          final resp = await http.get(uri);
+          if (resp.statusCode == 200) {
+            final data = jsonDecode(resp.body);
+            if (data['elevation'] != null &&
+                data['elevation'] is List &&
+                data['elevation'].isNotEmpty) {
+              _objektHoehe = (data['elevation'][0] as num).toDouble();
+            }
+          }
+        } catch (_) {}
+      }
+    } finally {
+      if (mounted) setState(() => _fetchingGeo = false);
+    }
+  }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -251,8 +342,9 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       id: _isEdit ? Value(widget.auftrag!.id) : const Value.absent(),
       aktenzeichen: _nt(_aktenzeichen),
       azExtern: _nt(_azExtern),
-      aufgabenJson:
-          Value(_aufgabenJson == null || _aufgabenJson!.isEmpty ? null : _aufgabenJson),
+      aufgabenJson: Value(
+        _aufgabenJson == null || _aufgabenJson!.isEmpty ? null : _aufgabenJson,
+      ),
       art: Value(_art.dbValue),
       status: Value(_status.dbValue),
       kundeId: Value(_kundeId),
@@ -261,6 +353,13 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       objektStrasse: _nt(_objStrasse),
       objektPlz: _nt(_objPlz),
       objektOrt: _nt(_objOrt),
+      objektLat: Value(_objektLat),
+      objektLon: Value(_objektLon),
+      objektHoehe: Value(_objektHoehe),
+      schneelastzone: Value(_schneelastzone),
+      schneelastKnm2: Value(_schneelastKnm2),
+      windlastzone: Value(_windlastzone),
+      zonenQuelle: Value(_zonenQuelle),
       objektart: _nt(_objektart),
       baujahr: _nt(_baujahr),
       sachgebiet: _nt(_sachgebiet),
@@ -302,17 +401,16 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       updatedAt: Value(DateTime.now()),
     );
     try {
-      final id =
-          await ref.read(auftraegeRepositoryProvider).upsert(companion);
+      final id = await ref.read(auftraegeRepositoryProvider).upsert(companion);
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(id);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speichern fehlgeschlagen: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
       }
     }
   }
@@ -343,8 +441,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               ? null
               : () => Navigator.of(context, rootNavigator: true).pop(null),
         ),
-        if (_isEdit)
-          _GedruckteDocsHinweis(auftragId: widget.auftrag!.id),
+        if (_isEdit) _GedruckteDocsHinweis(auftragId: widget.auftrag!.id),
         TabBar(
           controller: _tabs,
           isScrollable: true,
@@ -378,8 +475,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
         ),
         const Divider(height: 1),
         DialogFooter(
-          onCancel: () =>
-              Navigator.of(context, rootNavigator: true).pop(null),
+          onCancel: () => Navigator.of(context, rootNavigator: true).pop(null),
           onSave: _save,
           saving: _saving,
         ),
@@ -404,8 +500,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                   for (final a in AuftragArt.values)
                     DropdownMenuItem(value: a, child: Text(a.label)),
                 ],
-                onChanged: (v) =>
-                    setState(() => _art = v ?? AuftragArt.privat),
+                onChanged: (v) => setState(() => _art = v ?? AuftragArt.privat),
               ),
             ),
             right: LabeledField(
@@ -491,20 +586,53 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Objektadresse',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text('Objektadresse', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          LabeledField('Straße + Hausnr.',
-              TextFormField(controller: _objStrasse)),
+          LabeledField(
+            'Straße + Hausnr.',
+            TextFormField(controller: _objStrasse),
+          ),
           const SizedBox(height: 12),
           Row2(
             flex: const (1, 3),
             left: LabeledField('PLZ', TextFormField(controller: _objPlz)),
             right: LabeledField('Ort', TextFormField(controller: _objOrt)),
           ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _fetchingGeo ? null : _fetchGeoAndLastzonen,
+                icon: _fetchingGeo
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.public, size: 16),
+                label: const Text('Geodaten & Lastzonen ermitteln'),
+              ),
+              if (_objektLat != null)
+                Text(
+                  'Lat: ${_objektLat!.toStringAsFixed(4)}, Lon: ${_objektLon!.toStringAsFixed(4)}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              if (_objektHoehe != null)
+                Text(
+                  'Höhe: ${_objektHoehe!.toStringAsFixed(0)} m',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              if (_schneelastzone != null || _windlastzone != null)
+                Text(
+                  'Schnee: ${_schneelastzone ?? '-'}, Wind: ${_windlastzone ?? '-'}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+            ],
+          ),
           const SizedBox(height: 20),
-          Text('Objekt-Details',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text('Objekt-Details', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Row2(
             left: LabeledField(
@@ -518,8 +646,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                   for (final o in _objektarten)
                     DropdownMenuItem(value: o, child: Text(o)),
                 ],
-                onChanged: (v) =>
-                    setState(() => _objektart.text = v ?? ''),
+                onChanged: (v) => setState(() => _objektart.text = v ?? ''),
               ),
             ),
             right: LabeledField(
@@ -560,8 +687,8 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
             'um diese Felder zu nutzen.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       );
@@ -576,10 +703,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               'Gericht',
               Row(
                 children: [
-                  Expanded(
-                    child:
-                        TextFormField(controller: _gericht),
-                  ),
+                  Expanded(child: TextFormField(controller: _gericht)),
                   const SizedBox(width: 6),
                   IconButton(
                     tooltip: 'Gericht aus Liste wählen',
@@ -596,13 +720,17 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                 ],
               ),
             ),
-            right: LabeledField('Gerichtsort',
-                TextFormField(controller: _gerichtsort)),
+            right: LabeledField(
+              'Gerichtsort',
+              TextFormField(controller: _gerichtsort),
+            ),
           ),
           const SizedBox(height: 12),
           Row2(
-            left: LabeledField('Gerichtliches Aktenzeichen',
-                TextFormField(controller: _gerichtsAz)),
+            left: LabeledField(
+              'Gerichtliches Aktenzeichen',
+              TextFormField(controller: _gerichtsAz),
+            ),
             right: LabeledField(
               'Verfahrensart',
               DropdownButtonFormField<String>(
@@ -614,50 +742,51 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                   for (final v in _verfahrensarten)
                     DropdownMenuItem(value: v, child: Text(v)),
                 ],
-                onChanged: (v) =>
-                    setState(() => _verfahrensart.text = v ?? ''),
+                onChanged: (v) => setState(() => _verfahrensart.text = v ?? ''),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          Text('Streitparteien',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text('Streitparteien', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Row2(
             left: LabeledField(
               'Kläger/in',
               TextFormField(
                 controller: _klaeger,
-                decoration:
-                    const InputDecoration(hintText: 'Name / Firma'),
+                decoration: const InputDecoration(hintText: 'Name / Firma'),
               ),
             ),
             right: LabeledField(
               'Beklagte/r',
               TextFormField(
                 controller: _beklagter,
-                decoration:
-                    const InputDecoration(hintText: 'Name / Firma'),
+                decoration: const InputDecoration(hintText: 'Name / Firma'),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          Text('Beweisbeschlüsse',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            'Beweisbeschlüsse',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: 8),
           Row3(
             a: DateField(
-                label: '1. Beweisbeschluss',
-                value: _bb1,
-                onChanged: (v) => setState(() => _bb1 = v)),
+              label: '1. Beweisbeschluss',
+              value: _bb1,
+              onChanged: (v) => setState(() => _bb1 = v),
+            ),
             b: DateField(
-                label: '2. Beweisbeschluss',
-                value: _bb2,
-                onChanged: (v) => setState(() => _bb2 = v)),
+              label: '2. Beweisbeschluss',
+              value: _bb2,
+              onChanged: (v) => setState(() => _bb2 = v),
+            ),
             c: DateField(
-                label: '3. Beweisbeschluss',
-                value: _bb3,
-                onChanged: (v) => setState(() => _bb3 = v)),
+              label: '3. Beweisbeschluss',
+              value: _bb3,
+              onChanged: (v) => setState(() => _bb3 = v),
+            ),
           ),
           const SizedBox(height: 12),
           FileUploadSection(
@@ -669,8 +798,10 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
             onChanged: (f) => setState(() => _beweisbeschlussFile = f),
           ),
           const SizedBox(height: 16),
-          Text('Gerichtsakte & Ausfertigungen',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            'Gerichtsakte & Ausfertigungen',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: 8),
           Row3(
             a: DateField(
@@ -707,24 +838,21 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               'Kosten lt. Beweisbeschluss (€)',
               TextFormField(
                 controller: _kostenLimit,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          Text('Richter/in',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text('Richter/in', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Row3(
             a: LabeledField(
               'Anrede',
               TextFormField(controller: _richterAnrede),
             ),
-            b: LabeledField(
-              'Name',
-              TextFormField(controller: _richter),
-            ),
+            b: LabeledField('Name', TextFormField(controller: _richter)),
             c: LabeledField(
               'Briefanrede',
               TextFormField(controller: _richterBrief),
@@ -782,16 +910,18 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               'Stundensatz (€)',
               TextFormField(
                 controller: _stundensatz,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
             b: LabeledField(
               'Voraussichtl. Aufwand (h)',
               TextFormField(
                 controller: _aufwandSchaetzung,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
             c: LabeledField(
@@ -805,8 +935,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                   for (final h in _honorargruppen)
                     DropdownMenuItem(value: h, child: Text(h)),
                 ],
-                onChanged: (v) =>
-                    setState(() => _honorargruppe.text = v ?? ''),
+                onChanged: (v) => setState(() => _honorargruppe.text = v ?? ''),
               ),
             ),
           ),
@@ -816,45 +945,54 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               'Kostenlimit (€)',
               TextFormField(
                 controller: _kostenLimit,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
             right: LabeledField(
               'Kostenvorschuss (€)',
               TextFormField(
                 controller: _kostenvorschuss,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 12),
           LabeledField(
             'Zahlungsbedingung',
-            Consumer(builder: (context, ref, _) {
-              final async = ref.watch(zahlungszielVorlagenProvider);
-              final list = async.valueOrNull ?? zahlungszielVorlagenDefaults;
-              final activeKey = list.any((v) => v.key == _zahlungsbedingungKey)
-                  ? _zahlungsbedingungKey
-                  : null;
-              return DropdownButtonFormField<String?>(
-                isDense: true,
-                isExpanded: true,
-                initialValue: activeKey,
-                decoration: const InputDecoration(
-                  hintText: 'Standard aus Einstellungen verwenden',
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
+            Consumer(
+              builder: (context, ref, _) {
+                final async = ref.watch(zahlungszielVorlagenProvider);
+                final list = async.valueOrNull ?? zahlungszielVorlagenDefaults;
+                final activeKey =
+                    list.any((v) => v.key == _zahlungsbedingungKey)
+                    ? _zahlungsbedingungKey
+                    : null;
+                return DropdownButtonFormField<String?>(
+                  isDense: true,
+                  isExpanded: true,
+                  initialValue: activeKey,
+                  decoration: const InputDecoration(
+                    hintText: 'Standard aus Einstellungen verwenden',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
                       value: null,
-                      child: Text('— Standard aus Einstellungen —')),
-                  for (final v in list)
-                    DropdownMenuItem<String?>(value: v.key, child: Text(v.label)),
-                ],
-                onChanged: (v) => setState(() => _zahlungsbedingungKey = v),
-              );
-            }),
+                      child: Text('— Standard aus Einstellungen —'),
+                    ),
+                    for (final v in list)
+                      DropdownMenuItem<String?>(
+                        value: v.key,
+                        child: Text(v.label),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _zahlungsbedingungKey = v),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -869,22 +1007,26 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Aufgaben-Liste',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Aufgaben-Liste',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           _AufgabenEditor(
             initialJson: widget.auftrag?.aufgabenJson,
             onChanged: (json) => _aufgabenJson = json,
           ),
           const SizedBox(height: 24),
-          Text('Eingesetzte Messgeräte',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Eingesetzte Messgeräte',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 4),
           Text(
             'Wird im Gutachten als Anlage gelistet. Verknüpfungen werden erst nach dem Speichern des Auftrags persistiert.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           if (auftragId == null)
@@ -913,11 +1055,12 @@ class _GedruckteDocsHinweis extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final db = ref.watch(appDatabaseProvider);
     return StreamBuilder<int>(
-      stream: (db.select(db.rechnungen)
-            ..where((t) => t.auftragId.equals(auftragId))
-            ..where((t) => t.pdfStorageUrl.isNotNull()))
-          .watch()
-          .map((rows) => rows.length),
+      stream:
+          (db.select(db.rechnungen)
+                ..where((t) => t.auftragId.equals(auftragId))
+                ..where((t) => t.pdfStorageUrl.isNotNull()))
+              .watch()
+              .map((rows) => rows.length),
       builder: (_, snap) {
         final n = snap.data ?? 0;
         if (n == 0) return const SizedBox.shrink();
@@ -928,7 +1071,11 @@ class _GedruckteDocsHinweis extends ConsumerWidget {
           color: scheme.tertiaryContainer,
           child: Row(
             children: [
-              Icon(Icons.info_outline, size: 18, color: scheme.onTertiaryContainer),
+              Icon(
+                Icons.info_outline,
+                size: 18,
+                color: scheme.onTertiaryContainer,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -937,8 +1084,9 @@ class _GedruckteDocsHinweis extends ConsumerWidget {
                   'Änderungen an den Stammdaten wirken nur auf zukünftige '
                   'Dokumente — bestehende PDFs bleiben wie sie sind.',
                   style: TextStyle(
-                      fontSize: 12.5,
-                      color: scheme.onTertiaryContainer),
+                    fontSize: 12.5,
+                    color: scheme.onTertiaryContainer,
+                  ),
                 ),
               ),
             ],
@@ -987,26 +1135,32 @@ class _AufgabenEditorState extends State<_AufgabenEditor> {
     try {
       final list = jsonDecode(json) as List<dynamic>;
       return list
-          .map((e) => _AufgabenItem(
-                text: (e['text'] as String?) ?? '',
-                done: (e['done'] as bool?) ?? false,
-                doneAt: e['doneAt'] == null
-                    ? null
-                    : DateTime.tryParse(e['doneAt'].toString()),
-              ))
+          .map(
+            (e) => _AufgabenItem(
+              text: (e['text'] as String?) ?? '',
+              done: (e['done'] as bool?) ?? false,
+              doneAt: e['doneAt'] == null
+                  ? null
+                  : DateTime.tryParse(e['doneAt'].toString()),
+            ),
+          )
           .toList();
     } catch (_) {
       return [];
     }
   }
 
-  String _encode() => jsonEncode(_items
-      .map((i) => {
+  String _encode() => jsonEncode(
+    _items
+        .map(
+          (i) => {
             'text': i.text,
             'done': i.done,
             if (i.doneAt != null) 'doneAt': i.doneAt!.toIso8601String(),
-          })
-      .toList());
+          },
+        )
+        .toList(),
+  );
 
   void _emit() => widget.onChanged(_items.isEmpty ? null : _encode());
 
@@ -1055,7 +1209,8 @@ class _AufgabenEditorState extends State<_AufgabenEditor> {
           Container(
             decoration: BoxDecoration(
               border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant),
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -1088,8 +1243,7 @@ class _AufgabenEditorState extends State<_AufgabenEditor> {
             child: Text(
               item.text,
               style: TextStyle(
-                decoration:
-                    item.done ? TextDecoration.lineThrough : null,
+                decoration: item.done ? TextDecoration.lineThrough : null,
                 color: item.done
                     ? Theme.of(context).colorScheme.onSurfaceVariant
                     : null,
@@ -1120,8 +1274,7 @@ class _GeraeteZuordnungView extends ConsumerStatefulWidget {
       _GeraeteZuordnungViewState();
 }
 
-class _GeraeteZuordnungViewState
-    extends ConsumerState<_GeraeteZuordnungView> {
+class _GeraeteZuordnungViewState extends ConsumerState<_GeraeteZuordnungView> {
   List<int> _zugeordnet = [];
   List<GeraeteData> _alleGeraete = [];
   bool _loading = true;
@@ -1135,9 +1288,9 @@ class _GeraeteZuordnungViewState
   Future<void> _load() async {
     final db = ref.read(appDatabaseProvider);
     final geraete = await db.select(db.geraete).get();
-    final linked = await (db.select(db.auftraegeGeraete)
-          ..where((t) => t.auftragId.equals(widget.auftragId)))
-        .get();
+    final linked = await (db.select(
+      db.auftraegeGeraete,
+    )..where((t) => t.auftragId.equals(widget.auftragId))).get();
     if (!mounted) return;
     setState(() {
       _alleGeraete = geraete;
@@ -1149,9 +1302,14 @@ class _GeraeteZuordnungViewState
   Future<void> _toggle(GeraeteData g, bool an) async {
     final db = ref.read(appDatabaseProvider);
     if (an) {
-      await db.into(db.auftraegeGeraete).insert(
-          AuftraegeGeraeteCompanion.insert(
-              auftragId: widget.auftragId, geraetId: g.id));
+      await db
+          .into(db.auftraegeGeraete)
+          .insert(
+            AuftraegeGeraeteCompanion.insert(
+              auftragId: widget.auftragId,
+              geraetId: g.id,
+            ),
+          );
     } else {
       await (db.delete(db.auftraegeGeraete)
             ..where((t) => t.auftragId.equals(widget.auftragId))
@@ -1171,13 +1329,14 @@ class _GeraeteZuordnungViewState
     }
     final aktiv = _alleGeraete.where((g) => g.aktiv).toList();
     if (aktiv.isEmpty) {
-      return const Text('Noch keine Geräte im Stamm. '
-          'Lege sie unter „Werkzeuge → Geräte" an.');
+      return const Text(
+        'Noch keine Geräte im Stamm. '
+        'Lege sie unter „Werkzeuge → Geräte" an.',
+      );
     }
     return Container(
       decoration: BoxDecoration(
-        border:
-            Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -1188,11 +1347,13 @@ class _GeraeteZuordnungViewState
               value: _zugeordnet.contains(g.id),
               onChanged: (v) => _toggle(g, v ?? false),
               title: Text(g.bezeichnung),
-              subtitle: Text([
-                if ((g.hersteller ?? '').isNotEmpty) g.hersteller,
-                if ((g.modell ?? '').isNotEmpty) g.modell,
-                if ((g.inventarNr ?? '').isNotEmpty) 'Inv. ${g.inventarNr}',
-              ].whereType<String>().join(' · ')),
+              subtitle: Text(
+                [
+                  if ((g.hersteller ?? '').isNotEmpty) g.hersteller,
+                  if ((g.modell ?? '').isNotEmpty) g.modell,
+                  if ((g.inventarNr ?? '').isNotEmpty) 'Inv. ${g.inventarNr}',
+                ].whereType<String>().join(' · '),
+              ),
             ),
             const Divider(height: 1),
           ],

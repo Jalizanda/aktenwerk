@@ -7,6 +7,8 @@ import '../../../features/akten/rechnungen/rechnungen_repository.dart';
 import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import '../../system/einstellungen/absender_service.dart';
+import 'mahnwesen_pdf.dart';
 import 'opos_zahlung_dialog.dart';
 
 final oposQueryProvider = StateProvider<String>((ref) => '');
@@ -32,6 +34,29 @@ class OposScreen extends ConsumerWidget {
           searchHint: 'Suche Nr., Kunde, Az., Betreff, Betrag …',
           onSearchChanged: (v) =>
               ref.read(oposQueryProvider.notifier).state = v,
+          actions: [
+            FilledButton.icon(
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: const Text('Mahnlauf / Serienbrief'),
+              onPressed: () async {
+                final items = async.valueOrNull ?? [];
+                final now = DateTime.now();
+                final ueberfaellig = items.where((r) {
+                  if (r.rechnung.pdfErstelltAm == null) return false;
+                  if (r.rechnung.status == 'bezahlt' ||
+                      r.rechnung.status == 'storniert')
+                    return false;
+                  final f = r.rechnung.faelligAm;
+                  return f != null && now.difference(f).inDays > 0;
+                }).toList();
+
+                final absender = await absenderFromSettings(ref);
+                await previewMahnlaufPdf(
+                  MahnlaufData(ueberfaellig: ueberfaellig, absender: absender),
+                );
+              },
+            ),
+          ],
         ),
         const Divider(height: 1),
         Expanded(
@@ -42,32 +67,38 @@ class OposScreen extends ConsumerWidget {
               // Nur offene / teilbezahlte / überfällige Rechnungen, die
               // tatsächlich gedruckt+eingefroren sind. Entwürfe ohne
               // feste Belegnummer gehören NICHT in OPOS.
-              final offen = items
-                  .where((r) =>
-                      r.rechnung.pdfErstelltAm != null &&
-                      r.rechnung.status != 'bezahlt' &&
-                      r.rechnung.status != 'storniert')
-                  .where((r) {
-                    if (query.isEmpty) return true;
-                    final parts = [
-                      r.rechnung.rechnungsnummer,
-                      r.kunde == null ? null : kundeAnzeigename(r.kunde!),
-                      r.auftrag?.aktenzeichen,
-                      r.auftrag?.betreff,
-                      r.auftrag?.bezeichnung,
-                      r.rechnung.brutto.toStringAsFixed(2),
-                    ]
-                        .whereType<String>()
-                        .map((s) => s.toLowerCase())
-                        .join(' ');
-                    return parts.contains(query);
-                  })
-                  .toList()
-                ..sort((a, b) {
-                  final af = a.rechnung.faelligAm ?? DateTime(2099);
-                  final bf = b.rechnung.faelligAm ?? DateTime(2099);
-                  return af.compareTo(bf);
-                });
+              final offen =
+                  items
+                      .where(
+                        (r) =>
+                            r.rechnung.pdfErstelltAm != null &&
+                            r.rechnung.status != 'bezahlt' &&
+                            r.rechnung.status != 'storniert',
+                      )
+                      .where((r) {
+                        if (query.isEmpty) return true;
+                        final parts =
+                            [
+                                  r.rechnung.rechnungsnummer,
+                                  r.kunde == null
+                                      ? null
+                                      : kundeAnzeigename(r.kunde!),
+                                  r.auftrag?.aktenzeichen,
+                                  r.auftrag?.betreff,
+                                  r.auftrag?.bezeichnung,
+                                  r.rechnung.brutto.toStringAsFixed(2),
+                                ]
+                                .whereType<String>()
+                                .map((s) => s.toLowerCase())
+                                .join(' ');
+                        return parts.contains(query);
+                      })
+                      .toList()
+                    ..sort((a, b) {
+                      final af = a.rechnung.faelligAm ?? DateTime(2099);
+                      final bf = b.rechnung.faelligAm ?? DateTime(2099);
+                      return af.compareTo(bf);
+                    });
 
               double gesamtOffen = 0;
               double gesamtUeberfaellig = 0;
@@ -115,11 +146,9 @@ class OposScreen extends ConsumerWidget {
                   Expanded(
                     child: DataTableCard(
                       child: DataTable(
-              showCheckboxColumn: false,
+                        showCheckboxColumn: false,
                         headingRowColor: WidgetStateProperty.all(
-                          Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                         ),
                         columns: const [
                           DataColumn(label: Text('Nr.')),
@@ -134,8 +163,7 @@ class OposScreen extends ConsumerWidget {
                           DataColumn(label: Text('Mahnstufe')),
                         ],
                         rows: [
-                          for (final r in offen)
-                            _row(context, ref, r, now),
+                          for (final r in offen) _row(context, ref, r, now),
                         ],
                       ),
                     ),
@@ -149,8 +177,12 @@ class OposScreen extends ConsumerWidget {
     );
   }
 
-  DataRow _row(BuildContext context, WidgetRef ref, RechnungWithKunde r,
-      DateTime now) {
+  DataRow _row(
+    BuildContext context,
+    WidgetRef ref,
+    RechnungWithKunde r,
+    DateTime now,
+  ) {
     final faellig = r.rechnung.faelligAm;
     final alter = faellig == null ? 0 : now.difference(faellig).inDays;
     final overdue = alter > 0;
@@ -163,64 +195,79 @@ class OposScreen extends ConsumerWidget {
       _ => null,
     };
     return DataRow(
-      color: rowBg == null
-          ? null
-          : WidgetStateProperty.all(rowBg),
-      onSelectChanged: (_) =>
-          showOposZahlungDialog(context, ref, rechnung: r),
+      color: rowBg == null ? null : WidgetStateProperty.all(rowBg),
+      onSelectChanged: (_) => showOposZahlungDialog(context, ref, rechnung: r),
       cells: [
-        DataCell(Text(r.rechnung.rechnungsnummer ?? '',
-            style: const TextStyle(
-                fontFamily: 'monospace', fontSize: 12))),
-        DataCell(SizedBox(
-          width: 180,
-          child: Text(
-            r.kunde == null ? '—' : kundeAnzeigename(r.kunde!),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        DataCell(
+          Text(
+            r.rechnung.rechnungsnummer ?? '',
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
           ),
-        )),
-        DataCell(SizedBox(
-          width: 220,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                r.auftrag?.aktenzeichen ?? '—',
-                style: const TextStyle(
+        ),
+        DataCell(
+          SizedBox(
+            width: 180,
+            child: Text(
+              r.kunde == null ? '—' : kundeAnzeigename(r.kunde!),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 220,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  r.auftrag?.aktenzeichen ?? '—',
+                  style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 11,
-                    fontWeight: FontWeight.w600),
-              ),
-              if ((r.auftrag?.betreff ?? r.auftrag?.bezeichnung ?? '')
-                  .isNotEmpty)
-                Text(
-                  r.auftrag?.betreff ?? r.auftrag?.bezeichnung ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-            ],
+                if ((r.auftrag?.betreff ?? r.auftrag?.bezeichnung ?? '')
+                    .isNotEmpty)
+                  Text(
+                    r.auftrag?.betreff ?? r.auftrag?.bezeichnung ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+              ],
+            ),
           ),
-        )),
-        DataCell(Text(r.rechnung.rechnungsdatum == null
-            ? ''
-            : _dateFmt.format(r.rechnung.rechnungsdatum!))),
+        ),
+        DataCell(
+          Text(
+            r.rechnung.rechnungsdatum == null
+                ? ''
+                : _dateFmt.format(r.rechnung.rechnungsdatum!),
+          ),
+        ),
         DataCell(Text(faellig == null ? '' : _dateFmt.format(faellig))),
-        DataCell(Text(
-          overdue
-              ? '+$alter\u00a0T'
-              : (alter < 0 ? '${-alter}\u00a0T offen' : 'heute fällig'),
-          style: TextStyle(
-            color: overdue ? BadgeColors.redFg : null,
-            fontWeight: overdue ? FontWeight.w700 : FontWeight.normal,
+        DataCell(
+          Text(
+            overdue
+                ? '+$alter\u00a0T'
+                : (alter < 0 ? '${-alter}\u00a0T offen' : 'heute fällig'),
+            style: TextStyle(
+              color: overdue ? BadgeColors.redFg : null,
+              fontWeight: overdue ? FontWeight.w700 : FontWeight.normal,
+            ),
           ),
-        )),
+        ),
         DataCell(Text(_money.format(r.rechnung.brutto))),
         DataCell(Text(_money.format(r.rechnung.bezahlt))),
-        DataCell(Text(_money.format(offen),
-            style: const TextStyle(fontWeight: FontWeight.w600))),
+        DataCell(
+          Text(
+            _money.format(offen),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
         DataCell(_mahnstufeBadge(stufe)),
       ],
     );
@@ -235,24 +282,11 @@ class OposScreen extends ConsumerWidget {
       );
     }
     final spec = switch (s) {
-      1 => (
-          'Erinnerung',
-          BadgeColors.amberBg,
-          BadgeColors.amberFg,
-        ),
-      2 => (
-          '1. Mahnung',
-          BadgeColors.redBg,
-          BadgeColors.redFg,
-        ),
-      _ => (
-          '2. Mahnung',
-          BadgeColors.redBg,
-          BadgeColors.redFg,
-        ),
+      1 => ('Erinnerung', BadgeColors.amberBg, BadgeColors.amberFg),
+      2 => ('1. Mahnung', BadgeColors.redBg, BadgeColors.redFg),
+      _ => ('2. Mahnung', BadgeColors.redBg, BadgeColors.redFg),
     };
-    return PillBadge(
-        text: spec.$1, background: spec.$2, foreground: spec.$3);
+    return PillBadge(text: spec.$1, background: spec.$2, foreground: spec.$3);
   }
 
   /// Mahnstufen-Skala wie im SV-Original
@@ -282,15 +316,19 @@ class _Stat extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    )),
-            Text(value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    )),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),

@@ -98,7 +98,6 @@ class AngebotStatusBadge extends StatelessWidget {
     'angebot',
     'nachverhandlung',
     'angenommen',
-    'auftragsbestaetigung',
     'abgelehnt',
     'abgelaufen',
   ];

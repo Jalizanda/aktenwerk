@@ -94,6 +94,21 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase._(super.executor);
 
+  // Idempotentes addColumn: ignoriert "duplicate column name"-Fehler, die
+  // auftreten wenn ein Backup-Restore die Spalte bereits angelegt hat aber
+  // die gespeicherte Schema-Version noch auf einem älteren Stand ist.
+  static Future<void> _addCol(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn<Object> col,
+  ) async {
+    try {
+      await m.addColumn(table, col);
+    } catch (e) {
+      if (!e.toString().contains('duplicate column name')) rethrow;
+    }
+  }
+
   /// Öffnet eine Datenbank unter dem angegebenen Namen. Jeder Name
   /// entspricht einer eigenen IndexedDB/Datei — so lassen sich
   /// Produktiv- und Demo-Mandant sauber trennen.
@@ -130,87 +145,87 @@ class AppDatabase extends _$AppDatabase {
 
           // v4 → v5: Normen-Aktualitäts-Tracking.
           if (from < 5) {
-            await m.addColumn(normen, normen.aktualitaetStatus);
-            await m.addColumn(normen, normen.aktualitaetGeprueftAm);
-            await m.addColumn(normen, normen.aktualitaetQuelle);
-            await m.addColumn(normen, normen.aktualitaetNotiz);
+            await _addCol(m, normen, normen.aktualitaetStatus);
+            await _addCol(m, normen, normen.aktualitaetGeprueftAm);
+            await _addCol(m, normen, normen.aktualitaetQuelle);
+            await _addCol(m, normen, normen.aktualitaetNotiz);
           }
 
           // v5 → v6: Upload-Felder für Fortbildungen, Geräte, Aufträge.
           if (from < 6) {
-            await m.addColumn(
+            await _addCol(m, 
                 fortbildungen, fortbildungen.nachweisStorageUrl);
-            await m.addColumn(
+            await _addCol(m, 
                 fortbildungen, fortbildungen.nachweisDateiname);
-            await m.addColumn(
+            await _addCol(m, 
                 fortbildungen, fortbildungen.nachweisMimeType);
-            await m.addColumn(
+            await _addCol(m, 
                 fortbildungen, fortbildungen.nachweisGroesse);
 
-            await m.addColumn(
+            await _addCol(m, 
                 geraete, geraete.kalibrierscheinStorageUrl);
-            await m.addColumn(
+            await _addCol(m, 
                 geraete, geraete.kalibrierscheinDateiname);
-            await m.addColumn(
+            await _addCol(m, 
                 geraete, geraete.kalibrierscheinMimeType);
-            await m.addColumn(
+            await _addCol(m, 
                 geraete, geraete.kalibrierscheinGroesse);
-            await m.addColumn(geraete, geraete.handbuchStorageUrl);
-            await m.addColumn(geraete, geraete.handbuchDateiname);
-            await m.addColumn(geraete, geraete.handbuchMimeType);
-            await m.addColumn(geraete, geraete.handbuchGroesse);
-            await m.addColumn(geraete, geraete.fotoStorageUrl);
-            await m.addColumn(geraete, geraete.fotoDateiname);
+            await _addCol(m, geraete, geraete.handbuchStorageUrl);
+            await _addCol(m, geraete, geraete.handbuchDateiname);
+            await _addCol(m, geraete, geraete.handbuchMimeType);
+            await _addCol(m, geraete, geraete.handbuchGroesse);
+            await _addCol(m, geraete, geraete.fotoStorageUrl);
+            await _addCol(m, geraete, geraete.fotoDateiname);
 
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.beweisbeschlussStorageUrl);
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.beweisbeschlussDateiname);
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.beweisbeschlussMimeType);
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.beweisbeschlussGroesse);
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.objektFotoStorageUrl);
-            await m.addColumn(auftraege, auftraege.objektFotoDateiname);
+            await _addCol(m, auftraege, auftraege.objektFotoDateiname);
           }
 
           // v6 → v7: Benutzer-Rolle + Modul-Berechtigungen.
           if (from < 7) {
-            await m.addColumn(benutzer, benutzer.rolle);
-            await m.addColumn(benutzer, benutzer.erlaubteModule);
-            await m.addColumn(benutzer, benutzer.bearbeitbareModule);
+            await _addCol(m, benutzer, benutzer.rolle);
+            await _addCol(m, benutzer, benutzer.erlaubteModule);
+            await _addCol(m, benutzer, benutzer.bearbeitbareModule);
           }
 
           // v7 → v8: PDF-Archivierung für Rechnungen + Angebote.
           if (from < 8) {
-            await m.addColumn(rechnungen, rechnungen.pdfStorageUrl);
-            await m.addColumn(rechnungen, rechnungen.pdfDateiname);
-            await m.addColumn(rechnungen, rechnungen.pdfGroesse);
-            await m.addColumn(rechnungen, rechnungen.pdfErstelltAm);
+            await _addCol(m, rechnungen, rechnungen.pdfStorageUrl);
+            await _addCol(m, rechnungen, rechnungen.pdfDateiname);
+            await _addCol(m, rechnungen, rechnungen.pdfGroesse);
+            await _addCol(m, rechnungen, rechnungen.pdfErstelltAm);
 
-            await m.addColumn(angebote, angebote.pdfStorageUrl);
-            await m.addColumn(angebote, angebote.pdfDateiname);
-            await m.addColumn(angebote, angebote.pdfGroesse);
-            await m.addColumn(angebote, angebote.pdfErstelltAm);
+            await _addCol(m, angebote, angebote.pdfStorageUrl);
+            await _addCol(m, angebote, angebote.pdfDateiname);
+            await _addCol(m, angebote, angebote.pdfGroesse);
+            await _addCol(m, angebote, angebote.pdfErstelltAm);
           }
 
           // v8 → v9: DATEV-Konten-Katalog + Ausgangs-Konto auf Rechnungen.
           // Eingangsrechnungen nutzen das vorhandene `datevKonto`-Feld.
           if (from < 9) {
             await m.createTable(konten);
-            await m.addColumn(rechnungen, rechnungen.kontonummer);
+            await _addCol(m, rechnungen, rechnungen.kontonummer);
           }
 
           // v9 → v10: DATEV Debitor-/Kreditor-Nummern.
           if (from < 10) {
-            await m.addColumn(kunden, kunden.debitornummer);
-            await m.addColumn(lieferanten, lieferanten.kreditornummer);
+            await _addCol(m, kunden, kunden.debitornummer);
+            await _addCol(m, lieferanten, lieferanten.kreditornummer);
           }
 
           // v10 → v11: Angebote an Akte knüpfen.
           if (from < 11) {
-            await m.addColumn(angebote, angebote.auftragId);
+            await _addCol(m, angebote, angebote.auftragId);
           }
 
           // v11 → v12: Ortstermin-Protokolle.
@@ -221,26 +236,26 @@ class AppDatabase extends _$AppDatabase {
           // v12 → v13: Partner/Subunternehmer.
           if (from < 13) {
             await m.createTable(partner);
-            await m.addColumn(stunden, stunden.partnerId);
+            await _addCol(m, stunden, stunden.partnerId);
           }
 
           // v13 → v14: Original-Foto nach Bemalen behalten.
           if (from < 14) {
-            await m.addColumn(fotos, fotos.originalDaten);
-            await m.addColumn(fotos, fotos.originalStorageUrl);
-            await m.addColumn(fotos, fotos.originalStoragePfad);
+            await _addCol(m, fotos, fotos.originalDaten);
+            await _addCol(m, fotos, fotos.originalStorageUrl);
+            await _addCol(m, fotos, fotos.originalStoragePfad);
           }
 
           // v14 → v15: Benutzer-Profilbild + persönliche Grußformel.
           if (from < 15) {
-            await m.addColumn(benutzer, benutzer.profilBildBase64);
-            await m.addColumn(benutzer, benutzer.profilBildMime);
-            await m.addColumn(benutzer, benutzer.grussformel);
+            await _addCol(m, benutzer, benutzer.profilBildBase64);
+            await _addCol(m, benutzer, benutzer.profilBildMime);
+            await _addCol(m, benutzer, benutzer.grussformel);
           }
 
           // v15 → v16: Endzeit für Termine (Wiedervorlagen).
           if (from < 16) {
-            await m.addColumn(wiedervorlagen, wiedervorlagen.endeAm);
+            await _addCol(m, wiedervorlagen, wiedervorlagen.endeAm);
           }
 
           // v16 → v17: Sachverständigen-Features #12, #13, #14, #15, #16,
@@ -254,10 +269,10 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(messwerte);
             await m.createTable(wertermittlungen);
 
-            await m.addColumn(wiedervorlagen, wiedervorlagen.wiederholung);
-            await m.addColumn(wiedervorlagen, wiedervorlagen.triggerTyp);
-            await m.addColumn(wiedervorlagen, wiedervorlagen.triggerQuellId);
-            await m.addColumn(wiedervorlagen, wiedervorlagen.checklisteJson);
+            await _addCol(m, wiedervorlagen, wiedervorlagen.wiederholung);
+            await _addCol(m, wiedervorlagen, wiedervorlagen.triggerTyp);
+            await _addCol(m, wiedervorlagen, wiedervorlagen.triggerQuellId);
+            await _addCol(m, wiedervorlagen, wiedervorlagen.checklisteJson);
           }
 
           // v17 → v18: Serienbrief-Historie.
@@ -267,13 +282,13 @@ class AppDatabase extends _$AppDatabase {
 
           // v18 → v19: Streitparteien (Kläger/Beklagter) an der Akte.
           if (from < 19) {
-            await m.addColumn(auftraege, auftraege.klaeger);
-            await m.addColumn(auftraege, auftraege.beklagter);
+            await _addCol(m, auftraege, auftraege.klaeger);
+            await _addCol(m, auftraege, auftraege.beklagter);
           }
 
           // v19 → v20: Primäres Gewerk an der Norm (für Gruppierung/Filter).
           if (from < 20) {
-            await m.addColumn(normen, normen.gewerk);
+            await _addCol(m, normen, normen.gewerk);
           }
 
           // v20 → v21: Recherche-Ablage (Notizen aus Normen-KI-Chat,
@@ -286,29 +301,29 @@ class AppDatabase extends _$AppDatabase {
           // erfassung legt neue Rechnungen mit geprueft=false an, damit
           // der SV die Werte noch einmal durchgehen kann.
           if (from < 22) {
-            await m.addColumn(eingangsrechnungen, eingangsrechnungen.geprueft);
+            await _addCol(m, eingangsrechnungen, eingangsrechnungen.geprueft);
           }
 
           // v22 → v23: Abschnitts-Zuordnung an Fotos (Inline-Platzierung
           // pro Gutachten-Block).
           if (from < 23) {
-            await m.addColumn(fotos, fotos.gutachtenAbschnitt);
+            await _addCol(m, fotos, fotos.gutachtenAbschnitt);
           }
 
           // v23 → v24: HRB + weitere Ansprechpartner für Auftraggeber.
           if (from < 24) {
-            await m.addColumn(kunden, kunden.hrb);
-            await m.addColumn(kunden, kunden.ansprechpartner);
+            await _addCol(m, kunden, kunden.hrb);
+            await _addCol(m, kunden, kunden.ansprechpartner);
           }
 
           // v24 → v25: HRB für den Sachverständigen-Absender selbst.
           if (from < 25) {
-            await m.addColumn(benutzer, benutzer.hrb);
+            await _addCol(m, benutzer, benutzer.hrb);
           }
 
           // v25 → v26: Standard-Zahlungsbedingung pro Akte.
           if (from < 26) {
-            await m.addColumn(auftraege, auftraege.zahlungsbedingung);
+            await _addCol(m, auftraege, auftraege.zahlungsbedingung);
           }
 
           // v26 → v27: Persistente Chat-Verläufe für den Normen-RAG-Chat.
@@ -319,9 +334,9 @@ class AppDatabase extends _$AppDatabase {
           // v27 → v28: Strukturierte Nachfragen (mehrere Q&A pro Schriftsatz)
           // + Bezug auf das jeweilige Gutachten für die Stellungnahme.
           if (from < 28) {
-            await m.addColumn(rueckfragen, rueckfragen.gutachtenBezugDatum);
-            await m.addColumn(rueckfragen, rueckfragen.gutachtenBezugNummer);
-            await m.addColumn(rueckfragen, rueckfragen.fragenJson);
+            await _addCol(m, rueckfragen, rueckfragen.gutachtenBezugDatum);
+            await _addCol(m, rueckfragen, rueckfragen.gutachtenBezugNummer);
+            await _addCol(m, rueckfragen, rueckfragen.fragenJson);
           }
 
           // v28 → v29: Versand-Tracking (Anzahl Ausfertigungen + Dokument-
@@ -329,29 +344,29 @@ class AppDatabase extends _$AppDatabase {
           // Mehrkostenanzeige § 8a Abs. 4 JVEG und strukturierte
           // Beweisfragen pro Akte.
           if (from < 29) {
-            await m.addColumn(versand, versand.anzahlAusfertigungen);
-            await m.addColumn(versand, versand.dokumentId);
-            await m.addColumn(versand, versand.bezugBezeichnung);
+            await _addCol(m, versand, versand.anzahlAusfertigungen);
+            await _addCol(m, versand, versand.dokumentId);
+            await _addCol(m, versand, versand.bezugBezeichnung);
 
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.befangenheitsGeprueftAm);
-            await m.addColumn(
+            await _addCol(m, 
                 auftraege, auftraege.befangenheitsErgebnis);
-            await m.addColumn(auftraege, auftraege.befangenheitsNotiz);
+            await _addCol(m, auftraege, auftraege.befangenheitsNotiz);
 
-            await m.addColumn(auftraege, auftraege.mehrkostenAnzeigeAm);
-            await m.addColumn(auftraege, auftraege.mehrkostenBetrag);
-            await m.addColumn(
+            await _addCol(m, auftraege, auftraege.mehrkostenAnzeigeAm);
+            await _addCol(m, auftraege, auftraege.mehrkostenBetrag);
+            await _addCol(m, 
                 auftraege, auftraege.mehrkostenBegruendung);
 
-            await m.addColumn(auftraege, auftraege.beweisfragenJson);
+            await _addCol(m, auftraege, auftraege.beweisfragenJson);
           }
 
           // v29 → v30: Anschreiben-Belegnummer + Druck-Zeitstempel (zum
           // Einfrieren des Schriftstücks beim "Drucken & in Akte ablegen").
           if (from < 30) {
-            await m.addColumn(anschreiben, anschreiben.belegNr);
-            await m.addColumn(anschreiben, anschreiben.gedrucktAm);
+            await _addCol(m, anschreiben, anschreiben.belegNr);
+            await _addCol(m, anschreiben, anschreiben.gedrucktAm);
           }
 
           // v30 → v31: Leistungsverzeichnis-Modul (LV-Kopf, Positionen,
@@ -368,22 +383,22 @@ class AppDatabase extends _$AppDatabase {
           // auf lv_kopf) und MwSt. pro Position (ustSatz auf
           // lv_positionen) für gemischte Steuersätze.
           if (from < 32) {
-            await m.addColumn(lvKopf, lvKopf.basisLvId);
-            await m.addColumn(lvKopf, lvKopf.bieterName);
-            await m.addColumn(lvPositionen, lvPositionen.ustSatz);
+            await _addCol(m, lvKopf, lvKopf.basisLvId);
+            await _addCol(m, lvKopf, lvKopf.bieterName);
+            await _addCol(m, lvPositionen, lvPositionen.ustSatz);
           }
 
           // v32 → v33: Bieter-Kontakt (Kunden-Verknüpfung) auf lv_kopf,
           // damit Adresse/Mail des Bieters aus den Kontakten gezogen
           // werden kann.
           if (from < 33) {
-            await m.addColumn(lvKopf, lvKopf.bieterKundeId);
+            await _addCol(m, lvKopf, lvKopf.bieterKundeId);
           }
 
           // v33 → v34: Gutachten-Anlagen als referenzierbare Dokumente,
           // die hinten ans PDF angehängt werden.
           if (from < 34) {
-            await m.addColumn(gutachten, gutachten.anlagenJson);
+            await _addCol(m, gutachten, gutachten.anlagenJson);
           }
 
           // v34 → v35: Befangenheits-Register mit manuellen Einträgen

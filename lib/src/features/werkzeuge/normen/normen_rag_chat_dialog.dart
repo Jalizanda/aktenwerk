@@ -293,7 +293,109 @@ class _NormenRagChatDialogState extends ConsumerState<NormenRagChatDialog> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final body = Row(
+    final isMobile = MediaQuery.sizeOf(context).width < 650;
+
+    // Haupt-Inhaltsspalte (Chat-Bereich)
+    final mainColumn = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: AwTokens.orange, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _aktiveChatId == null
+                      ? 'Neuer Normen-Chat'
+                      : 'Normen-Chat',
+                  style: Theme.of(context).textTheme.titleSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Auf Mobile: Neuer-Chat-Button im Header
+              if (isMobile)
+                TextButton.icon(
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Neu'),
+                  onPressed: _neuerChat,
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: _historie.isEmpty
+              ? const _LeererZustand()
+              : ListView.builder(
+                  controller: _scrollCtrl,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _historie.length,
+                  itemBuilder: (_, i) => _ChatEintrag(
+                    nachricht: _historie[i],
+                    onQuelleTap: _quelleOeffnen,
+                  ),
+                ),
+        ),
+        if (_fehler != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: scheme.errorContainer,
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: scheme.error, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(_fehler!,
+                        style: TextStyle(color: scheme.error))),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => setState(() => _fehler = null),
+                ),
+              ],
+            ),
+          ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _eingabeCtrl,
+                  enabled: !_laedt,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    hintText: 'Frage zur Normen-Bibliothek …',
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _senden(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: _laedt ? null : _senden,
+                icon: _laedt
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.send, size: 16),
+                label: const Text('Senden'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final body = isMobile
+        // Mobile: nur Chat, keine Sidebar
+        ? mainColumn
+        // Desktop: Sidebar + Chat
+        : Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
@@ -407,7 +509,8 @@ class _NormenRagChatDialogState extends ConsumerState<NormenRagChatDialog> {
           ),
         ),
       ],
-    );
+    ); // end desktop Row
+
     if (widget.embedded) return body;
     return Dialog(
       insetPadding: const EdgeInsets.all(32),

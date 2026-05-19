@@ -320,21 +320,16 @@ class _KpiRow extends StatelessWidget {
         .where((a) => offen.contains(a.angebot.status))
         .fold<double>(0, (s, a) => s + a.angebot.brutto);
     final gewonnen = items
-        .where((a) =>
-            a.angebot.status == 'angenommen' ||
-            a.angebot.status == 'auftragsbestaetigung')
+        .where((a) => a.angebot.status == 'angenommen')
         .fold<double>(0, (s, a) => s + a.angebot.brutto);
     final entschieden = items
         .where((a) =>
             a.angebot.status == 'angenommen' ||
-            a.angebot.status == 'auftragsbestaetigung' ||
             a.angebot.status == 'abgelehnt' ||
             a.angebot.status == 'abgelaufen')
         .length;
     final angenommen = items
-        .where((a) =>
-            a.angebot.status == 'angenommen' ||
-            a.angebot.status == 'auftragsbestaetigung')
+        .where((a) => a.angebot.status == 'angenommen')
         .length;
     final conv = entschieden == 0 ? 0.0 : angenommen / entschieden * 100;
 
@@ -457,11 +452,8 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
   }
 
   Future<void> _prefill() async {
-    final seq = await ref.read(angeboteRepositoryProvider).nextSequenz();
-    final pattern = await ref
-        .read(einstellungenRepositoryProvider)
-        .getOr(SettingsKeys.nummernkreisAngebot, 'A{YYYY}-###');
-    final nr = _applyPattern(pattern, seq);
+    final svc = ref.read(nummernkreisServiceProvider);
+    final nr = await svc.previewNumber(NummernkreisTyp.angebot);
     if (mounted && _nr.text.isEmpty) _nr.text = nr;
     final fuss = await ref
         .read(einstellungenRepositoryProvider)
@@ -497,22 +489,7 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
     }
   }
 
-  String _applyPattern(String pattern, int seq) {
-    final now = DateTime.now();
-    var out = pattern
-        .replaceAll('{YYYY}', '${now.year}')
-        .replaceAll('YYYY', '${now.year}')
-        .replaceAll('{MM}', now.month.toString().padLeft(2, '0'))
-        .replaceAll('MM', now.month.toString().padLeft(2, '0'));
-    final m = RegExp(r'#+').firstMatch(out);
-    if (m != null) {
-      out = out.replaceFirst(
-          m.group(0)!, seq.toString().padLeft(m.group(0)!.length, '0'));
-    } else {
-      out = '$out$seq';
-    }
-    return out;
-  }
+
 
   @override
   void dispose() {
@@ -714,6 +691,10 @@ class _AngebotFormState extends ConsumerState<_AngebotForm> {
           quelle;
     }
     final workflow = ref.read(dokumentWorkflowProvider);
+    await ref.read(angeboteRepositoryProvider).upsert(AngeboteCompanion(
+          id: Value(quelle.id),
+          status: const Value('angenommen'),
+        ));
     final abId = await workflow.angebotToAb(quelle);
     if (!mounted) return;
 

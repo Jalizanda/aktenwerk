@@ -122,8 +122,17 @@
       ]
     },
     {
+      "target": "legacy",
+      "public": "website_offline",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ]
+    },
+    {
       "target": "marketing",
-      "public": "website",
+      "public": "website_offline",
       "ignore": [
         "firebase.json",
         "**/.*",

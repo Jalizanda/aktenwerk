@@ -28,6 +28,12 @@ class DemoSeeder {
 
   Future<DemoSeedReport> loadAll() async {
     final raw = await rootBundle.loadString('assets/data/demo_seed.json');
+    return importJsonDump(raw);
+  }
+
+  /// Importiert Daten aus einem JSON-String (z.B. IndexedDB-Export) in die
+  /// lokale Drift-DB und löscht dabei alle bestehenden Daten.
+  Future<DemoSeedReport> importJsonDump(String raw) async {
     final json = jsonDecode(raw) as Map<String, dynamic>;
     final report = DemoSeedReport();
 

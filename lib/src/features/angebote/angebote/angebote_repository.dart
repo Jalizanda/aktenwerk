@@ -20,7 +20,11 @@ class AngeboteRepository {
       leftOuterJoin(
           _db.kunden, _db.kunden.id.equalsExp(_db.angebote.kundeId)),
     ]);
-    if (status != null) q.where(_db.angebote.status.equals(status));
+    if (status != null) {
+      q.where(_db.angebote.status.equals(status));
+    } else {
+      q.where(_db.angebote.status.isNotIn(const ['auftragsbestaetigung']));
+    }
     if (query.trim().isNotEmpty) {
       final like = '%${query.trim().toLowerCase()}%';
       q.where(_db.angebote.angebotsnummer.lower().like(like) |

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +23,8 @@ import 'normen_import.dart';
 import 'normen_pdf_bulk_dialog.dart';
 import 'normen_repository.dart';
 
+enum _MehrAktion { jsonImport, bulkUpload, aktualitaet, indexieren }
+
 class NormenScreen extends ConsumerWidget {
   const NormenScreen({super.key});
 
@@ -30,6 +34,7 @@ class NormenScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(normenListProvider);
     final filter = ref.watch(normenFilterProvider);
+    final isMobile = MediaQuery.sizeOf(context).width < 650;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -38,42 +43,105 @@ class NormenScreen extends ConsumerWidget {
           icon: Icons.menu_book_outlined,
           title: 'Normen',
           subtitle: 'Normen-, Richtlinien- & Gesetze-Katalog',
-          actions: [
-            OutlinedButton.icon(
-              icon: const Icon(Icons.psychology_alt_outlined, size: 18),
-              label: const Text('KI-Frage stellen'),
-              onPressed: () => _oeffneKiChat(context),
-            ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.upload_file_outlined, size: 18),
-              label: const Text('JSON-Import'),
-              onPressed: () => _importJson(context, ref),
-            ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-              label: const Text('PDFs-Massen-Upload'),
-              onPressed: () => showDialog(
-                context: context,
-                useRootNavigator: true,
-                builder: (_) => const NormenPdfBulkDialog(),
-              ),
-            ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.fact_check_outlined, size: 18),
-              label: const Text('Aktualität prüfen'),
-              onPressed: () => _openAktualitaetsDialog(context, ref),
-            ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.cloud_sync_outlined, size: 18),
-              label: const Text('Bibliothek indexieren'),
-              onPressed: () => _bibliothekIndexieren(context, ref),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Neue Norm'),
-              onPressed: () => _show(context, ref),
-            ),
-          ],
+          actions: isMobile
+              ? [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.psychology_alt_outlined, size: 18),
+                    label: const Text('KI-Frage'),
+                    onPressed: () => _oeffneKiChat(context),
+                  ),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Neu'),
+                    onPressed: () => _show(context, ref),
+                  ),
+                  PopupMenuButton<_MehrAktion>(
+                    icon: const Icon(Icons.more_vert),
+                    tooltip: 'Weitere Aktionen',
+                    onSelected: (a) => switch (a) {
+                      _MehrAktion.jsonImport => _importJson(context, ref),
+                      _MehrAktion.bulkUpload => showDialog(
+                          context: context,
+                          useRootNavigator: true,
+                          builder: (_) => const NormenPdfBulkDialog(),
+                        ),
+                      _MehrAktion.aktualitaet =>
+                        _openAktualitaetsDialog(context, ref),
+                      _MehrAktion.indexieren =>
+                        _bibliothekIndexieren(context, ref),
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: _MehrAktion.jsonImport,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.upload_file_outlined),
+                          title: Text('JSON-Import'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _MehrAktion.bulkUpload,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.cloud_upload_outlined),
+                          title: Text('PDF-Massen-Upload'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _MehrAktion.aktualitaet,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.fact_check_outlined),
+                          title: Text('Aktualität prüfen'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _MehrAktion.indexieren,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.cloud_sync_outlined),
+                          title: Text('Bibliothek indexieren'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ]
+              : [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.psychology_alt_outlined, size: 18),
+                    label: const Text('KI-Frage stellen'),
+                    onPressed: () => _oeffneKiChat(context),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.upload_file_outlined, size: 18),
+                    label: const Text('JSON-Import'),
+                    onPressed: () => _importJson(context, ref),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                    label: const Text('PDFs-Massen-Upload'),
+                    onPressed: () => showDialog(
+                      context: context,
+                      useRootNavigator: true,
+                      builder: (_) => const NormenPdfBulkDialog(),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.fact_check_outlined, size: 18),
+                    label: const Text('Aktualität prüfen'),
+                    onPressed: () => _openAktualitaetsDialog(context, ref),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.cloud_sync_outlined, size: 18),
+                    label: const Text('Bibliothek indexieren'),
+                    onPressed: () => _bibliothekIndexieren(context, ref),
+                  ),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Neue Norm'),
+                    onPressed: () => _show(context, ref),
+                  ),
+                ],
           searchHint: 'Suche Nummer, Titel, Kategorie …',
           onSearchChanged: (v) => ref
               .read(normenFilterProvider.notifier)
@@ -150,7 +218,7 @@ class NormenScreen extends ConsumerWidget {
         ),
         const Divider(height: 1),
         async.maybeWhen(
-          data: (items) => _IndexFortschrittBalken(
+          data: (items) => _IndexFortschrittWidget(
             normIdsMitPdf: items
                 .where((n) =>
                     n.pdfStorageUrl != null &&
@@ -485,6 +553,44 @@ class _NormenTabelleState extends ConsumerState<_NormenTabelle> {
             final cmp = Comparable.compare(ka, kb);
             return _sortAscending ? cmp : -cmp;
           }));
+    final isMobile = MediaQuery.sizeOf(context).width < 650;
+
+    // ── Mobile: Kachel-Liste ──────────────────────────────────────────────
+    if (isMobile) {
+      return Opacity(
+        opacity: dimmed ? 0.72 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: dimmed ? AppTheme.slate500 : AppTheme.slate900,
+                  ),
+                ),
+              ),
+              for (final n in sorted)
+                _NormMobileKachel(
+                  norm: n,
+                  indexStatus:
+                      statusMap[n.id] ?? NormIndexStatus.unbekannt,
+                  onEdit: () => onEdit(n),
+                  onDelete: () => onDelete(n),
+                  onToggleFavorit: () => onToggleFavorit(n),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ── Desktop: DataTable ────────────────────────────────────────────────
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
@@ -601,6 +707,137 @@ class _NormenTabelleState extends ConsumerState<_NormenTabelle> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// ------------- Mobile Kachel -------------
+
+class _NormMobileKachel extends ConsumerWidget {
+  const _NormMobileKachel({
+    required this.norm,
+    required this.indexStatus,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggleFavorit,
+  });
+  final NormenData norm;
+  final NormIndexStatus indexStatus;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onToggleFavorit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasPdf =
+        norm.pdfStorageUrl != null && norm.pdfStorageUrl!.trim().isNotEmpty;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 0.8),
+      ),
+      elevation: 0,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onEdit,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Favorit-Button
+              GestureDetector(
+                onTap: onToggleFavorit,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 1, right: 6),
+                  child: Icon(
+                    norm.favorit ? Icons.star : Icons.star_outline,
+                    size: 18,
+                    color: norm.favorit
+                        ? Theme.of(context).colorScheme.tertiary
+                        : AppTheme.slate400,
+                  ),
+                ),
+              ),
+              // Inhalt
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nummer + Kategorie
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            norm.nummer,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        _KategorieBadge(kategorie: norm.kategorie),
+                      ],
+                    ),
+                    // Titel
+                    if ((norm.titel ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        norm.titel!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12.5, color: AppTheme.slate700),
+                      ),
+                    ],
+                    // Ausgabe + Aktualität + PDF-Dot
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        if ((norm.ausgabe ?? '').isNotEmpty) ...[
+                          Text(norm.ausgabe!,
+                              style: TextStyle(
+                                  fontSize: 11, color: AppTheme.slate500)),
+                          const SizedBox(width: 8),
+                        ],
+                        _AktualitaetsPill(norm: norm),
+                        if (hasPdf) ...[
+                          const SizedBox(width: 8),
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(Icons.picture_as_pdf,
+                                  size: 16, color: AwTokens.red),
+                              Positioned(
+                                right: -3,
+                                bottom: -3,
+                                child: _IndexStatusDot(status: indexStatus),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Löschen-Button
+              IconButton(
+                icon:
+                    const Icon(Icons.delete_outline, size: 18),
+                tooltip: 'Löschen',
+                onPressed: onDelete,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1968,110 +2205,202 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-/// Live-Fortschritts-Balken für die RAG-Indexierung der Bibliothek.
-/// Zeigt: indexed / pending / indexing / failed / unbekannt + Chunk-Anzahl.
-class _IndexFortschrittBalken extends ConsumerWidget {
-  const _IndexFortschrittBalken({required this.normIdsMitPdf});
+/// Collapsible Indexierungs-Status: kleiner Chip wenn ruhig, voller Balken
+/// wenn aktiv. Blendet sich bei laufender Indexierung automatisch ein und
+/// nach Abschluss wieder aus (nach 4 Sekunden).
+class _IndexFortschrittWidget extends ConsumerStatefulWidget {
+  const _IndexFortschrittWidget({required this.normIdsMitPdf});
   final List<int> normIdsMitPdf;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (normIdsMitPdf.isEmpty) return const SizedBox.shrink();
-    final stream =
-        ref.read(normRagServiceProvider).watchFortschritt(normIdsMitPdf);
-    return StreamBuilder<NormIndexFortschritt>(
-      stream: stream,
-      builder: (context, snap) {
-        final f = snap.data;
-        if (f == null) return const SizedBox.shrink();
-        final scheme = Theme.of(context).colorScheme;
-        return Container(
-          color: scheme.surfaceContainerLowest,
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-          child: Row(
-            children: [
-              Icon(
-                f.istFertig
-                    ? Icons.check_circle
-                    : (f.laeuft ? Icons.cloud_sync : Icons.cloud_off_outlined),
-                size: 18,
-                color: f.istFertig
-                    ? AwTokens.green
-                    : (f.laeuft ? AwTokens.blue : AwTokens.mute),
+  ConsumerState<_IndexFortschrittWidget> createState() =>
+      _IndexFortschrittWidgetState();
+}
+
+class _IndexFortschrittWidgetState
+    extends ConsumerState<_IndexFortschrittWidget> {
+  bool _expanded = false;
+  Timer? _collapseTimer;
+  StreamSubscription<NormIndexFortschritt>? _sub;
+  NormIndexFortschritt? _letzter;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.normIdsMitPdf.isEmpty) return;
+    _sub = ref
+        .read(normRagServiceProvider)
+        .watchFortschritt(widget.normIdsMitPdf)
+        .listen((f) {
+      if (!mounted) return;
+      setState(() => _letzter = f);
+      if (f.laeuft && !_expanded) {
+        _collapseTimer?.cancel();
+        setState(() => _expanded = true);
+      } else if (f.istFertig && _expanded) {
+        _collapseTimer?.cancel();
+        _collapseTimer = Timer(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _expanded = false);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _collapseTimer?.cancel();
+    super.dispose();
+  }
+
+  void _toggle() {
+    _collapseTimer?.cancel();
+    setState(() => _expanded = !_expanded);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.normIdsMitPdf.isEmpty) return const SizedBox.shrink();
+    final f = _letzter;
+    if (f == null) return const SizedBox.shrink();
+
+    if (!_expanded) {
+      // Kompakter Status-Chip — immer sichtbar, Tap öffnet den Balken.
+      final (chipColor, chipIcon) = f.istFertig
+          ? (AwTokens.green, Icons.check_circle_outline)
+          : f.laeuft
+              ? (AwTokens.blue, Icons.cloud_sync_outlined)
+              : f.failed > 0
+                  ? (AwTokens.red, Icons.error_outline)
+                  : (AwTokens.mute, Icons.cloud_off_outlined);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: _toggle,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: chipColor.withValues(alpha: 0.4)),
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(chipIcon, size: 14, color: chipColor),
+                  const SizedBox(width: 5),
+                  Text(
+                    'KI-Index: ${f.indexed}/${f.gesamt}'
+                    '${f.failed > 0 ? '  ·  ${f.failed} ✕' : ''}',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: chipColor,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.expand_more, size: 14, color: chipColor),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Voller Balken
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surfaceContainerLowest,
+      padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            f.istFertig
+                ? Icons.check_circle
+                : (f.laeuft ? Icons.cloud_sync : Icons.cloud_off_outlined),
+            size: 18,
+            color: f.istFertig
+                ? AwTokens.green
+                : (f.laeuft ? AwTokens.blue : AwTokens.mute),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          'KI-Indexierung der Bibliothek: ${f.indexed} / ${f.gesamt} Normen',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13),
-                        ),
-                        const SizedBox(width: 8),
-                        if (f.chunks > 0)
-                          Text('· ${f.chunks} Textstellen',
-                              style: TextStyle(
-                                  color: scheme.onSurfaceVariant,
-                                  fontSize: 12)),
-                      ],
+                    Text(
+                      'KI-Indexierung: ${f.indexed} / ${f.gesamt} Normen',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
                     ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: f.fortschritt,
-                        minHeight: 6,
-                        backgroundColor: scheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation(
-                            f.istFertig ? AwTokens.green : AwTokens.orange),
-                      ),
-                    ),
-                    if (f.laeuft || f.failed > 0 || f.unbekannt > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Wrap(
-                          spacing: 14,
-                          children: [
-                            if (f.indexing > 0)
-                              _StatusZahl(
-                                  icon: Icons.hourglass_top,
-                                  color: AwTokens.blue,
-                                  label: '${f.indexing} läuft'),
-                            if (f.pending > 0)
-                              _StatusZahl(
-                                  icon: Icons.schedule,
-                                  color: AwTokens.amber,
-                                  label: '${f.pending} wartet'),
-                            if (f.failed > 0)
-                              InkWell(
-                                onTap: () =>
-                                    _zeigeFehlerDialog(context, ref),
-                                child: _StatusZahl(
-                                    icon: Icons.error_outline,
-                                    color: AwTokens.red,
-                                    label:
-                                        '${f.failed} fehlgeschlagen ›'),
-                              ),
-                            if (f.unbekannt > 0)
-                              _StatusZahl(
-                                  icon: Icons.cloud_off_outlined,
-                                  color: AwTokens.mute,
-                                  label:
-                                      '${f.unbekannt} noch nicht angemeldet'),
-                          ],
-                        ),
-                      ),
+                    const SizedBox(width: 8),
+                    if (f.chunks > 0)
+                      Text('· ${f.chunks} Textstellen',
+                          style: TextStyle(
+                              color: scheme.onSurfaceVariant, fontSize: 12)),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: f.fortschritt,
+                    minHeight: 6,
+                    backgroundColor: scheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation(
+                        f.istFertig ? AwTokens.green : AwTokens.orange),
+                  ),
+                ),
+                if (f.laeuft || f.failed > 0 || f.unbekannt > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Wrap(
+                      spacing: 14,
+                      children: [
+                        if (f.indexing > 0)
+                          _StatusZahl(
+                              icon: Icons.hourglass_top,
+                              color: AwTokens.blue,
+                              label: '${f.indexing} läuft'),
+                        if (f.pending > 0)
+                          _StatusZahl(
+                              icon: Icons.schedule,
+                              color: AwTokens.amber,
+                              label: '${f.pending} wartet'),
+                        if (f.failed > 0)
+                          Builder(
+                            builder: (ctx) => InkWell(
+                              onTap: () => _zeigeFehlerDialog(ctx, ref),
+                              child: _StatusZahl(
+                                  icon: Icons.error_outline,
+                                  color: AwTokens.red,
+                                  label: '${f.failed} fehlgeschlagen ›'),
+                            ),
+                          ),
+                        if (f.unbekannt > 0)
+                          _StatusZahl(
+                              icon: Icons.cloud_off_outlined,
+                              color: AwTokens.mute,
+                              label: '${f.unbekannt} nicht angemeldet'),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
-        );
-      },
+          IconButton(
+            icon: const Icon(Icons.expand_less, size: 18),
+            tooltip: 'Einklappen',
+            onPressed: _toggle,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2125,14 +2454,21 @@ class _NormenKiChatDialogTabsState extends State<_NormenKiChatDialogTabs>
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 650;
     return Dialog(
-      insetPadding: const EdgeInsets.all(32),
+      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.all(32),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 960, maxHeight: 800),
+        constraints: isMobile
+            ? BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width,
+                maxHeight: MediaQuery.sizeOf(context).height,
+              )
+            : const BoxConstraints(maxWidth: 960, maxHeight: 800),
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 8, 0),
+              padding: EdgeInsets.fromLTRB(
+                  20, isMobile ? MediaQuery.paddingOf(context).top + 8 : 14, 8, 0),
               child: Row(
                 children: [
                   Text('Normen-Chat',

@@ -112,3 +112,49 @@ Future<Strecke?> routeKm(LatLon start, LatLon ziel) async {
     return null;
   }
 }
+
+/// Holt aktuelle Wetterdaten für einen Standort via Open-Meteo und
+/// liefert einen formatierten Notiz-Text zurück.
+Future<String?> wetterNotiz(LatLon pos) async {
+  final uri = Uri.parse(
+    'https://api.open-meteo.com/v1/forecast?'
+    'latitude=${pos.lat}&longitude=${pos.lon}'
+    '&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,cloud_cover,surface_pressure,wind_speed_10m,wind_gusts_10m'
+    '&timezone=auto'
+  );
+  try {
+    final resp = await http.get(uri);
+    if (resp.statusCode != 200) return null;
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    final current = data['current'] as Map<String, dynamic>?;
+    final units = data['current_units'] as Map<String, dynamic>?;
+    if (current == null || units == null) return null;
+
+    final t = current['temperature_2m'];
+    final tUnit = units['temperature_2m'];
+    final appT = current['apparent_temperature'];
+    final h = current['relative_humidity_2m'];
+    final hUnit = units['relative_humidity_2m'];
+    final p = current['surface_pressure'];
+    final pUnit = units['surface_pressure'];
+    final c = current['cloud_cover'];
+    final cUnit = units['cloud_cover'];
+    final w = current['wind_speed_10m'];
+    final wUnit = units['wind_speed_10m'];
+    final wg = current['wind_gusts_10m'];
+    final wgUnit = units['wind_gusts_10m'];
+    final prec = current['precipitation'];
+    final precUnit = units['precipitation'];
+
+    return '📍 Standort-Koordinaten: ${pos.lat}, ${pos.lon}\n\n'
+        'Wetterbedingungen am Ortstermin:\n'
+        '• Temperatur: $t $tUnit (Gefühlt: $appT $tUnit)\n'
+        '• Luftfeuchtigkeit: $h $hUnit\n'
+        '• Luftdruck: $p $pUnit\n'
+        '• Bewölkung: $c $cUnit\n'
+        '• Wind: $w $wUnit (Böen bis $wg $wgUnit)\n'
+        '• Niederschlag: $prec $precUnit';
+  } catch (_) {
+    return null;
+  }
+}

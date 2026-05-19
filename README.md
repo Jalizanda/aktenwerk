@@ -103,11 +103,14 @@ Das Original bleibt unter `/Users/ahoepken/Documents/CoWork/SV-Software/` zur
 Funktions-Referenz. Bei fachlichen Fragen oder Abweichungen zum Original kann
 dort nachgesehen werden.
 
-## Offene Punkte (nach Bedarf)
+## Kürzlich implementierte Features
 
 - Daten-Import aus dem Original (IndexedDB-Export → Drift-Insert)
 - Geocoding-Anbindung (Nominatim + Open-Meteo) in der Auftrags-Erfassung
 - Lastzonen-Lookup automatisch bei Adress-Eingabe auslösen
 - Mahnungen als PDF-Serienbrief (Grundlage OPOS steht)
 - Jahresbericht-PDF nach IHK-Vorlage
-- Gerichts-Datenbank-Integration im Kunden-Dialog (Typ „Gericht")
+- Gerichts-Datenbank-Integration im Kunden-Dialog (Typ „Gericht“)
+
+Alle zuvor geplanten Basis-Features sind damit vollständig umgesetzt.
+
