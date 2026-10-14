@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
@@ -15,7 +16,22 @@ import '../../../shared/widgets/formel_text_field.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'auslagen_repository.dart';
 
-final auslagenQueryProvider = StateProvider<String>((ref) => '');
+class AuslagenQueryNotifier extends StateNotifier<String> {
+  AuslagenQueryNotifier() : super('') {
+    _init();
+  }
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString('filter_auslagen_query') ?? '';
+  }
+  void setQuery(String v) async {
+    state = v;
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('filter_auslagen_query', v);
+  }
+}
+
+final auslagenQueryProvider = StateNotifierProvider<AuslagenQueryNotifier, String>((ref) => AuslagenQueryNotifier());
 
 class AuslagenScreen extends ConsumerStatefulWidget {
   const AuslagenScreen({super.key});
@@ -83,7 +99,7 @@ class _AuslagenScreenState extends ConsumerState<AuslagenScreen> {
           subtitle: 'Auslagen pro Auftrag (Fahrt, Porto, Kopien, Labor …)',
           searchHint: 'Suche Kategorie, Beschreibung, Aktenzeichen …',
           onSearchChanged: (v) =>
-              ref.read(auslagenQueryProvider.notifier).state = v,
+              ref.read(auslagenQueryProvider.notifier).setQuery(v),
           actions: [
             FilledButton.icon(
               icon: const Icon(Icons.add),

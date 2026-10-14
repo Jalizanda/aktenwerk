@@ -30,6 +30,8 @@ class GutachtenPdfData {
   final Uint8List? siegelBytes;
   /// Unterschrifts-Scan.
   final Uint8List? unterschriftBytes;
+  /// Digitaler Stempel (PNG/JPG-Bytes).
+  final Uint8List? stempelBytes;
   /// 'unten_links' | 'unten_rechts' | 'mit_unterschrift'.
   final String siegelPosition;
   final String? bestellBehoerde;
@@ -63,6 +65,7 @@ class GutachtenPdfData {
     this.absender,
     this.siegelBytes,
     this.unterschriftBytes,
+    this.stempelBytes,
     this.siegelPosition = 'unten_rechts',
     this.bestellBehoerde,
     this.bestellNr,
@@ -177,10 +180,20 @@ Future<Uint8List> buildGutachtenPdf(
     italic: italic,
   );
   // Logo aus Absender-Settings laden (data:-URL oder assets/...).
-  final logo = await loadLogoForPdf(data.absender?.logoPfad);
+  pw.ImageProvider? logo = await loadLogoForPdf(data.absender?.logoPfad);
   // Optionales zweites Logo für Folgeseiten — fällt auf das Haupt-Logo
   // zurück, falls in den Einstellungen nichts hinterlegt ist.
-  final logo2 = await loadLogoForPdf(data.logoPfad2) ?? logo;
+  pw.ImageProvider? logo2 = await loadLogoForPdf(data.logoPfad2) ?? logo;
+
+  final bool isGericht = (data.auftrag?.gericht ?? '').trim().isNotEmpty ||
+         (data.auftrag?.gerichtsAktenzeichen ?? '').trim().isNotEmpty ||
+         (data.auftrag?.klaeger ?? '').trim().isNotEmpty ||
+         (data.auftrag?.beklagter ?? '').trim().isNotEmpty;
+  
+  if (isGericht) {
+    logo = null;
+    logo2 = null;
+  }
 
   // Deckblatt
   doc.addPage(
@@ -626,7 +639,9 @@ pw.Widget _unterschriftsBlock(GutachtenPdfData d, DateFormat dateFmt) {
   ].join(' ');
 
   final sig = _safeMemoryImage(d.unterschriftBytes);
-  final siegel = _safeMemoryImage(d.siegelBytes);
+  // Falls ein Stempel vorhanden ist, diesen verwenden, sonst das Siegel.
+  final siegelData = d.stempelBytes ?? d.siegelBytes;
+  final siegel = _safeMemoryImage(siegelData);
 
   final unterschriftsBox = pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.start,

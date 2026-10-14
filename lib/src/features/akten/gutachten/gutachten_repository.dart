@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
+import '../akte/beteiligte_tab.dart';
+import '../auftraege/auftrag_gm_extras.dart';
+import '../gerichtssache/beweisfragen.dart';
 
 /// Strukturelles Kurz-/Langlabel der 13 Zöller-Abschnitte (+ Anlagen) —
 /// Reihenfolge 1:1 wie in der Original-SV-Software.
@@ -294,6 +297,13 @@ final List<SprachRegel> sprachRegeln = [
     'Floskel — Unparteilichkeit ist Selbstverständlichkeit; '
         'eine Beteuerung weckt eher Misstrauen.',
   ),
+  SprachRegel(
+    RegExp(
+      r'\b(Haftung|Schuld|Minderung|Verursacher)\b',
+      caseSensitive: false,
+    ),
+    'Juristische Wertung — als Sachverständiger treffen Sie fachliche Feststellungen, keine rechtlichen Urteile.',
+  ),
 ];
 
 class SprachCheckTreffer {
@@ -330,12 +340,46 @@ List<SprachCheckTreffer> runSprachCheck(Map<String, String> abschnitte) {
 
 /// ----------- Platzhalter-Ersetzung -----------
 
-/// Baut die vollständige Platzhalter-Map für Vorlagen und Anschreiben.
-/// Wird sowohl in Gutachten als auch bei Anschreiben-Vorlagen verwendet,
-/// damit die Ersetzungsregeln an genau einer Stelle leben.
+/// Katalog aller verfügbaren Platzhalter (für Picker in Anschreiben/Vorlagen).
+const List<({String token, String alias, String label})>
+    kAktenwerkPlatzhalterKatalog = [
+  (token: '{{sache}}', alias: r'$Sache', label: 'Kurzrubrum / Sache (z. B. Müller ./. Schmidt)'),
+  (token: '{{aktenzeichen}}', alias: r'$AZ', label: 'Eigenes Aktenzeichen'),
+  (token: '{{gerichts_az}}', alias: r'$GerichtsAZ', label: 'Gerichts-Aktenzeichen'),
+  (token: '{{azExtern}}', alias: r'$AufDatum', label: 'Externes AZ / Auftragsreferenz'),
+  (token: '{{ihr_zeichen}}', alias: r'$IhrZeichen', label: 'Ihr Zeichen (des Empfängers / Beteiligten)'),
+  (token: '{{auftraggeber}}', alias: r'$Auftraggeber', label: 'Name des Auftraggebers / Gerichts'),
+  (token: '{{auftraggeberAnschrift}}', alias: r'$Anschrift', label: 'Anschrift des Auftraggebers'),
+  (token: '{{gericht}}', alias: r'$Gericht', label: 'Gericht & Abteilung/Kammer'),
+  (token: '{{richter}}', alias: r'$Richter', label: 'Richter:in / Sachbearbeiter:in'),
+  (token: '{{klaeger}}', alias: r'$Klaeger', label: 'Kläger / Antragsteller'),
+  (token: '{{beklagter}}', alias: r'$Beklagter', label: 'Beklagter / Antragsgegner'),
+  (token: '{{objekt}}', alias: r'$Objekt', label: 'Objekt-Anschrift'),
+  (token: '{{objektart}}', alias: r'$Objektart', label: 'Objektart & Baujahr'),
+  (token: '{{ortstermin}}', alias: r'$Ortstermin', label: 'Datum des Ortstermins'),
+  (token: '{{ortstermin_uhrzeit}}', alias: r'$OrtsterminUhrzeit', label: 'Uhrzeit des Ortstermins (von–bis)'),
+  (token: '{{ortstermin_alt}}', alias: r'$OrtsterminAlt', label: 'Bisheriger Ortstermin (bei Umladung)'),
+  (token: '{{frist}}', alias: r'$Frist', label: 'Frist zur Gutachtenerstattung'),
+  (token: '{{beweisbeschluss1}}', alias: r'$Beweisbeschluss', label: 'Datum des Beweisbeschlusses'),
+  (token: '{{streitwert}}', alias: r'$Streitwert', label: 'Streitwert / Gegenstandswert (€)'),
+  (token: '{{vorschuss}}', alias: r'$Vorschuss', label: 'Angeforderter / gezahlter Kostenvorschuss (€)'),
+  (token: '{{kostenlimit}}', alias: r'$Kostenlimit', label: 'Kostenlimit gem. § 8a JVEG (€)'),
+  (token: '{{schadensnummer}}', alias: r'$Schadensnummer', label: 'Schadensnummer (Versicherung)'),
+  (token: '{{versicherungsschein_nr}}', alias: r'$VersicherungsscheinNr', label: 'Versicherungsschein-Nr. (Police)'),
+  (token: '{{schadenstag}}', alias: r'$Schadenstag', label: 'Schadenstag'),
+  (token: '{{versicherungsnehmer}}', alias: r'$Versicherungsnehmer', label: 'Versicherungsnehmer (VN)'),
+  (token: '{{beweisfragen}}', alias: r'$Beweisfragen', label: 'Alle nummerierten Beweisfragen der Akte'),
+  (token: '{{geladene_beteiligte}}', alias: r'$GeladeneBeteiligte', label: 'Liste aller zum Ortstermin geladenen Beteiligten'),
+  (token: '{{aktenbaende_rueckgabe}}', alias: r'$Aktenbaende', label: 'Aufstellung der Gerichtsakten-Bände (Seiten von–bis)'),
+  (token: '{{heute}}', alias: r'$Heute', label: 'Heutiges Datum'),
+];
+
+/// Baut die vollständige Platzhalter-Map für Vorlagen, Gutachten und Anschreiben.
+/// Unterstützt sowohl `{{platzhalter}}` als auch Gutachten-Manager-Syntax `$Variable`.
 Map<String, String> buildAktenwerkPlatzhalter({
   AuftraegeData? auftrag,
   KundenData? kunde,
+  String? ihrZeichenOverride,
   DateTime? heute,
 }) {
   String kundeName() {
@@ -373,23 +417,128 @@ Map<String, String> buildAktenwerkPlatzhalter({
     return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   }
 
+  String fmtEuro(double? v) {
+    if (v == null) return '';
+    return '${v.toStringAsFixed(2).replaceAll('.', ',')} €';
+  }
+
   final now = heute ?? DateTime.now();
+  final gm = AuftragGmExtras.fromAuftragExtras(auftrag?.extras);
+  final sache = auftrag == null ? '' : buildSacheKurzbezeichnung(auftrag);
+
+  final uhrzeitVon = gm.ortsterminUhrzeitVon.trim();
+  final uhrzeitBis = gm.ortsterminUhrzeitBis.trim();
+  final uhrzeitStr = uhrzeitVon.isNotEmpty && uhrzeitBis.isNotEmpty
+      ? '$uhrzeitVon bis ca. $uhrzeitBis Uhr'
+      : (uhrzeitVon.isNotEmpty ? '$uhrzeitVon Uhr' : '');
+
+  // Beweisfragen-Block
+  final fragen = decodeBeweisfragen(auftrag?.beweisfragenJson);
+  final beweisfragenStr = fragen.isEmpty
+      ? ''
+      : fragen.map((f) => '${f.nr}. ${f.frage}').join('\n\n');
+
+  // Geladene Beteiligte
+  final beteiligte = decodeBeteiligte(auftrag?.beteiligteJson)
+      .where((b) => b.zumOrtsterminLaden && b.name.trim().isNotEmpty)
+      .toList();
+  final geladeneStr = beteiligte.isEmpty
+      ? ''
+      : beteiligte.map((b) {
+          final vert =
+              b.vertritt.trim().isNotEmpty ? ' (für ${b.vertritt.trim()})' : '';
+          return '• ${b.rolle}$vert: ${b.name.trim()}';
+        }).join('\n');
+
+  // Aktenbände-Aufstellung
+  final baendeStr = gm.aktenbaende.isEmpty
+      ? ''
+      : gm.aktenbaende.map((b) {
+          final seiten =
+              (b.seitenVon != null || b.seitenBis != null)
+                  ? ' (Bl. ${b.seitenVon ?? 1}–${b.seitenBis ?? "?"})'
+                  : '';
+          return '• Band ${b.bandNr}: ${b.bezeichnung}$seiten';
+        }).join('\n');
+
+  final ihrZeichen = (ihrZeichenOverride ?? auftrag?.azExtern ?? '').trim();
+  final gerichtsAz =
+      (auftrag?.gerichtsAktenzeichen ?? auftrag?.azExtern ?? '').trim();
 
   return <String, String>{
+    // Standard {{...}} Syntax
     '{{auftraggeber}}': kundeName(),
     '{{auftraggeberAnschrift}}': kundeAnschrift(),
     '{{objekt}}': objekt(),
     '{{objektart}}': auftrag?.objektart ?? '',
     '{{baujahr}}': auftrag?.baujahr ?? '',
     '{{ortstermin}}': fmt(auftrag?.ortsterminAm),
+    '{{ortstermin_uhrzeit}}': uhrzeitStr,
+    '{{ortstermin_alt}}': fmt(gm.ortsterminAltAm),
+    '{{ortstermin_verlegt_grund}}': gm.ortsterminVerlegtGrund,
     '{{frist}}': fmt(auftrag?.fristAm),
     '{{betreff}}': auftrag?.betreff ?? '',
+    '{{sache}}': sache,
     '{{aktenzeichen}}': auftrag?.aktenzeichen ?? '',
     '{{azExtern}}': auftrag?.azExtern ?? '',
-    '{{gericht}}': auftrag?.gericht ?? '',
+    '{{gerichts_az}}': gerichtsAz,
+    '{{ihr_zeichen}}': ihrZeichen,
+    '{{gericht}}': [auftrag?.gericht, auftrag?.gerichtsort]
+        .whereType<String>()
+        .where((s) => s.trim().isNotEmpty)
+        .join(', '),
     '{{richter}}': auftrag?.richter ?? '',
+    '{{klaeger}}': auftrag?.klaeger ?? (gm.parteiA.isNotEmpty ? gm.parteiA : ''),
+    '{{beklagter}}': auftrag?.beklagter ?? (gm.parteiB.isNotEmpty ? gm.parteiB : ''),
     '{{beweisbeschluss1}}': fmt(auftrag?.beweisbeschluss1),
+    '{{streitwert}}': fmtEuro(gm.streitwert),
+    '{{vorschuss}}': fmtEuro(auftrag?.kostenvorschuss),
+    '{{kostenlimit}}': fmtEuro(auftrag?.kostenLimit),
+    '{{schadensnummer}}': gm.schadensnummer,
+    '{{versicherungsschein_nr}}': gm.versicherungsscheinNr,
+    '{{schadenstag}}': fmt(gm.schadenstag),
+    '{{schadensursache}}': gm.schadensursache,
+    '{{versicherungsnehmer}}': gm.versicherungsnehmer,
+    '{{anspruchsteller}}': gm.anspruchsteller,
+    '{{schiedsvertrag_vom}}': fmt(gm.schiedsvertragVom),
+    '{{obmann}}': gm.obmann,
+    '{{partei_a}}': gm.parteiA,
+    '{{partei_b}}': gm.parteiB,
+    '{{beweisfragen}}': beweisfragenStr,
+    '{{geladene_beteiligte}}': geladeneStr,
+    '{{aktenbaende_rueckgabe}}': baendeStr,
     '{{heute}}': fmt(now),
+
+    // Gutachten-Manager $Variable-Syntax (längere Keys zuerst durch Map-Reihenfolge)
+    r'$VersicherungsscheinNr': gm.versicherungsscheinNr,
+    r'$Versicherungsnehmer': gm.versicherungsnehmer,
+    r'$GeladeneBeteiligte': geladeneStr,
+    r'$OrtsterminUhrzeit': uhrzeitStr,
+    r'$OrtsterminAlt': fmt(gm.ortsterminAltAm),
+    r'$Schadensnummer': gm.schadensnummer,
+    r'$Beweisbeschluss': fmt(auftrag?.beweisbeschluss1),
+    r'$Beweisfragen': beweisfragenStr,
+    r'$Auftraggeber': kundeName(),
+    r'$Aktenbaende': baendeStr,
+    r'$Kostenlimit': fmtEuro(auftrag?.kostenLimit),
+    r'$Schadenstag': fmt(gm.schadenstag),
+    r'$GerichtsAZ': gerichtsAz,
+    r'$IhrZeichen': ihrZeichen,
+    r'$Ortstermin': fmt(auftrag?.ortsterminAm),
+    r'$Streitwert': fmtEuro(gm.streitwert),
+    r'$Anschrift': kundeAnschrift(),
+    r'$Vorschuss': fmtEuro(auftrag?.kostenvorschuss),
+    r'$AufDatum': fmt(auftrag?.beweisbeschluss1 ?? auftrag?.createdAt),
+    r'$Objektart': auftrag?.objektart ?? '',
+    r'$Beklagter': auftrag?.beklagter ?? (gm.parteiB.isNotEmpty ? gm.parteiB : ''),
+    r'$Klaeger': auftrag?.klaeger ?? (gm.parteiA.isNotEmpty ? gm.parteiA : ''),
+    r'$Gericht': auftrag?.gericht ?? '',
+    r'$Richter': auftrag?.richter ?? '',
+    r'$Objekt': objekt(),
+    r'$Frist': fmt(auftrag?.fristAm),
+    r'$Sache': sache,
+    r'$Heute': fmt(now),
+    r'$AZ': auftrag?.aktenzeichen ?? '',
   };
 }
 
@@ -397,8 +546,13 @@ String applyVorlagenPlatzhalter(
   String text, {
   AuftraegeData? auftrag,
   KundenData? kunde,
+  String? ihrZeichenOverride,
 }) {
-  final map = buildAktenwerkPlatzhalter(auftrag: auftrag, kunde: kunde);
+  final map = buildAktenwerkPlatzhalter(
+    auftrag: auftrag,
+    kunde: kunde,
+    ihrZeichenOverride: ihrZeichenOverride,
+  );
   var out = text;
   map.forEach((k, v) {
     out = out.replaceAll(k, v);
@@ -406,15 +560,20 @@ String applyVorlagenPlatzhalter(
   return out;
 }
 
-/// Ersetzt `{{...}}`-Platzhalter direkt im Delta-JSON einer Quill-Vorlage.
+/// Ersetzt `{{...}}`- und `$Variable`-Platzhalter direkt im Delta-JSON einer Quill-Vorlage.
 /// Werte werden JSON-escape-sicher eingesetzt, damit die resultierende
 /// Zeichenkette weiterhin gültiges JSON ist.
 String applyVorlagenPlatzhalterImDelta(
   String deltaJson, {
   AuftraegeData? auftrag,
   KundenData? kunde,
+  String? ihrZeichenOverride,
 }) {
-  final map = buildAktenwerkPlatzhalter(auftrag: auftrag, kunde: kunde);
+  final map = buildAktenwerkPlatzhalter(
+    auftrag: auftrag,
+    kunde: kunde,
+    ihrZeichenOverride: ihrZeichenOverride,
+  );
   String escape(String v) => v
       .replaceAll('\\', r'\\')
       .replaceAll('"', r'\"')

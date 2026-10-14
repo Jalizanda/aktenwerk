@@ -57,7 +57,7 @@ class _EinstellungenFormState
   void dispose() {
     _tabController.dispose();
     for (final c in [
-      _firmaName, _firmaTitel, _firmaAnschrift, _firmaTelefon, _firmaEmail,
+      _firmaName, _sachgebiet, _firmaTitel, _firmaAnschrift, _firmaTelefon, _firmaEmail,
       _firmaWebsite, _bestellung1, _bestellung2,
       _ustId, _steuerNr,
       _bankInhaber, _bankName, _iban, _bic,
@@ -77,6 +77,7 @@ class _EinstellungenFormState
 
   // ---------- Stammdaten ----------
   late final _firmaName = _tec(SettingsKeys.firmaName, '');
+  late final _sachgebiet = _tec(SettingsKeys.svSachgebiet, '');
   late final _firmaTitel = _tec(SettingsKeys.firmaTitel, '');
   late final _firmaAnschrift = _tec(SettingsKeys.firmaAnschrift, '');
   late final _firmaTelefon = _tec(SettingsKeys.firmaTelefon, '');
@@ -89,6 +90,7 @@ class _EinstellungenFormState
   late final _ustId = _tec(SettingsKeys.steuerUstId, '');
   late final _steuerNr = _tec(SettingsKeys.steuerNr, '');
   late String _kleinunternehmer;
+  late String _stdJvegGruppe;
 
   // ---------- Bank ----------
   late final _bankInhaber = _tec(SettingsKeys.bankInhaber, '');
@@ -112,7 +114,7 @@ class _EinstellungenFormState
 
   // ---------- JVEG ----------
   late final _jvegKm = _tec(SettingsKeys.jvegKmSatz, '0.42');
-  late final _jvegSchreib = _tec(SettingsKeys.jvegSchreibsatz, '1.80');
+  late final _jvegSchreib = _tec(SettingsKeys.jvegSchreibsatz, '0.90');
   late final _jvegKopieSw = _tec(SettingsKeys.jvegKopieSw, '0.50');
   late final _jvegKopieFarbe = _tec(SettingsKeys.jvegKopieFarbe, '1.00');
   late final _jvegFotoErst = _tec(SettingsKeys.jvegLichtbildErstes, '2.00');
@@ -183,6 +185,8 @@ class _EinstellungenFormState
       _tec(SettingsKeys.siegelGueltigBis, '');
   String? _unterschriftBase64;
   String? _unterschriftMime;
+  String? _stempelBase64;
+  String? _stempelMime;
 
   // ---------- E-Rechnung + Kalkulation ----------
   late final _leitwegId = _tec(SettingsKeys.leitwegId, '');
@@ -217,6 +221,8 @@ class _EinstellungenFormState
     _gutachtenFontFamily = (font == null || font.isEmpty) ? 'Standard' : font;
     final size = widget.values[SettingsKeys.gutachtenFontSize];
     _gutachtenFontSize = (size == null || size.isEmpty) ? '11' : size;
+    final jvegGrp = widget.values[SettingsKeys.stundensatzJvegGruppe];
+    _stdJvegGruppe = jvegGrp ?? '2';
     _kleinunternehmer =
         widget.values[SettingsKeys.steuerKleinunternehmer] ?? 'nein';
     _nkAkteReset =
@@ -249,6 +255,9 @@ class _EinstellungenFormState
     _unterschriftBase64 =
         (unterschrift == null || unterschrift.isEmpty) ? null : unterschrift;
     _unterschriftMime = widget.values[SettingsKeys.unterschriftMime];
+    final stempel = widget.values[SettingsKeys.stempelBase64];
+    _stempelBase64 = (stempel == null || stempel.isEmpty) ? null : stempel;
+    _stempelMime = widget.values[SettingsKeys.stempelMime];
   }
 
   TextEditingController _tec(String key, String fallback) {
@@ -390,6 +399,29 @@ class _EinstellungenFormState
     setState(() {
       _unterschriftBase64 = null;
       _unterschriftMime = null;
+    });
+  }
+
+  Future<void> _pickStempel() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'svg'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final f = result.files.first;
+    if (f.bytes == null || f.size > 1 * 1024 * 1024) return;
+    setState(() {
+      _stempelBase64 = base64Encode(f.bytes!);
+      _stempelMime = _mimeForExt(f.extension);
+    });
+  }
+
+  void _removeStempel() {
+    setState(() {
+      _stempelBase64 = null;
+      _stempelMime = null;
     });
   }
 
@@ -554,6 +586,7 @@ class _EinstellungenFormState
     try {
     // Stammdaten
     await repo.set(SettingsKeys.firmaName, _firmaName.text.trim());
+    await repo.set(SettingsKeys.svSachgebiet, _sachgebiet.text.trim());
     await repo.set(SettingsKeys.firmaTitel, _firmaTitel.text.trim());
     await repo.set(SettingsKeys.firmaAnschrift, _firmaAnschrift.text.trim());
     await repo.set(SettingsKeys.firmaTelefon, _firmaTelefon.text.trim());
@@ -579,6 +612,7 @@ class _EinstellungenFormState
 
     // Honorar
     await repo.set(SettingsKeys.standardStundensatz, _satz.text.trim());
+    await repo.set(SettingsKeys.stundensatzJvegGruppe, _stdJvegGruppe);
     await repo.set(SettingsKeys.stundensatzJveg, _satzJveg.text.trim());
     await repo.set(SettingsKeys.honorargruppeM1Satz, _gruppeM1.text.trim());
     await repo.set(SettingsKeys.honorargruppeM2Satz, _gruppeM2.text.trim());
@@ -670,6 +704,8 @@ class _EinstellungenFormState
     await repo.set(SettingsKeys.siegelGueltigBis, _siegelGueltigBis.text.trim());
     await repo.set(SettingsKeys.unterschriftBase64, _unterschriftBase64);
     await repo.set(SettingsKeys.unterschriftMime, _unterschriftMime);
+    await repo.set(SettingsKeys.stempelBase64, _stempelBase64);
+    await repo.set(SettingsKeys.stempelMime, _stempelMime);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -754,6 +790,9 @@ class _EinstellungenFormState
                             TextField(controller: _firmaTitel)),
                       ),
                       const SizedBox(height: 12),
+                      _L('Fach-/Sachgebiet (z.B. für KI-Prüfungen)',
+                          TextField(controller: _sachgebiet)),
+                      const SizedBox(height: 12),
                       _L(
                         'Anschrift (mehrzeilig)',
                         TextField(
@@ -811,6 +850,47 @@ class _EinstellungenFormState
                                   logoMime: _logo2Mime,
                                   onPick: _pickLogo2,
                                   onRemove: _removeLogo2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text('Unterschrift',
+                                    style: theme.textTheme.labelSmall),
+                                const SizedBox(height: 4),
+                                _LogoPanel(
+                                  logoBase64: _unterschriftBase64,
+                                  logoMime: _unterschriftMime,
+                                  onPick: _pickUnterschrift,
+                                  onRemove: _removeUnterschrift,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text('Digitaler Stempel',
+                                    style: theme.textTheme.labelSmall),
+                                const SizedBox(height: 4),
+                                _LogoPanel(
+                                  logoBase64: _stempelBase64,
+                                  logoMime: _stempelMime,
+                                  onPick: _pickStempel,
+                                  onRemove: _removeStempel,
                                 ),
                               ],
                             ),
@@ -908,14 +988,18 @@ class _EinstellungenFormState
                           ),
                         ),
                         right: _L(
-                          'JVEG-Stundensatz (€)',
+                          'Standard JVEG-Gruppe',
                           _InfoField(
-                            hint: 'z. B. M3 = 130 €',
-                            child: TextField(
-                              controller: _satzJveg,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
+                            hint: 'M1=100€, M2=114€, M3=135€',
+                            child: DropdownButtonFormField<String>(
+                              value: _stdJvegGruppe,
+                              items: const [
+                                DropdownMenuItem(value: '1', child: Text('M1 (z.B. 100 €)')),
+                                DropdownMenuItem(value: '2', child: Text('M2 (z.B. 114 €)')),
+                                DropdownMenuItem(value: '3', child: Text('M3 (z.B. 135 €)')),
+                                DropdownMenuItem(value: '4', child: Text('M4')),
+                              ],
+                              onChanged: (v) => setState(() => _stdJvegGruppe = v ?? '2'),
                             ),
                           ),
                         ),

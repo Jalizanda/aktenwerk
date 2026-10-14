@@ -91,9 +91,7 @@ class AnschreibenScreen extends ConsumerWidget {
                             cells: [
                               DataCell(Text(_dateFmt.format(a.anschreiben.datum))),
                               DataCell(Text(a.anschreiben.betreff ?? '')),
-                              DataCell(Text(a.kunde == null
-                                  ? ''
-                                  : kundeAnzeigename(a.kunde!))),
+                              DataCell(Text(_empfaengerLabel(a))),
                               DataCell(
                                   Text(a.auftrag?.aktenzeichen ?? '')),
                               DataCell(Text(a.anschreiben.status)),
@@ -114,6 +112,24 @@ class AnschreibenScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  static String _empfaengerLabel(AnschreibenWithKunde a) {
+    if (a.kunde != null) return kundeAnzeigename(a.kunde!);
+    final raw = a.anschreiben.extras;
+    if (raw != null && raw.trim().isNotEmpty) {
+      try {
+        final m = jsonDecode(raw);
+        if (m is Map) {
+          final name = (m['beteiligterName']?.toString() ?? '').trim();
+          final rolle = (m['beteiligterRolle']?.toString() ?? '').trim();
+          if (name.isNotEmpty) {
+            return rolle.isNotEmpty ? '$name ($rolle)' : name;
+          }
+        }
+      } catch (_) {}
+    }
+    return '';
   }
 
   Future<void> _open(BuildContext context, WidgetRef ref,
@@ -186,6 +202,29 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
     _datum = a?.datum ?? DateTime.now();
     _status = a?.status ?? 'entwurf';
     _inhaltJson = a?.inhaltJson;
+    if ((_inhaltJson == null || _inhaltJson!.trim().isEmpty) &&
+        (a?.briefText ?? '').trim().isNotEmpty) {
+      _inhaltJson = _plaintextZuDelta(a!.briefText!);
+    }
+
+    if (a == null && _auftragId != null) {
+      _initGerichtsText();
+    }
+  }
+
+  Future<void> _initGerichtsText() async {
+    final db = ref.read(appDatabaseProvider);
+    final auftrag = await (db.select(db.auftraege)
+          ..where((t) => t.id.equals(_auftragId!)))
+        .getSingleOrNull();
+    if (auftrag?.art == 'gericht' && (_inhaltJson == null || _inhaltJson!.isEmpty)) {
+      if (!mounted) return;
+      setState(() {
+        _inhaltJsonKey++;
+        _inhaltJson = _plaintextZuDelta(
+            'In oben genannter Angelegenheit überreiche ich anbei das fertiggestellte Gutachten sowie meine Kostenrechnung.\n\nIch bitte den Empfang kurz zu bestätigen.');
+      });
+    }
   }
 
   @override
@@ -248,6 +287,40 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
       kunde = await (db.select(db.kunden)..where((t) => t.id.equals(kid)))
           .getSingleOrNull();
     }
+    String? ihrZeichenOverride;
+    if (kunde == null) {
+      final rawExtras = widget.eintrag?.anschreiben.extras;
+      if (rawExtras != null && rawExtras.trim().isNotEmpty) {
+        try {
+          final m = jsonDecode(rawExtras);
+          if (m is Map) {
+            final bName = (m['beteiligterName']?.toString() ?? '').trim();
+            final bAnrede = (m['beteiligterAnrede']?.toString() ?? '').trim();
+            final bStrasse = (m['beteiligterStrasse']?.toString() ?? '').trim();
+            final bPlz = (m['beteiligterPlz']?.toString() ?? '').trim();
+            final bOrt = (m['beteiligterOrt']?.toString() ?? '').trim();
+            final bEmail = (m['beteiligterEmail']?.toString() ?? '').trim();
+            ihrZeichenOverride =
+                (m['beteiligterIhrZeichen']?.toString() ?? '').trim();
+            if (bName.isNotEmpty) {
+              final now = DateTime.now();
+              kunde = KundenData(
+                id: 0,
+                typ: 'privat',
+                anrede: bAnrede.isEmpty ? null : bAnrede,
+                nachname: bName,
+                strasse: bStrasse.isEmpty ? null : bStrasse,
+                plz: bPlz.isEmpty ? null : bPlz,
+                ort: bOrt.isEmpty ? null : bOrt,
+                email: bEmail.isEmpty ? null : bEmail,
+                createdAt: now,
+                updatedAt: now,
+              );
+            }
+          }
+        } catch (_) {}
+      }
+    }
     AuftraegeData? auftrag;
     if (_auftragId != null) {
       auftrag = await (db.select(db.auftraege)
@@ -255,11 +328,26 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
           .getSingleOrNull();
     }
     final absender = await absenderFromSettings(ref);
-    final brieftext = plainTextFromDeltaJson(_inhaltJson);
+    final rawText = plainTextFromDeltaJson(_inhaltJson);
+    final brieftext = applyVorlagenPlatzhalter(
+      rawText,
+      auftrag: auftrag,
+      kunde: kunde,
+      ihrZeichenOverride: ihrZeichenOverride,
+    );
+    final rawBetreff = _betreff.text.trim();
+    final betreffOut = rawBetreff.isEmpty
+        ? null
+        : applyVorlagenPlatzhalter(
+            rawBetreff,
+            auftrag: auftrag,
+            kunde: kunde,
+            ihrZeichenOverride: ihrZeichenOverride,
+          );
     return AnschreibenPdfData(
       dokumentNr: dokumentNr ?? widget.eintrag?.anschreiben.belegNr,
       datum: _datum,
-      betreff: _betreff.text.trim().isEmpty ? null : _betreff.text.trim(),
+      betreff: betreffOut,
       aktenzeichen: auftrag?.aktenzeichen,
       anrede: _anrede.text.trim().isEmpty ? null : _anrede.text.trim(),
       briefText: brieftext.isEmpty ? null : brieftext,
@@ -677,6 +765,111 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
 
   int _inhaltJsonKey = 0;
 
+  Future<void> _platzhalterDialog() async {
+    final db = ref.read(appDatabaseProvider);
+    AuftraegeData? auftrag;
+    if (_auftragId != null) {
+      auftrag = await (db.select(db.auftraege)
+            ..where((t) => t.id.equals(_auftragId!)))
+          .getSingleOrNull();
+    }
+    KundenData? kunde;
+    final kid = _kundeId ?? auftrag?.kundeId;
+    if (kid != null) {
+      kunde = await (db.select(db.kunden)..where((t) => t.id.equals(kid)))
+          .getSingleOrNull();
+    }
+    final map = buildAktenwerkPlatzhalter(auftrag: auftrag, kunde: kunde);
+    if (!mounted) return;
+    final chosen = await showDialog<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680, maxHeight: 620),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.data_object, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Platzhalter & Akten-Variablen einfügen',
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                    FilledButton.tonalIcon(
+                      icon: const Icon(Icons.bolt, size: 16),
+                      label: const Text('Alle im Text auflösen'),
+                      onPressed: () =>
+                          Navigator.of(ctx, rootNavigator: true).pop('__RESOLVE_ALL__'),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () =>
+                          Navigator.of(ctx, rootNavigator: true).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: kAktenwerkPlatzhalterKatalog.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final item = kAktenwerkPlatzhalterKatalog[i];
+                    final val = (map[item.token] ?? '').trim();
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        '${item.label}   (${item.token} / ${item.alias})',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        val.isEmpty ? '— (aktuell leer in Akte) —' : val,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: const Icon(Icons.add_circle_outline, size: 18),
+                      onTap: () => Navigator.of(ctx, rootNavigator: true)
+                          .pop(val.isNotEmpty ? val : item.token),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    if (chosen == '__RESOLVE_ALL__') {
+      final cur = plainTextFromDeltaJson(_inhaltJson);
+      final resolved =
+          applyVorlagenPlatzhalter(cur, auftrag: auftrag, kunde: kunde);
+      setState(() {
+        _betreff.text = applyVorlagenPlatzhalter(_betreff.text,
+            auftrag: auftrag, kunde: kunde);
+        _inhaltJsonKey++;
+        _inhaltJson = _plaintextZuDelta(resolved);
+      });
+      return;
+    }
+    final cur = plainTextFromDeltaJson(_inhaltJson).trimRight();
+    final next = cur.isEmpty ? chosen : '$cur\n$chosen';
+    setState(() {
+      _inhaltJsonKey++;
+      _inhaltJson = _plaintextZuDelta(next);
+    });
+  }
+
   /// Ruft den gewählten KI-Modus auf, zeigt einen Review-Dialog und
   /// übernimmt das Ergebnis in den Editor, wenn der Nutzer zustimmt.
   Future<void> _kiAnwenden(KiModus modus) async {
@@ -878,6 +1071,12 @@ class _AnschreibenEditorState extends ConsumerState<_AnschreibenEditor> {
                 Text('Inhalt',
                     style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.code, size: 16),
+                  label: const Text(r'Platzhalter ($ / {{…}})'),
+                  onPressed: _platzhalterDialog,
+                ),
+                const SizedBox(width: 8),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.auto_awesome, size: 16),
                   label: const Text('KI Schreiben entwerfen'),

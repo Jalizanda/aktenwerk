@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/akten/akte/akte_screen.dart';
 import '../../features/akten/akte/akten_screen.dart';
+import '../../features/akten/auftraege/privatgutachten_schnellanlage_screen.dart';
 import '../../features/angebote/auftragsbestaetigungen/auftragsbestaetigungen_screen.dart';
 import '../../features/akten/dokumente/dokumente_screen.dart';
 import '../../features/akten/eingangsrechnungen/eingangsrechnungen_screen.dart';
@@ -52,6 +53,14 @@ import '../../features/werkzeuge/wiedervorlagen/wiedervorlagen_screen.dart';
 GoRouter buildRouter() {
   return GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      final host = Uri.base.host.toLowerCase();
+      if ((host == 'chat.aktenwerk.app' || host.startsWith('chat.')) &&
+          state.uri.path == '/') {
+        return '/chat';
+      }
+      return null;
+    },
     routes: [
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
@@ -65,6 +74,9 @@ GoRouter buildRouter() {
                     auftragId:
                         int.parse(state.pathParameters['id'] ?? '0'),
                   )),
+          GoRoute(
+              path: '/auftraege/schnellanlage',
+              builder: (_, _) => const PrivatgutachtenSchnellanlageScreen()),
           GoRoute(
               path: '/auftraege',
               builder: (_, _) => const AuftragsbestaetigungenScreen()),
@@ -162,6 +174,9 @@ GoRouter buildRouter() {
       // Fenster verwendet, damit der Nutzer parallel weiterarbeiten kann.
       GoRoute(
           path: '/normen/chat',
+          builder: (_, _) => const NormenChatScreen()),
+      GoRoute(
+          path: '/chat',
           builder: (_, _) => const NormenChatScreen()),
       GoRoute(
         path: '/gutachten-abschnitt/:gid/:key',

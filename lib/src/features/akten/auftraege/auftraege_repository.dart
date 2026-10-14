@@ -4,13 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 
-enum AuftragArt { privat, gericht, schiedsgutachten, beweissicherung }
+enum AuftragArt {
+  privat,
+  gericht,
+  versicherung,
+  schiedsgutachten,
+  beweissicherung,
+}
 
 extension AuftragArtX on AuftragArt {
   String get dbValue => name;
   String get label => switch (this) {
         AuftragArt.privat => 'Privatgutachten',
         AuftragArt.gericht => 'Gerichtsgutachten',
+        AuftragArt.versicherung => 'Versicherungsgutachten',
         AuftragArt.schiedsgutachten => 'Schiedsgutachten',
         AuftragArt.beweissicherung => 'Beweissicherung',
       };

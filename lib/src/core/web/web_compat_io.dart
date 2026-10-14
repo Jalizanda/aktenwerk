@@ -50,3 +50,19 @@ void showBrowserNotification(String title,
     {String? body, String? tag, bool requireInteraction = false}) {
   // No-op
 }
+
+// ---------------- Viewport & Virtual Keyboard (iOS / iPadOS) ----------------
+
+/// Berechnet den Versatz (Bottom-Inset in CSS-Pixeln) der virtuellen Tastatur.
+/// Auf nativen Plattformen 0.0 (wird von Flutter MediaQuery geregelt).
+double get visualViewportKeyboardInset => 0.0;
+
+/// Stream für Änderungen des VisualViewports. Auf nativen Plattformen leer.
+Stream<double> get visualViewportKeyboardStream => const Stream.empty();
+
+/// Setzt das Window-Scroll-Offset zurück (No-Op auf nativen Plattformen).
+void resetWindowScroll() {}
+
+/// Prüft, ob das Gerät ein iOS- oder iPadOS-Gerät ist.
+bool get isIOSorIPad => false;
+

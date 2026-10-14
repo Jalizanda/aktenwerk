@@ -193,6 +193,7 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
 
   Future<void> _openEditor({BankBewegungenData? b}) async {
     await showDialog(
+      barrierDismissible: false,
       context: context,
       useRootNavigator: true,
       builder: (_) => _BankingEditor(b: b),
@@ -225,9 +226,19 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     final istXml = content.trimLeft().startsWith('<?xml') ||
         content.contains('<Document') ||
         file.extension?.toLowerCase() == 'xml';
-    final neue = istXml
-        ? _parseCamt053(content, konto)
-        : _parseGenericCsv(content, konto);
+    List<BankBewegungenCompanion> neue;
+    try {
+      neue = istXml
+          ? _parseCamt053(content, konto)
+          : _parseGenericCsv(content, konto);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Fehler beim Einlesen: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error));
+      }
+      return;
+    }
     if (neue.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -254,8 +265,8 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     xml.XmlDocument doc;
     try {
       doc = xml.XmlDocument.parse(content);
-    } catch (_) {
-      return out;
+    } catch (e) {
+      throw FormatException('Ungültiges XML-Format');
     }
     // Statements (es können mehrere pro Datei sein, z. B. ein Tag pro Stmt).
     for (final stmt in doc.findAllElements('Stmt')) {
@@ -380,6 +391,7 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
   Future<String?> _kontoBezeichnungAbfragen(String dateiname) async {
     final ctrl = TextEditingController(text: _kontoFilter ?? '');
     final result = await showDialog<String>(
+      barrierDismissible: false,
       context: context,
       useRootNavigator: true,
       builder: (_) => AlertDialog(
@@ -441,7 +453,9 @@ class _BankingScreenState extends ConsumerState<BankingScreen> {
     final iName = idxOf(['name', 'auftraggeber', 'beguenstigter', 'gegenpartei']);
     final iBetrag = idxOf(['betrag', 'amount']);
     final iIban = idxOf(['iban', 'kontonummer']);
-    if (iDatum < 0 || iBetrag < 0) return const [];
+    if (iDatum < 0 || iBetrag < 0) {
+      throw FormatException('Erforderliche Spalten (Datum, Betrag) nicht gefunden. Gefundene Spalten: ${headers.join(", ")}');
+    }
 
     final out = <BankBewegungenCompanion>[];
     for (var ln = 1; ln < lines.length; ln++) {
@@ -542,6 +556,7 @@ class _BankingEditor extends ConsumerStatefulWidget {
 }
 
 class _BankingEditorState extends ConsumerState<_BankingEditor> {
+  final _formKey = GlobalKey<FormState>();
   late final _konto = TextEditingController(text: widget.b?.konto ?? '');
   late final _gegenpartei =
       TextEditingController(text: widget.b?.gegenpartei);
@@ -575,6 +590,7 @@ class _BankingEditorState extends ConsumerState<_BankingEditor> {
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
     final betrag = double.tryParse(
         _betrag.text.replaceAll('.', '').replaceAll(',', '.'));
     if (betrag == null) {
@@ -647,7 +663,9 @@ class _BankingEditorState extends ConsumerState<_BankingEditor> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: Column(children: [
+              child: Form(
+                key: _formKey,
+                child: Column(children: [
                 Row(children: [
                   Expanded(
                     child: TextField(
@@ -692,11 +710,17 @@ class _BankingEditorState extends ConsumerState<_BankingEditor> {
                       const InputDecoration(labelText: 'Verwendungszweck'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                TextFormField(
                   controller: _betrag,
                   decoration: const InputDecoration(
                       labelText: 'Betrag (EUR) *',
                       hintText: 'Eingang positiv, Ausgang negativ'),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Bitte Betrag eingeben';
+                    final val = double.tryParse(v.replaceAll('.', '').replaceAll(',', '.'));
+                    if (val == null) return 'Ungültiges Format (z.B. 123,45)';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -784,12 +808,20 @@ class _BankingEditorState extends ConsumerState<_BankingEditor> {
                 ],
                 if (_status == 'kein_beleg' || _status == 'privat') ...[
                   const SizedBox(height: 12),
-                  TextField(
+                  TextFormField(
                     controller: _datevKonto,
                     decoration: const InputDecoration(
                         labelText: 'DATEV-Konto',
                         hintText:
                             'z. B. 1880 (Privatentnahme), 4970 (Bankgebühren)'),
+                    validator: (v) {
+                      final text = (v ?? '').trim();
+                      if (text.isEmpty) return null; // Optional
+                      if (!RegExp(r'^\d{4,6}$').hasMatch(text)) {
+                        return 'DATEV-Konten bestehen aus 4-6 Ziffern';
+                      }
+                      return null;
+                    },
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -798,7 +830,8 @@ class _BankingEditorState extends ConsumerState<_BankingEditor> {
                   maxLines: 2,
                   decoration: const InputDecoration(labelText: 'Notiz'),
                 ),
-              ]),
+                ]),
+              ),
             ),
           ),
           const Divider(height: 1),

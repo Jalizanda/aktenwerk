@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/web/web_compat.dart' as web_compat;
 import 'normen_chat_dialog.dart';
 import 'normen_rag_chat_dialog.dart';
 
@@ -31,7 +32,21 @@ class _NormenChatScreenState extends State<NormenChatScreen>
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final isCompactOrTablet = width < 1100 || web_compat.isIOSorIPad;
+
+    if (isCompactOrTablet) {
+      return const Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: SafeArea(
+          bottom: false,
+          child: NormenRagChatDialog(embedded: true),
+        ),
+      );
+    }
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Normen-Chat'),
         bottom: TabBar(

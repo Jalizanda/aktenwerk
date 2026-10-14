@@ -10,7 +10,6 @@ import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
-import '../textbausteine/textbausteine_repository.dart';
 import 'recherche_ablage_repository.dart';
 
 /// Übersicht über die Recherche-Ablage — zeigt alle gespeicherten

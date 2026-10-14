@@ -243,10 +243,22 @@
       "befangenheitsErgebnis": "unbefangen",
       "befangenheitsNotiz": "Keine persönlichen, geschäftlichen oder verwandtschaftlichen Beziehungen zu den Beteiligten oder deren Bevollmächtigten.",
       "beweisfragen": [
-        {"nr": "1", "frage": "Welche Schäden weist die Außenabdichtung des Kelleraußengeschosses gegenüber Bodenfeuchte und drückendem Wasser auf?"},
-        {"nr": "2", "frage": "Welche Sanierungsmaßnahmen sind nach den anerkannten Regeln der Technik zur dauerhaften Mängelbeseitigung erforderlich?"},
-        {"nr": "3", "frage": "Welche Kosten der Sanierung sind nach derzeitigem Marktpreisniveau zu erwarten?"},
-        {"nr": "4", "frage": "Sind die Schäden auf bauseitige Mängel der Errichtung 1972 oder auf zwischenzeitliche Veränderungen / Nutzungsverhalten zurückzuführen?"}
+        {
+          "nr": "1",
+          "frage": "Welche Schäden weist die Außenabdichtung des Kelleraußengeschosses gegenüber Bodenfeuchte und drückendem Wasser auf?"
+        },
+        {
+          "nr": "2",
+          "frage": "Welche Sanierungsmaßnahmen sind nach den anerkannten Regeln der Technik zur dauerhaften Mängelbeseitigung erforderlich?"
+        },
+        {
+          "nr": "3",
+          "frage": "Welche Kosten der Sanierung sind nach derzeitigem Marktpreisniveau zu erwarten?"
+        },
+        {
+          "nr": "4",
+          "frage": "Sind die Schäden auf bauseitige Mängel der Errichtung 1972 oder auf zwischenzeitliche Veränderungen / Nutzungsverhalten zurückzuführen?"
+        }
       ],
       "gericht": "Amtsgericht Duisburg",
       "gerichtsort": "Duisburg",
@@ -465,10 +477,22 @@
       "mehrkostenBetrag": 5800,
       "mehrkostenBegruendung": "Aufgrund des Ergänzungsbeschlusses vom 06.04.2026 (Erweiterung um die Frage zum Wärmeschutz nach DIN 4108-2) sind zusätzlich ca. 8 Stunden Aktenstudium, eine weitere Bauteilöffnung sowie Thermografie-Aufnahmen erforderlich. Außerdem wird die Stellungnahme zu den Nachfragen der Beklagtenseite umfangreicher als ursprünglich kalkuliert.",
       "beweisfragen": [
-        {"nr": "1", "frage": "Liegt im streitgegenständlichen Bereich der Wohnung ein Schimmelbefall vor und welcher Art / Umfang?"},
-        {"nr": "2", "frage": "Welche Ursachen sind hierfür anzunehmen — bauseitige Mängel oder Lüftungs-/Heizverhalten der Mietpartei?"},
-        {"nr": "3", "frage": "Welche Sanierungsmaßnahmen sind erforderlich und welche Kosten sind hierfür zu veranschlagen?"},
-        {"nr": "4", "frage": "Erfüllt die Außenwandkonstruktion die Mindestanforderungen an den Wärmeschutz gem. DIN 4108-2 (Ergänzungsbeschluss vom 06.04.2026)?"}
+        {
+          "nr": "1",
+          "frage": "Liegt im streitgegenständlichen Bereich der Wohnung ein Schimmelbefall vor und welcher Art / Umfang?"
+        },
+        {
+          "nr": "2",
+          "frage": "Welche Ursachen sind hierfür anzunehmen — bauseitige Mängel oder Lüftungs-/Heizverhalten der Mietpartei?"
+        },
+        {
+          "nr": "3",
+          "frage": "Welche Sanierungsmaßnahmen sind erforderlich und welche Kosten sind hierfür zu veranschlagen?"
+        },
+        {
+          "nr": "4",
+          "frage": "Erfüllt die Außenwandkonstruktion die Mindestanforderungen an den Wärmeschutz gem. DIN 4108-2 (Ergänzungsbeschluss vom 06.04.2026)?"
+        }
       ],
       "gericht": "Landgericht Düsseldorf",
       "gerichtsort": "Düsseldorf",
@@ -2374,6 +2398,46 @@
       "titel": "Mitteilung – Fristüberschreitung Gutachten",
       "kategorie": "anschreiben",
       "text": "Anzeige an das Gericht nach § 411 Abs. 1 ZPO bei absehbarer Fristüberschreitung\n\nAn:             {{gericht}}\nAktenzeichen:   {{azExtern}}\nIn Sachen:      {{betreff}}\nDatum:          {{heute}}\n\n\nin der oben genannten Sache zeige ich hiermit eine absehbare Überschreitung der mir gesetzten Frist zur Erstattung des Gutachtens an.\n\nGründe der Verzögerung:\n\n•  [unvollständige Akten / nachzureichende Unterlagen durch Parteien]\n•  [unerwarteter Umfang der Befundaufnahme / mehrere Ortstermine erforderlich]\n•  [erforderliche Zusatzuntersuchungen / Laborbefunde / Bauteilöffnungen]\n•  [krankheitsbedingte Verhinderung / unaufschiebbare Parallelverfahren]\n•  [sonstige Gründe – kurze Darstellung]\n\nAktueller Arbeitsstand:\n\n•  [Aktenstudium] – abgeschlossen / in Bearbeitung\n•  [Ortstermin] – durchgeführt am {{ortstermin}} / noch ausstehend\n•  [Nachgeforderte Unterlagen] – eingetroffen am TT.MM.JJJJ / ausstehend\n•  [Gutachtenentwurf] – Fertigstellungsgrad ca. xx %\n\nIch bitte um eine Fristverlängerung bis zum TT.MM.JJJJ und werde unaufgefordert nach Fertigstellung Bericht erstatten."
+    },
+    {
+      "kategorie": "Rechtliches",
+      "sachgebiet": "Privatgutachten",
+      "titel": "Widerrufsbelehrung für Privatgutachten (Verbraucher)",
+      "tags": "widerruf, verbraucher, bgb",
+      "text": "Widerrufsrecht\nSie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen. Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertragsabschlusses.\nUm Ihr Widerrufsrecht auszuüben, müssen Sie uns (Namen, Anschrift, Kontaktdaten einfügen) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief, Telefax oder E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.\nZur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.\n\nFolgen des Widerrufs\nWenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart.\nHaben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen sollen, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.",
+      "id": 96
+    },
+    {
+      "kategorie": "Rechtliches",
+      "sachgebiet": "Privatgutachten",
+      "titel": "Muster-Widerrufsformular",
+      "tags": "widerruf, formular",
+      "text": "(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)\n\nAn:\n[Name / Firma des Sachverständigen]\n[Anschrift]\n[E-Mail / Telefax]\n\nHiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über die Erbringung der folgenden Dienstleistung:\n[Art der Dienstleistung / Beauftragtes Gutachten]\n\nBestellt am: [Datum]\nName des/der Verbraucher(s): [Name]\nAnschrift des/der Verbraucher(s): [Anschrift]\n\nUnterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier)\nDatum: [Datum]\n\n(*) Unzutreffendes streichen",
+      "id": 97
+    },
+    {
+      "kategorie": "Rechtliches",
+      "sachgebiet": "Privatgutachten",
+      "titel": "Zustimmung zum vorzeitigen Tätigkeitsbeginn (Erlöschen Widerrufsrecht)",
+      "tags": "widerruf, erlöschen, zustimmung",
+      "text": "Sie werden ausdrücklich darüber informiert, dass das Widerrufsrecht bei einem Vertrag zur Erbringung von Dienstleistungen vorzeitig erlischt, wenn die Dienstleistung vollständig erbracht wurde und [Name des SV] mit der Ausführung der Dienstleistung erst begonnen hat, nachdem Sie dazu Ihre ausdrückliche Zustimmung gegeben haben und Sie gleichzeitig Ihre Kenntnis davon bestätigt haben, dass Sie Ihr Widerrufsrecht bei vollständiger Vertragserfüllung durch [Name des SV] verlieren.\n\nHiermit erkläre ich, dass ich die von [Name des SV] verwendete Widerrufsbelehrung und das Widerrufsformular erhalten habe.\nIn vollständiger Kenntnis dieser Erklärungen bin ich damit einverstanden, dass [Name des SV] seine Tätigkeit unmittelbar nach Vertragsschluss und noch vor Ablauf der 14-tägigen Widerrufsfrist aufnimmt.\nMir ist bekannt, dass ich mein Widerrufsrecht bei vollständiger Vertragserfüllung durch [Name des SV] verliere.\n\nOrt, Datum, Unterschrift des Auftraggebers",
+      "id": 98
+    },
+    {
+      "kategorie": "Rechtliches",
+      "sachgebiet": "Privatgutachten",
+      "titel": "Informationspflichten gemäß Art. 13 DSGVO",
+      "tags": "datenschutz, dsgvo, information",
+      "text": "Information zur Verarbeitung Ihrer personenbezogenen Daten nach Art. 13 der Datenschutzgrundverordnung (DSGVO)\nVerantwortlicher für die Datenverarbeitung ist [Name, Anschrift, Kontaktdaten].\n\nIhre personenbezogenen Daten erhebe ich direkt bei Ihnen im Rahmen der ersten Kontaktaufnahme oder im Laufe eines sich anschließenden Vertragsverhältnisses. Ich verarbeite Ihre personenbezogenen Daten ausschließlich unter Beachtung der Bestimmungen der DSGVO und der nationalen Datenschutzbestimmungen.\nDie Erhebung und Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 b) DSGVO zur Durchführung vorvertraglicher Maßnahmen und Erfüllung eines Vertrags. Ohne diese Daten ist die Erreichung der Vertragszwecke nicht möglich.\n\nIch übermittle Ihre Daten lediglich dann an Dritte, soweit dies für die Abwicklung des Vertrags erforderlich ist (z.B. Steuerberater, Prüfinstitutionen). Eine Auswertung zu Werbezwecken findet nicht statt.\nSie haben das Recht auf Auskunft, Berichtigung, Löschung oder Einschränkung der Verarbeitung Ihrer Daten. Des Weiteren steht Ihnen ein Beschwerderecht bei der Aufsichtsbehörde zu.\nIhre Daten werden gelöscht, sobald sie für die Vertragszwecke und Aufbewahrungspflichten (§ 14 SVO = zehn Jahre) nicht mehr erforderlich sind. Eine Datenübermittlung in ein Drittland findet nicht statt.",
+      "id": 99
+    },
+    {
+      "kategorie": "Rechtliches",
+      "sachgebiet": "Privatgutachten",
+      "titel": "Vollmacht zur Einholung von Auskünften",
+      "tags": "vollmacht, auskunft",
+      "text": "Bevollmächtigung\nIch erteile meine Einwilligung dahingehend, dass der/die Sachverständige [Name] bei Behörden, Gerichten, Versicherungen, Unternehmen oder Sozialversicherungsträgern zum Zwecke der Erstellung des Gutachtens Informationen einholt, bzw. Verwaltungsvorgänge oder Akten einsieht und Ablichtungen daraus anfertigt. Er/Sie ist weiter bevollmächtigt, Ortstermine anzusetzen und die daran zu Beteiligenden in Textform einzuladen.\n\nDiese Bevollmächtigung beinhaltet auch das Recht zur Unterbevollmächtigung.\n\nOrt, Datum, Unterschrift des Auftraggebers",
+      "id": 100
     }
   ],
   "auslagen": [
@@ -5159,7 +5223,6 @@
       "din276": "730",
       "gewerk": "Baunebenkosten"
     },
-
     {
       "id": 20,
       "lvId": 2,
@@ -5242,57 +5305,512 @@
       "din276": "330",
       "gewerk": "Innendämmung"
     },
-
-    {"id": 100, "lvId": 3, "art": "titel", "oz": "1", "sortIndex": 10, "kurztext": "Erdarbeiten / Freilegung", "din276": "310"},
-    {"id": 101, "lvId": 3, "parentId": 100, "art": "normal", "oz": "1.1", "sortIndex": 11, "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen", "einheit": "m³", "menge": 18, "einzelpreis": 72, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
-    {"id": 102, "lvId": 3, "parentId": 100, "art": "normal", "oz": "1.2", "sortIndex": 12, "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen", "einheit": "m", "menge": 14, "einzelpreis": 52, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
-    {"id": 103, "lvId": 3, "art": "titel", "oz": "2", "sortIndex": 20, "kurztext": "Abdichtung und Wärmedämmung", "din276": "330"},
-    {"id": 104, "lvId": 3, "parentId": 103, "art": "normal", "oz": "2.1", "sortIndex": 22, "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)", "einheit": "m²", "menge": 42, "einzelpreis": 82, "din276": "330", "gewerk": "Abdichtung"},
-    {"id": 105, "lvId": 3, "parentId": 103, "art": "normal", "oz": "2.2", "sortIndex": 23, "kurztext": "Perimeterdämmung 80 mm XPS", "einheit": "m²", "menge": 42, "einzelpreis": 42, "din276": "330", "gewerk": "Wärmedämmung"},
-    {"id": 106, "lvId": 3, "art": "titel", "oz": "3", "sortIndex": 30, "kurztext": "Mauerwerk / Horizontalsperre", "din276": "330"},
-    {"id": 107, "lvId": 3, "parentId": 106, "art": "normal", "oz": "3.1", "sortIndex": 31, "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)", "einheit": "m", "menge": 14, "einzelpreis": 135, "din276": "330", "gewerk": "Maurer / Beton"},
-    {"id": 108, "lvId": 3, "art": "titel", "oz": "4", "sortIndex": 40, "kurztext": "Innen-Sanierputz und Anstrich", "din276": "345"},
-    {"id": 109, "lvId": 3, "parentId": 108, "art": "normal", "oz": "4.1", "sortIndex": 41, "kurztext": "Sanierputzsystem Kellerwände (3-lagig)", "einheit": "m²", "menge": 65, "einzelpreis": 62, "din276": "345", "gewerk": "Putz / Stuck"},
-    {"id": 110, "lvId": 3, "parentId": 108, "art": "normal", "oz": "4.2", "sortIndex": 42, "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach", "einheit": "m²", "menge": 65, "einzelpreis": 16, "din276": "345", "gewerk": "Maler / Tapezierer"},
-    {"id": 111, "lvId": 3, "parentId": 108, "art": "bedarf", "oz": "4.3", "sortIndex": 43, "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz", "einheit": "m²", "menge": 65, "einzelpreis": 9, "din276": "345", "gewerk": "Maler / Tapezierer"},
-    {"id": 112, "lvId": 3, "art": "stundenlohn", "oz": "5.1", "sortIndex": 50, "kurztext": "Stundenlohn Bauleitung", "einheit": "h", "menge": 12, "einzelpreis": 95, "din276": "730", "gewerk": "Baunebenkosten"},
-
-    {"id": 200, "lvId": 4, "art": "titel", "oz": "1", "sortIndex": 10, "kurztext": "Erdarbeiten / Freilegung", "din276": "310"},
-    {"id": 201, "lvId": 4, "parentId": 200, "art": "normal", "oz": "1.1", "sortIndex": 11, "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen", "einheit": "m³", "menge": 18, "einzelpreis": 78, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
-    {"id": 202, "lvId": 4, "parentId": 200, "art": "normal", "oz": "1.2", "sortIndex": 12, "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen", "einheit": "m", "menge": 14, "einzelpreis": 55, "din276": "310", "gewerk": "Erdarbeiten / Tiefbau"},
-    {"id": 203, "lvId": 4, "art": "titel", "oz": "2", "sortIndex": 20, "kurztext": "Abdichtung und Wärmedämmung", "din276": "330"},
-    {"id": 204, "lvId": 4, "parentId": 203, "art": "normal", "oz": "2.1", "sortIndex": 22, "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)", "einheit": "m²", "menge": 42, "einzelpreis": 78, "din276": "330", "gewerk": "Abdichtung"},
-    {"id": 205, "lvId": 4, "parentId": 203, "art": "normal", "oz": "2.2", "sortIndex": 23, "kurztext": "Perimeterdämmung 80 mm XPS", "einheit": "m²", "menge": 42, "einzelpreis": 45, "din276": "330", "gewerk": "Wärmedämmung"},
-    {"id": 206, "lvId": 4, "art": "titel", "oz": "3", "sortIndex": 30, "kurztext": "Mauerwerk / Horizontalsperre", "din276": "330"},
-    {"id": 207, "lvId": 4, "parentId": 206, "art": "normal", "oz": "3.1", "sortIndex": 31, "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)", "einheit": "m", "menge": 14, "einzelpreis": 142, "din276": "330", "gewerk": "Maurer / Beton"},
-    {"id": 208, "lvId": 4, "art": "titel", "oz": "4", "sortIndex": 40, "kurztext": "Innen-Sanierputz und Anstrich", "din276": "345"},
-    {"id": 209, "lvId": 4, "parentId": 208, "art": "normal", "oz": "4.1", "sortIndex": 41, "kurztext": "Sanierputzsystem Kellerwände (3-lagig)", "einheit": "m²", "menge": 65, "einzelpreis": 65, "din276": "345", "gewerk": "Putz / Stuck"},
-    {"id": 210, "lvId": 4, "parentId": 208, "art": "normal", "oz": "4.2", "sortIndex": 42, "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach", "einheit": "m²", "menge": 65, "einzelpreis": 18, "din276": "345", "gewerk": "Maler / Tapezierer"},
-    {"id": 211, "lvId": 4, "parentId": 208, "art": "bedarf", "oz": "4.3", "sortIndex": 43, "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz", "einheit": "m²", "menge": 65, "einzelpreis": 11, "din276": "345", "gewerk": "Maler / Tapezierer"},
-    {"id": 212, "lvId": 4, "art": "stundenlohn", "oz": "5.1", "sortIndex": 50, "kurztext": "Stundenlohn Bauleitung", "einheit": "h", "menge": 8, "einzelpreis": 105, "din276": "730", "gewerk": "Baunebenkosten"},
-
-    {"id": 300, "lvId": 5, "art": "titel", "oz": "1", "sortIndex": 10, "kurztext": "Standardarbeiten (19 % USt.)", "din276": "510"},
-    {"id": 301, "lvId": 5, "parentId": 300, "art": "normal", "oz": "1.1", "sortIndex": 11, "kurztext": "Pflasterung Hauseingang Granit", "langtext": "Hauseingang/Vorplatz pflastern mit Granit-Klein-Pflaster 8/10 cm.", "einheit": "m²", "menge": 35, "einzelpreis": 195, "ustSatz": 19, "din276": "510", "gewerk": "Garten / Außenanlagen"},
-    {"id": 302, "lvId": 5, "parentId": 300, "art": "normal", "oz": "1.2", "sortIndex": 12, "kurztext": "Stützmauer Beton Sichtbeton 40 cm dick, 2 m hoch", "einheit": "m", "menge": 12, "einzelpreis": 580, "ustSatz": 19, "din276": "530", "gewerk": "Maurer / Beton"},
-    {"id": 303, "lvId": 5, "parentId": 300, "art": "normal", "oz": "1.3", "sortIndex": 13, "kurztext": "Doppelstabmatten-Zaun 2 m hoch verzinkt", "einheit": "m", "menge": 28, "einzelpreis": 95, "ustSatz": 19, "din276": "550", "gewerk": "Garten / Außenanlagen"},
-    {"id": 304, "lvId": 5, "art": "titel", "oz": "2", "sortIndex": 20, "kurztext": "Künstlerische Leistungen (7 % USt. gem. § 12 Abs. 2 UStG)", "din276": "640"},
-    {"id": 305, "lvId": 5, "parentId": 304, "art": "normal", "oz": "2.1", "sortIndex": 21, "kurztext": "Schmiedeeisen-Geländer historisch nachbilden", "langtext": "Restaurierung Schmiedeeisen-Geländer im historischen Stil, schwarz lackiert. Künstlerische Leistung gem. § 12 Abs. 2 UStG mit ermäßigtem Steuersatz 7 %.", "einheit": "m", "menge": 8, "einzelpreis": 480, "ustSatz": 7, "din276": "640", "gewerk": "Schmiede / Metallbau"},
-    {"id": 306, "lvId": 5, "parentId": 304, "art": "normal", "oz": "2.2", "sortIndex": 22, "kurztext": "Kunststein-Skulptur als Brunnen-Element", "langtext": "Liefern und Aufstellen einer Kunststein-Skulptur 80 × 60 × 40 cm als Mittelpunkt eines kleinen Brunnens. Künstlerische Leistung — 7 % USt.", "einheit": "Stk", "menge": 1, "einzelpreis": 2800, "ustSatz": 7, "din276": "640", "gewerk": "Künstlerische Ausstattung"},
-    {"id": 307, "lvId": 5, "art": "titel", "oz": "3", "sortIndex": 30, "kurztext": "Stundenlohn Bauleitung (19 %)", "din276": "730"},
-    {"id": 308, "lvId": 5, "parentId": 307, "art": "stundenlohn", "oz": "3.1", "sortIndex": 31, "kurztext": "Bauleitung Vor-Ort-Abstimmungen", "einheit": "h", "menge": 6, "einzelpreis": 95, "ustSatz": 19, "din276": "730", "gewerk": "Baunebenkosten"}
-
+    {
+      "id": 100,
+      "lvId": 3,
+      "art": "titel",
+      "oz": "1",
+      "sortIndex": 10,
+      "kurztext": "Erdarbeiten / Freilegung",
+      "din276": "310"
+    },
+    {
+      "id": 101,
+      "lvId": 3,
+      "parentId": 100,
+      "art": "normal",
+      "oz": "1.1",
+      "sortIndex": 11,
+      "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen",
+      "einheit": "m³",
+      "menge": 18,
+      "einzelpreis": 72,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau"
+    },
+    {
+      "id": 102,
+      "lvId": 3,
+      "parentId": 100,
+      "art": "normal",
+      "oz": "1.2",
+      "sortIndex": 12,
+      "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen",
+      "einheit": "m",
+      "menge": 14,
+      "einzelpreis": 52,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau"
+    },
+    {
+      "id": 103,
+      "lvId": 3,
+      "art": "titel",
+      "oz": "2",
+      "sortIndex": 20,
+      "kurztext": "Abdichtung und Wärmedämmung",
+      "din276": "330"
+    },
+    {
+      "id": 104,
+      "lvId": 3,
+      "parentId": 103,
+      "art": "normal",
+      "oz": "2.1",
+      "sortIndex": 22,
+      "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)",
+      "einheit": "m²",
+      "menge": 42,
+      "einzelpreis": 82,
+      "din276": "330",
+      "gewerk": "Abdichtung"
+    },
+    {
+      "id": 105,
+      "lvId": 3,
+      "parentId": 103,
+      "art": "normal",
+      "oz": "2.2",
+      "sortIndex": 23,
+      "kurztext": "Perimeterdämmung 80 mm XPS",
+      "einheit": "m²",
+      "menge": 42,
+      "einzelpreis": 42,
+      "din276": "330",
+      "gewerk": "Wärmedämmung"
+    },
+    {
+      "id": 106,
+      "lvId": 3,
+      "art": "titel",
+      "oz": "3",
+      "sortIndex": 30,
+      "kurztext": "Mauerwerk / Horizontalsperre",
+      "din276": "330"
+    },
+    {
+      "id": 107,
+      "lvId": 3,
+      "parentId": 106,
+      "art": "normal",
+      "oz": "3.1",
+      "sortIndex": 31,
+      "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)",
+      "einheit": "m",
+      "menge": 14,
+      "einzelpreis": 135,
+      "din276": "330",
+      "gewerk": "Maurer / Beton"
+    },
+    {
+      "id": 108,
+      "lvId": 3,
+      "art": "titel",
+      "oz": "4",
+      "sortIndex": 40,
+      "kurztext": "Innen-Sanierputz und Anstrich",
+      "din276": "345"
+    },
+    {
+      "id": 109,
+      "lvId": 3,
+      "parentId": 108,
+      "art": "normal",
+      "oz": "4.1",
+      "sortIndex": 41,
+      "kurztext": "Sanierputzsystem Kellerwände (3-lagig)",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 62,
+      "din276": "345",
+      "gewerk": "Putz / Stuck"
+    },
+    {
+      "id": 110,
+      "lvId": 3,
+      "parentId": 108,
+      "art": "normal",
+      "oz": "4.2",
+      "sortIndex": 42,
+      "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 16,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer"
+    },
+    {
+      "id": 111,
+      "lvId": 3,
+      "parentId": 108,
+      "art": "bedarf",
+      "oz": "4.3",
+      "sortIndex": 43,
+      "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 9,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer"
+    },
+    {
+      "id": 112,
+      "lvId": 3,
+      "art": "stundenlohn",
+      "oz": "5.1",
+      "sortIndex": 50,
+      "kurztext": "Stundenlohn Bauleitung",
+      "einheit": "h",
+      "menge": 12,
+      "einzelpreis": 95,
+      "din276": "730",
+      "gewerk": "Baunebenkosten"
+    },
+    {
+      "id": 200,
+      "lvId": 4,
+      "art": "titel",
+      "oz": "1",
+      "sortIndex": 10,
+      "kurztext": "Erdarbeiten / Freilegung",
+      "din276": "310"
+    },
+    {
+      "id": 201,
+      "lvId": 4,
+      "parentId": 200,
+      "art": "normal",
+      "oz": "1.1",
+      "sortIndex": 11,
+      "kurztext": "Erdaushub Kelleraußenwand Nordseite freilegen",
+      "einheit": "m³",
+      "menge": 18,
+      "einzelpreis": 78,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau"
+    },
+    {
+      "id": 202,
+      "lvId": 4,
+      "parentId": 200,
+      "art": "normal",
+      "oz": "1.2",
+      "sortIndex": 12,
+      "kurztext": "Drainagerohr DN 100 mit Drainpackung verlegen",
+      "einheit": "m",
+      "menge": 14,
+      "einzelpreis": 55,
+      "din276": "310",
+      "gewerk": "Erdarbeiten / Tiefbau"
+    },
+    {
+      "id": 203,
+      "lvId": 4,
+      "art": "titel",
+      "oz": "2",
+      "sortIndex": 20,
+      "kurztext": "Abdichtung und Wärmedämmung",
+      "din276": "330"
+    },
+    {
+      "id": 204,
+      "lvId": 4,
+      "parentId": 203,
+      "art": "normal",
+      "oz": "2.1",
+      "sortIndex": 22,
+      "kurztext": "Bituminöse Außenabdichtung, 2-lagig (KMB)",
+      "einheit": "m²",
+      "menge": 42,
+      "einzelpreis": 78,
+      "din276": "330",
+      "gewerk": "Abdichtung"
+    },
+    {
+      "id": 205,
+      "lvId": 4,
+      "parentId": 203,
+      "art": "normal",
+      "oz": "2.2",
+      "sortIndex": 23,
+      "kurztext": "Perimeterdämmung 80 mm XPS",
+      "einheit": "m²",
+      "menge": 42,
+      "einzelpreis": 45,
+      "din276": "330",
+      "gewerk": "Wärmedämmung"
+    },
+    {
+      "id": 206,
+      "lvId": 4,
+      "art": "titel",
+      "oz": "3",
+      "sortIndex": 30,
+      "kurztext": "Mauerwerk / Horizontalsperre",
+      "din276": "330"
+    },
+    {
+      "id": 207,
+      "lvId": 4,
+      "parentId": 206,
+      "art": "normal",
+      "oz": "3.1",
+      "sortIndex": 31,
+      "kurztext": "Nachträgliche Horizontalsperre injizieren (Silikonharz)",
+      "einheit": "m",
+      "menge": 14,
+      "einzelpreis": 142,
+      "din276": "330",
+      "gewerk": "Maurer / Beton"
+    },
+    {
+      "id": 208,
+      "lvId": 4,
+      "art": "titel",
+      "oz": "4",
+      "sortIndex": 40,
+      "kurztext": "Innen-Sanierputz und Anstrich",
+      "din276": "345"
+    },
+    {
+      "id": 209,
+      "lvId": 4,
+      "parentId": 208,
+      "art": "normal",
+      "oz": "4.1",
+      "sortIndex": 41,
+      "kurztext": "Sanierputzsystem Kellerwände (3-lagig)",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 65,
+      "din276": "345",
+      "gewerk": "Putz / Stuck"
+    },
+    {
+      "id": 210,
+      "lvId": 4,
+      "parentId": 208,
+      "art": "normal",
+      "oz": "4.2",
+      "sortIndex": 42,
+      "kurztext": "Anstrich Kellerwände diffusionsoffen, 2-fach",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 18,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer"
+    },
+    {
+      "id": 211,
+      "lvId": 4,
+      "parentId": 208,
+      "art": "bedarf",
+      "oz": "4.3",
+      "sortIndex": 43,
+      "kurztext": "Bedarfsposition: Tapete entfernen vor Sanierputz",
+      "einheit": "m²",
+      "menge": 65,
+      "einzelpreis": 11,
+      "din276": "345",
+      "gewerk": "Maler / Tapezierer"
+    },
+    {
+      "id": 212,
+      "lvId": 4,
+      "art": "stundenlohn",
+      "oz": "5.1",
+      "sortIndex": 50,
+      "kurztext": "Stundenlohn Bauleitung",
+      "einheit": "h",
+      "menge": 8,
+      "einzelpreis": 105,
+      "din276": "730",
+      "gewerk": "Baunebenkosten"
+    },
+    {
+      "id": 300,
+      "lvId": 5,
+      "art": "titel",
+      "oz": "1",
+      "sortIndex": 10,
+      "kurztext": "Standardarbeiten (19 % USt.)",
+      "din276": "510"
+    },
+    {
+      "id": 301,
+      "lvId": 5,
+      "parentId": 300,
+      "art": "normal",
+      "oz": "1.1",
+      "sortIndex": 11,
+      "kurztext": "Pflasterung Hauseingang Granit",
+      "langtext": "Hauseingang/Vorplatz pflastern mit Granit-Klein-Pflaster 8/10 cm.",
+      "einheit": "m²",
+      "menge": 35,
+      "einzelpreis": 195,
+      "ustSatz": 19,
+      "din276": "510",
+      "gewerk": "Garten / Außenanlagen"
+    },
+    {
+      "id": 302,
+      "lvId": 5,
+      "parentId": 300,
+      "art": "normal",
+      "oz": "1.2",
+      "sortIndex": 12,
+      "kurztext": "Stützmauer Beton Sichtbeton 40 cm dick, 2 m hoch",
+      "einheit": "m",
+      "menge": 12,
+      "einzelpreis": 580,
+      "ustSatz": 19,
+      "din276": "530",
+      "gewerk": "Maurer / Beton"
+    },
+    {
+      "id": 303,
+      "lvId": 5,
+      "parentId": 300,
+      "art": "normal",
+      "oz": "1.3",
+      "sortIndex": 13,
+      "kurztext": "Doppelstabmatten-Zaun 2 m hoch verzinkt",
+      "einheit": "m",
+      "menge": 28,
+      "einzelpreis": 95,
+      "ustSatz": 19,
+      "din276": "550",
+      "gewerk": "Garten / Außenanlagen"
+    },
+    {
+      "id": 304,
+      "lvId": 5,
+      "art": "titel",
+      "oz": "2",
+      "sortIndex": 20,
+      "kurztext": "Künstlerische Leistungen (7 % USt. gem. § 12 Abs. 2 UStG)",
+      "din276": "640"
+    },
+    {
+      "id": 305,
+      "lvId": 5,
+      "parentId": 304,
+      "art": "normal",
+      "oz": "2.1",
+      "sortIndex": 21,
+      "kurztext": "Schmiedeeisen-Geländer historisch nachbilden",
+      "langtext": "Restaurierung Schmiedeeisen-Geländer im historischen Stil, schwarz lackiert. Künstlerische Leistung gem. § 12 Abs. 2 UStG mit ermäßigtem Steuersatz 7 %.",
+      "einheit": "m",
+      "menge": 8,
+      "einzelpreis": 480,
+      "ustSatz": 7,
+      "din276": "640",
+      "gewerk": "Schmiede / Metallbau"
+    },
+    {
+      "id": 306,
+      "lvId": 5,
+      "parentId": 304,
+      "art": "normal",
+      "oz": "2.2",
+      "sortIndex": 22,
+      "kurztext": "Kunststein-Skulptur als Brunnen-Element",
+      "langtext": "Liefern und Aufstellen einer Kunststein-Skulptur 80 × 60 × 40 cm als Mittelpunkt eines kleinen Brunnens. Künstlerische Leistung — 7 % USt.",
+      "einheit": "Stk",
+      "menge": 1,
+      "einzelpreis": 2800,
+      "ustSatz": 7,
+      "din276": "640",
+      "gewerk": "Künstlerische Ausstattung"
+    },
+    {
+      "id": 307,
+      "lvId": 5,
+      "art": "titel",
+      "oz": "3",
+      "sortIndex": 30,
+      "kurztext": "Stundenlohn Bauleitung (19 %)",
+      "din276": "730"
+    },
+    {
+      "id": 308,
+      "lvId": 5,
+      "parentId": 307,
+      "art": "stundenlohn",
+      "oz": "3.1",
+      "sortIndex": 31,
+      "kurztext": "Bauleitung Vor-Ort-Abstimmungen",
+      "einheit": "h",
+      "menge": 6,
+      "einzelpreis": 95,
+      "ustSatz": 19,
+      "din276": "730",
+      "gewerk": "Baunebenkosten"
+    }
   ],
   "lv_mengenzeilen": [
-    {"positionId": 6, "sortIndex": 10, "bezeichnung": "Wand Nordseite (L × H)", "formel": "14*1,80", "ergebnis": 25.2},
-    {"positionId": 6, "sortIndex": 20, "bezeichnung": "Wand Ostseite (L × H)", "formel": "9,5*1,80", "ergebnis": 17.1},
-    {"positionId": 6, "sortIndex": 30, "bezeichnung": "Abzug Lichtschacht", "formel": "-(1,2*0,8)", "ergebnis": -0.96},
-
-    {"positionId": 11, "sortIndex": 10, "bezeichnung": "Kellerraum 1 — Wandflächen umlaufend", "formel": "(4,5+3,8)*2*2,30", "ergebnis": 38.18},
-    {"positionId": 11, "sortIndex": 20, "bezeichnung": "Kellerraum 2 — Wandflächen umlaufend", "formel": "(3,2+3,5)*2*2,30", "ergebnis": 30.82},
-    {"positionId": 11, "sortIndex": 30, "bezeichnung": "Abzug Türöffnungen", "formel": "-(2*0,9*2,1)", "ergebnis": -3.78},
-
-    {"positionId": 21, "sortIndex": 10, "bezeichnung": "Schlafzimmer Außenwand", "formel": "4,2*2,55", "ergebnis": 10.71},
-    {"positionId": 21, "sortIndex": 20, "bezeichnung": "Wohnzimmer Außenecke", "formel": "(3,8+2,5)*2,55", "ergebnis": 16.07},
-    {"positionId": 21, "sortIndex": 30, "bezeichnung": "Bad fensterseitig", "formel": "1,8*2,55-0,9*1,2", "ergebnis": 3.51}
+    {
+      "positionId": 6,
+      "sortIndex": 10,
+      "bezeichnung": "Wand Nordseite (L × H)",
+      "formel": "14*1,80",
+      "ergebnis": 25.2
+    },
+    {
+      "positionId": 6,
+      "sortIndex": 20,
+      "bezeichnung": "Wand Ostseite (L × H)",
+      "formel": "9,5*1,80",
+      "ergebnis": 17.1
+    },
+    {
+      "positionId": 6,
+      "sortIndex": 30,
+      "bezeichnung": "Abzug Lichtschacht",
+      "formel": "-(1,2*0,8)",
+      "ergebnis": -0.96
+    },
+    {
+      "positionId": 11,
+      "sortIndex": 10,
+      "bezeichnung": "Kellerraum 1 — Wandflächen umlaufend",
+      "formel": "(4,5+3,8)*2*2,30",
+      "ergebnis": 38.18
+    },
+    {
+      "positionId": 11,
+      "sortIndex": 20,
+      "bezeichnung": "Kellerraum 2 — Wandflächen umlaufend",
+      "formel": "(3,2+3,5)*2*2,30",
+      "ergebnis": 30.82
+    },
+    {
+      "positionId": 11,
+      "sortIndex": 30,
+      "bezeichnung": "Abzug Türöffnungen",
+      "formel": "-(2*0,9*2,1)",
+      "ergebnis": -3.78
+    },
+    {
+      "positionId": 21,
+      "sortIndex": 10,
+      "bezeichnung": "Schlafzimmer Außenwand",
+      "formel": "4,2*2,55",
+      "ergebnis": 10.71
+    },
+    {
+      "positionId": 21,
+      "sortIndex": 20,
+      "bezeichnung": "Wohnzimmer Außenecke",
+      "formel": "(3,8+2,5)*2,55",
+      "ergebnis": 16.07
+    },
+    {
+      "positionId": 21,
+      "sortIndex": 30,
+      "bezeichnung": "Bad fensterseitig",
+      "formel": "1,8*2,55-0,9*1,2",
+      "ergebnis": 3.51
+    }
   ]
 }

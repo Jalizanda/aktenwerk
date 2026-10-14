@@ -104,8 +104,9 @@ class _NormenChatDialogState extends ConsumerState<NormenChatDialog> {
       },
     );
     if (widget.embedded) return inner;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
     return Dialog(
-      insetPadding: const EdgeInsets.all(32),
+      insetPadding: isMobile ? const EdgeInsets.all(8) : const EdgeInsets.all(32),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900, maxHeight: 760),
         child: inner,
@@ -400,8 +401,9 @@ class _NormenChatDialogState extends ConsumerState<NormenChatDialog> {
   }
 
   Widget _buildEingabe(ColorScheme scheme) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 8, 12, 12 + bottomInset),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -411,6 +413,16 @@ class _NormenChatDialogState extends ConsumerState<NormenChatDialog> {
               minLines: 1,
               maxLines: 4,
               enabled: !_laedt,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.send,
+              autocorrect: true,
+              enableSuggestions: true,
+              scrollPadding: const EdgeInsets.all(80),
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 14,
+              ),
+              cursorColor: scheme.primary,
               decoration: InputDecoration(
                 isDense: true,
                 hintText: 'Frage an die Normen-Bibliothek …',
@@ -418,7 +430,6 @@ class _NormenChatDialogState extends ConsumerState<NormenChatDialog> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              textInputAction: TextInputAction.send,
               onSubmitted: (_) => _senden(),
             ),
           ),

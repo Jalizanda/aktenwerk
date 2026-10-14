@@ -1,4 +1,5 @@
-import 'package:drift/drift.dart' show Value;
+import 'dart:convert';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,10 +11,18 @@ import '../../../shared/pdf/befangenheit_pdf.dart';
 import '../../../shared/pdf/mehrkosten_pdf.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
+import '../../angebote/anschreiben/anschreiben_repository.dart';
+import '../../angebote/anschreiben/anschreiben_screen.dart';
 import '../../system/einstellungen/absender_service.dart';
+
+import '../../../core/ai/beweisbeschluss_scanner.dart';
+import '../../../data/sync/storage_service.dart';
+import '../auftraege/auftrag_gm_extras.dart';
 import '../dokumente/dokumente_repository.dart';
+import '../gutachten/gutachten_repository.dart';
 import '../kunden/kunden_repository.dart';
 import 'beweisfragen.dart';
+import 'beweisfragen_chat_dialog.dart';
 
 /// Tab "Gerichtssache" innerhalb der Akte. Bündelt drei gerichtsspezifische
 /// Bereiche: Befangenheits-Erklärung (§§ 406/407 ZPO), Mehrkostenanzeige
@@ -36,6 +45,8 @@ class GerichtssacheTab extends ConsumerWidget {
           _BefangenheitCard(auftrag: auftrag),
           const SizedBox(height: 12),
           _MehrkostenCard(auftrag: auftrag),
+          const SizedBox(height: 12),
+          _GerichtsSchnellbriefeCard(auftrag: auftrag),
           const SizedBox(height: 12),
           _BeweisfragenCard(auftrag: auftrag),
         ],
@@ -91,6 +102,20 @@ class _BefangenheitCardState extends ConsumerState<_BefangenheitCard> {
   void dispose() {
     _notiz.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _BefangenheitCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.auftrag != widget.auftrag) {
+      setState(() {
+        _geprueftAm = widget.auftrag.befangenheitsGeprueftAm;
+        _ergebnis = widget.auftrag.befangenheitsErgebnis ?? 'unbefangen';
+        if (_notiz.text != (widget.auftrag.befangenheitsNotiz ?? '')) {
+          _notiz.text = widget.auftrag.befangenheitsNotiz ?? '';
+        }
+      });
+    }
   }
 
   Future<void> _speichern() async {
@@ -273,6 +298,23 @@ class _MehrkostenCardState extends ConsumerState<_MehrkostenCard> {
     _neu.dispose();
     _begruendung.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MehrkostenCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.auftrag != widget.auftrag) {
+      setState(() {
+        _angezeigtAm = widget.auftrag.mehrkostenAnzeigeAm;
+        final bisherNeu = (widget.auftrag.kostenLimit ?? widget.auftrag.kostenvorschuss ?? 0).toStringAsFixed(2).replaceAll('.', ',');
+        if (_bisher.text != bisherNeu) _bisher.text = bisherNeu;
+        final neuNeu = (widget.auftrag.mehrkostenBetrag ?? 0).toStringAsFixed(2).replaceAll('.', ',');
+        if (_neu.text != neuNeu) _neu.text = neuNeu;
+        if (_begruendung.text != (widget.auftrag.mehrkostenBegruendung ?? '')) {
+          _begruendung.text = widget.auftrag.mehrkostenBegruendung ?? '';
+        }
+      });
+    }
   }
 
   double _d(TextEditingController c) =>
@@ -475,6 +517,16 @@ class _BeweisfragenCardState extends ConsumerState<_BeweisfragenCard> {
       widget.auftrag.beweisfragenJson);
   bool _saving = false;
 
+  @override
+  void didUpdateWidget(covariant _BeweisfragenCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.auftrag != widget.auftrag) {
+      setState(() {
+        _liste = decodeBeweisfragen(widget.auftrag.beweisfragenJson);
+      });
+    }
+  }
+
   Future<void> _speichern() async {
     setState(() => _saving = true);
     try {
@@ -491,6 +543,93 @@ class _BeweisfragenCardState extends ConsumerState<_BeweisfragenCard> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+// ... (in _BeweisfragenCardState)
+  Future<void> _scannen() async {
+    final db = ref.read(appDatabaseProvider);
+    final dokumente = await (db.select(db.dokumente)
+          ..where((t) => t.auftragId.equals(widget.auftrag.id))
+          )
+        .get();
+
+    if (!mounted) return;
+    if (dokumente.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Keine PDF-Dokumente in dieser Akte gefunden.')));
+      return;
+    }
+
+    final doc = await showDialog<DokumenteData>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Beweisbeschluss auswählen'),
+        content: SizedBox(
+          width: 400,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: dokumente.length,
+            itemBuilder: (ctx, i) {
+              final d = dokumente[i];
+              return ListTile(
+                title: Text(d.titel ?? d.pfad ?? 'Unbenannt'),
+                subtitle: Text(d.beschreibung ?? ''),
+                onTap: () => Navigator.of(ctx).pop(d),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    if (doc == null || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      Uint8List? bytes = doc.daten;
+      if (bytes == null && doc.storagePfad != null) {
+        final storage = ref.read(storageServiceProvider);
+        bytes = await storage.downloadBytes(doc.storagePfad!);
+      }
+      if (bytes == null) throw Exception('Dokument konnte nicht geladen werden.');
+
+      final fragenMaps = await extrahiereBeweisfragen(
+        ref: ref,
+        bytes: bytes,
+        mimeType: doc.mimeType ?? 'application/pdf',
+      );
+
+      if (!mounted) return;
+      if (fragenMaps.isEmpty) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Keine Fragen im Dokument gefunden.')));
+         return;
+      }
+      
+      setState(() {
+        _liste = [
+          ..._liste,
+          ...fragenMaps.map((m) => Beweisfrage(
+            nr: m['nr']?.toString() ?? '${_liste.length + 1}',
+            frage: m['frage']?.toString() ?? '',
+            einschaetzung: m['einschaetzung']?.toString(),
+          ))
+        ];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${fragenMaps.length} Fragen extrahiert.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _chatOeffnen() {
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => BeweisfragenChatDialog(fragen: _liste),
+    );
   }
 
   @override
@@ -518,7 +657,7 @@ class _BeweisfragenCardState extends ConsumerState<_BeweisfragenCard> {
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Beweisfrage hinzufügen'),
+                label: const Text('Hinzufügen'),
                 onPressed: () => setState(() {
                   _liste = [
                     ..._liste,
@@ -526,6 +665,20 @@ class _BeweisfragenCardState extends ConsumerState<_BeweisfragenCard> {
                   ];
                 }),
               ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.document_scanner_outlined, size: 16),
+                label: const Text('Scannen'),
+                onPressed: _saving ? null : _scannen,
+              ),
+              if (_liste.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                  label: const Text('Mit KI diskutieren'),
+                  onPressed: _saving ? null : _chatOeffnen,
+                ),
+              ],
               const Spacer(),
               FilledButton.icon(
                 icon: _saving
@@ -570,15 +723,45 @@ class _BeweisfragenCardState extends ConsumerState<_BeweisfragenCard> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: TextFormField(
-              initialValue: f.frage,
-              minLines: 1,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                isDense: true,
-                hintText: 'Wortlaut der Beweisfrage …',
-              ),
-              onChanged: (v) => _liste[i] = f.copyWith(frage: v),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  initialValue: f.frage,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: 'Wortlaut der Beweisfrage …',
+                  ),
+                  onChanged: (v) => _liste[i] = f.copyWith(frage: v),
+                ),
+                if (f.einschaetzung != null && f.einschaetzung!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.auto_awesome, size: 14, color: Theme.of(context).colorScheme.onTertiaryContainer),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            f.einschaetzung!,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onTertiaryContainer,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           IconButton(
@@ -619,4 +802,170 @@ Widget _kartenRahmen(BuildContext context, IconData ic, String titel,
       ),
     ),
   );
+}
+
+/// Block 4: 1-Klick Gerichts-Schnellbriefe (mit automatischer Platzhalter-Auflösung
+/// inkl. Gerichtsakten-Bänden, Ausfertigungen und Vorschuss).
+class _GerichtsSchnellbriefeCard extends ConsumerWidget {
+  const _GerichtsSchnellbriefeCard({required this.auftrag});
+  final AuftraegeData auftrag;
+
+  String _plainTextToQuillDelta(String text) {
+    final zeilen = text.split('\n');
+    final ops = <Map<String, dynamic>>[];
+    for (final z in zeilen) {
+      if (z.isNotEmpty) ops.add({'insert': z});
+      ops.add({'insert': '\n'});
+    }
+    if (ops.isEmpty) ops.add({'insert': '\n'});
+    return jsonEncode(ops);
+  }
+
+  Future<void> _erzeugeUndOeffne(
+    BuildContext context,
+    WidgetRef ref, {
+    required String betreffTemplate,
+    required String bodyTemplate,
+  }) async {
+    final db = ref.read(appDatabaseProvider);
+    KundenData? gericht;
+    if (auftrag.kundeId != null) {
+      gericht = await ref
+          .read(kundenRepositoryProvider)
+          .byId(auftrag.kundeId!);
+    }
+    final betreff = applyVorlagenPlatzhalter(
+      betreffTemplate,
+      auftrag: auftrag,
+      kunde: gericht,
+    );
+    final body = applyVorlagenPlatzhalter(
+      bodyTemplate,
+      auftrag: auftrag,
+      kunde: gericht,
+    );
+    final delta = _plainTextToQuillDelta(body);
+    final id = await db.into(db.anschreiben).insert(
+          AnschreibenCompanion.insert(
+            auftragId: Value(auftrag.id),
+            kundeId: Value(auftrag.kundeId),
+            datum: Value(DateTime.now()),
+            betreff: Value(betreff),
+            anrede: const Value('Sehr geehrte Damen und Herren,'),
+            briefText: Value(body),
+            inhaltJson: Value(delta),
+            gruss: const Value('Mit freundlichen Grüßen'),
+            status: const Value('entwurf'),
+          ),
+        );
+    final saved = await (db.select(db.anschreiben)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (!context.mounted || saved == null) return;
+    await showAnschreibenEditor(
+      context,
+      eintrag: AnschreibenWithKunde(saved, gericht, auftrag),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gm = AuftragGmExtras.fromAuftragExtras(auftrag.extras);
+    final anzAusf = auftrag.anzahlAusfertigungen ?? 3;
+    final hatBaende = gm.aktenbaende.isNotEmpty;
+
+    return _kartenRahmen(
+      context,
+      Icons.mark_email_read_outlined,
+      'Gerichts-Schnellbriefe (1-Klick-Schriftsätze)',
+      'Erzeugt sofort ein fertig ausgefülltes Anschreiben an das Gericht inkl. Geschäftszeichen, Rubrum und Gerichtsakten-Bänden.',
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.assignment_turned_in_outlined, size: 16),
+            label: const Text('Auftragseingangsbestätigung (§ 407a ZPO)'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate:
+                  r'Auftragseingangsbestätigung & Prüfung nach § 407a ZPO — Az.: $GerichtsAZ',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'in dem oben genannten Rechtsstreit bestätige ich den Eingang des Beweisbeschlusses{{beweisbeschluss1}} sowie der übersandten Gerichtsakten:\n'
+                  '${hatBaende ? "{{aktenbaende_rueckgabe}}\n\n" : "\n"}'
+                  'Gemäß § 407a ZPO habe ich unverzüglich geprüft, ob der Auftrag in mein Fachgebiet fällt und ob Gründe vorliegen, die geeignet sind, Misstrauen gegen meine Unparteilichkeit zu rechtfertigen. Solche Gründe liegen nicht vor.\n\n'
+                  'Der Ortstermin wird in Kürze mit den Parteien abgestimmt; das Gericht erhält gesondert Nachricht.',
+            ),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.euro_outlined, size: 16),
+            label: const Text('Vorschussanforderung / Erinnerung'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate:
+                  r'Auslagenvorschuss — Az.: $GerichtsAZ ($Sache)',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'in dem oben genannten Verfahren bitte ich höflich um Mitteilung, ob der angeforderte Auslagenvorschuss${(auftrag.kostenvorschuss ?? 0) > 0 ? " in Höhe von {{vorschuss}}" : ""} bereits eingezahlt wurde bzw. um entsprechende Anforderung bei der beweispflichtigen Partei, damit mit der Vorbereitung und Durchführung des Ortstermins begonnen werden kann.',
+            ),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.folder_copy_outlined, size: 16),
+            label: const Text('Akten- / Beiaktenanforderung'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate:
+                  r'Anforderung weiterer Unterlagen / Beiakten — Az.: $GerichtsAZ',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'zur sachgerechten Beantwortung der Beweisfragen werden noch folgende Unterlagen bzw. Beiakten benötigt:\n\n'
+                  '• Baubeschreibung / Ausführungspläne\n'
+                  '• Bautagebücher / Abnahmeprotokolle\n\n'
+                  'Ich bitte das Gericht höflich, den Parteien die Vorlage der genannten Unterlagen aufzugeben.',
+            ),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.more_time_outlined, size: 16),
+            label: const Text('Antrag Fristverlängerung (§ 411 ZPO)'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate:
+                  r'Antrag auf Fristverlängerung — Az.: $GerichtsAZ ($Sache)',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'in dem oben genannten Verfahren wurde eine Frist zur Gutachtenerstattung${auftrag.fristAm != null ? " bis zum {{frist}}" : ""} gesetzt.\n\n'
+                  'Aufgrund des Umfangs der erforderlichen Untersuchungen und der Terminabstimmung mit den Beteiligten bitte ich höflich, die Frist zur Einreichung des schriftlichen Gutachtens angemessen zu verlängern.',
+            ),
+          ),
+          FilledButton.tonalIcon(
+            icon: const Icon(Icons.send_and_archive_outlined, size: 16),
+            label: Text(
+                'Gutachtenversand ($anzAusf-fach) & Aktenrückgabe'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate:
+                  r'Übersendung des Sachverständigengutachtens & Aktenrückgabe — Az.: $GerichtsAZ',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'in dem oben genannten Rechtsstreit überreiche ich anbei mein schriftliches Sachverständigengutachten in $anzAusf-facher Ausfertigung (1 Original für die Gerichtsakte sowie ${anzAusf > 1 ? "${anzAusf - 1} beglaubigte Abschriften für die Parteien" : "Abschriften"}).\n\n'
+                  'Gleichzeitig reiche ich die mir überlassenen Gerichtsakten vollständig zu meiner Entlastung zurück:\n'
+                  '${hatBaende ? "{{aktenbaende_rueckgabe}}" : "• Gerichtsakte zum Az. {{gerichts_az}}"}\n\n'
+                  'Meine Liquidation gemäß JVEG füge ich mit der Bitte um Anweisung bei.',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

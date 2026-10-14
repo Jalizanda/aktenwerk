@@ -247,6 +247,7 @@ class _AngeboteScreenState extends ConsumerState<AngeboteScreen> {
 
   Future<void> _show(BuildContext context, [AngebotWithKunde? a]) async {
     await showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (_) => _AngebotForm(eintrag: a),
     );
@@ -374,6 +375,7 @@ Future<void> showAngebotEditor(BuildContext context,
     int? prefillAuftragId,
     int? prefillKundeId}) async {
   await showDialog(
+    barrierDismissible: false,
     context: context,
     useRootNavigator: true,
     builder: (_) => _AngebotForm(

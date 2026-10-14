@@ -24,6 +24,7 @@ export async function extractPdfChunks(buffer: Buffer): Promise<NormChunk[]> {
     disableFontFace: true,
     isEvalSupported: false,
     useSystemFonts: false,
+    stopAtErrors: false,
   });
   const doc = await loadingTask.promise;
 

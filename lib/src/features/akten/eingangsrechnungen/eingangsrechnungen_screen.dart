@@ -89,6 +89,7 @@ class EingangsrechnungenScreen extends ConsumerWidget {
               icon: const Icon(Icons.auto_awesome, size: 16),
               label: const Text('KI-Belegerfassung (Massen)'),
               onPressed: () => showDialog(
+                    barrierDismissible: false,
                 context: context,
                 useRootNavigator: true,
                 builder: (_) => const BelegBulkDialog(),
@@ -334,6 +335,7 @@ class EingangsrechnungenScreen extends ConsumerWidget {
   Future<void> _show(BuildContext context, WidgetRef ref,
       [EingangsrechnungWithAuftrag? e]) async {
     await showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (_) => _EingangsrechnungForm(eintrag: e),
     );
@@ -430,6 +432,8 @@ class _EingangsrechnungFormState
       final mime = first.mimeType ?? 'application/pdf';
       final extr = await extrahiereBeleg(
           ref: ref, bytes: bytes, mimeType: mime);
+
+      if (!mounted) return;
 
       setState(() {
         if ((_nr.text).isEmpty && extr.rechnungsnummer != null) {
@@ -708,7 +712,10 @@ class _EingangsrechnungFormState
                       flex: 2,
                       child: LabeledField(
                         'Name',
-                        TextFormField(controller: _lieferantName),
+                        TextFormField(
+                          controller: _lieferantName,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Lieferant erforderlich' : null,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -735,7 +742,12 @@ class _EingangsrechnungFormState
               FormSection('Rechnung', children: [
                 Row3(
                   a: LabeledField(
-                      'Rechnungs-Nr.', TextFormField(controller: _nr)),
+                      'Rechnungs-Nr.',
+                      TextFormField(
+                        controller: _nr,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Nummer erforderlich' : null,
+                      ),
+                  ),
                   b: DateField(
                     label: 'Rechnungsdatum',
                     value: _rechnungsdatum,
@@ -795,6 +807,11 @@ class _EingangsrechnungFormState
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                       onChanged: (_) => _recalcBrutto(),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Betrag fehlt';
+                        if (double.tryParse(v.replaceAll('.', '').replaceAll(',', '.')) == null) return 'Ungültig';
+                        return null;
+                      },
                     ),
                   ),
                   b: LabeledField(
@@ -812,6 +829,11 @@ class _EingangsrechnungFormState
                       controller: _brutto,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Betrag fehlt';
+                        if (double.tryParse(v.replaceAll('.', '').replaceAll(',', '.')) == null) return 'Ungültig';
+                        return null;
+                      },
                     ),
                   ),
                 ),

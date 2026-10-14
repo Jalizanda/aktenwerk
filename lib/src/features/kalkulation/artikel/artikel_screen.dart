@@ -217,6 +217,7 @@ class ArtikelScreen extends ConsumerWidget {
   Future<void> _showForm(BuildContext context, WidgetRef ref,
       [ArtikelData? artikel]) async {
     await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (_) => _ArtikelFormDialog(artikel: artikel),
     );

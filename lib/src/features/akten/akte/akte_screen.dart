@@ -14,10 +14,16 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
+import '../../../shared/pdf/arbeitsblatt_pdf.dart';
+import '../../../shared/pdf/fotodoku_pdf.dart';
+import '../../../shared/positionen/position_model.dart';
 import '../../../shared/widgets/badges.dart';
+import '../../system/einstellungen/absender_service.dart';
+import '../auftraege/auftrag_gm_extras.dart';
 import '../auftraege/auftraege_form.dart';
 import '../auftraege/auftraege_repository.dart';
 import '../kunden/kunden_repository.dart';
+import '../rechnungen/rechnungen_positionen_helpers.dart';
 import '../rechnungen/rechnungen_repository.dart';
 import '../rechnungen/rechnungen_screen.dart';
 import '../../angebote/angebote/angebote_repository.dart';
@@ -40,6 +46,7 @@ import '../versand/versand_tab.dart';
 import '../../angebote/anschreiben/anschreiben_repository.dart';
 import '../../angebote/anschreiben/anschreiben_screen.dart';
 import 'kostenvorschuss_dialog.dart';
+import 'telefon_notiz_dialog.dart';
 import '../bauteiloeffnungen/bauteiloeffnung_tab.dart';
 import '../journal/journal_tab.dart';
 import '../maengel/maengel_tab.dart';
@@ -47,6 +54,7 @@ import '../messwerte/messwerte_tab.dart';
 import '../protokolle/protokolle_tab.dart';
 import '../uebergabe/uebergabe_tab.dart';
 import '../wertermittlung/wertermittlung_tab.dart';
+import '../workflow/akten_export_service.dart';
 import 'akte_benchmark_card.dart';
 import 'akte_tabbar.dart';
 import 'beteiligte_tab.dart';
@@ -151,13 +159,13 @@ class _AkteScreenState extends ConsumerState<AkteScreen>
   }
 }
 
-class _AkteHeader extends StatelessWidget {
+class _AkteHeader extends ConsumerWidget {
   const _AkteHeader({required this.auftrag, required this.kunde});
   final AuftraegeData auftrag;
   final KundenData? kunde;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
@@ -219,11 +227,44 @@ class _AkteHeader extends StatelessWidget {
                 const SizedBox(width: 8),
               ],
               OutlinedButton.icon(
+                icon: const Icon(Icons.assignment_outlined, size: 18),
+                label: const Text('Arbeitsblatt Ortstermin'),
+                onPressed: () async {
+                  final absender = await absenderFromSettings(ref);
+                  await previewGutachtenArbeitsblattPdf(
+                    GutachtenArbeitsblattPdfData(
+                      auftrag: auftrag,
+                      auftraggeber: kunde,
+                      absender: absender,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text('Stammdaten bearbeiten'),
                 onPressed: () => showAuftragFormDialog(
                   context,
                   auftrag: auftrag,
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.archive_outlined, size: 18),
+                label: const Text('ZIP Export'),
+                onPressed: () async {
+                  await ref.read(aktenExportServiceProvider).exportAkte(auftrag.id);
+                },
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                icon: const Icon(Icons.phone_in_talk_outlined, size: 18),
+                label: const Text('Telefonat'),
+                onPressed: () => showDialog(
+                  context: context,
+                  useRootNavigator: true,
+                  builder: (_) => TelefonNotizDialog(auftragId: auftrag.id),
                 ),
               ),
             ],
@@ -548,6 +589,7 @@ class _AkteInfoCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 12, color: AppTheme.slate600)),
           ],
+          _buildGmExtrasInfo(auftrag),
           if ((auftrag.beweisbeschlussStorageUrl ?? '').isNotEmpty ||
               (auftrag.objektFotoStorageUrl ?? '').isNotEmpty) ...[
             const Divider(height: 24),
@@ -635,6 +677,65 @@ class _AkteInfoCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildGmExtrasInfo(AuftraegeData a) {
+    final gm = AuftragGmExtras.fromAuftragExtras(a.extras);
+    final items = <Widget>[];
+    if (gm.streitwert != null) {
+      items.add(_kv('Streitwert', '${gm.streitwert!.toStringAsFixed(2)} €'));
+    }
+    if (gm.schadensnummer.isNotEmpty) {
+      items.add(_kv('Schadens-Nr.', gm.schadensnummer));
+    }
+    if (gm.versicherungsscheinNr.isNotEmpty) {
+      items.add(_kv('Police-Nr.', gm.versicherungsscheinNr));
+    }
+    if (gm.schadenstag != null) {
+      items.add(_kv(
+          'Schadenstag', DateFormat('dd.MM.yyyy', 'de').format(gm.schadenstag!)));
+    }
+    if (gm.schadensursache.isNotEmpty) {
+      items.add(_kv('Ursache', gm.schadensursache));
+    }
+    if (gm.versicherungsnehmer.isNotEmpty) {
+      items.add(_kv('VN', gm.versicherungsnehmer));
+    }
+    if (gm.anspruchsteller.isNotEmpty) {
+      items.add(_kv('Anspruchsteller', gm.anspruchsteller));
+    }
+    if (gm.schiedsvertragVom != null) {
+      items.add(_kv('Schiedsvertrag',
+          DateFormat('dd.MM.yyyy', 'de').format(gm.schiedsvertragVom!)));
+    }
+    if (gm.obmann.isNotEmpty) {
+      items.add(_kv('Obmann', gm.obmann));
+    }
+    if (gm.aktenbaende.isNotEmpty) {
+      items.add(_kv(
+        'Gerichtsakten',
+        gm.aktenbaende
+            .map((b) => 'Bd. ${b.bandNr}: ${b.bezeichnung} (Bl. ${b.seitenVon ?? 1}–${b.seitenBis ?? "?"})')
+            .join('\n'),
+      ));
+    }
+    if (gm.ortsterminAltAm != null) {
+      items.add(_kv(
+        'Verlegt von',
+        '${DateFormat('dd.MM.yyyy', 'de').format(gm.ortsterminAltAm!)}${gm.ortsterminVerlegtGrund.isNotEmpty ? " (${gm.ortsterminVerlegtGrund})" : ""}',
+      ));
+    }
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 24),
+        const Text('Erweiterte Verfahrens- & Schadensdaten',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        ...items,
+      ],
     );
   }
 
@@ -1094,15 +1195,92 @@ class _RechnungenTab extends ConsumerWidget {
     );
   }
 
+  Future<void> _jvegLiquidationErstellen(
+      BuildContext context, WidgetRef ref) async {
+    final db = ref.read(appDatabaseProvider);
+    final auftrag = await (db.select(db.auftraege)
+          ..where((t) => t.id.equals(auftragId)))
+        .getSingleOrNull();
+    KundenData? kunde;
+    final kid = kundeId ?? auftrag?.kundeId;
+    if (kid != null) {
+      kunde = await ref.read(kundenRepositoryProvider).byId(kid);
+    }
+    final res = await ref
+        .read(rechnungenPositionenHelperProvider)
+        .jvegKomplettLiquidationAusAkte(auftragId: auftragId);
+    final totals = PositionsTotals.fromList(res.positionen);
+    final now = DateTime.now();
+    final id = await ref.read(rechnungenRepositoryProvider).upsert(
+          RechnungenCompanion.insert(
+            typ: const Value('jveg'),
+            auftragId: Value(auftragId),
+            kundeId: Value(kid),
+            rechnungsdatum: Value(now),
+            faelligAm: Value(now.add(const Duration(days: 30))),
+            zahlungszielTage: const Value(30),
+            status: const Value('entwurf'),
+            ustSatz: const Value(19),
+            netto: Value(totals.netto),
+            ustBetrag: Value(totals.ust),
+            brutto: Value(totals.brutto),
+            positionenJson: Value(positionsToJson(res.positionen)),
+            kopftext: const Value(
+                'Sehr geehrte Damen und Herren,\n\nfür meine sachverständigen Leistungen in oben genannter Sache berechne ich gemäß Justizvergütungs- und -entschädigungsgesetz (JVEG):'),
+            fusstext: Value(res.vorschussHinweis),
+          ),
+        );
+    final saved = await ref.read(rechnungenRepositoryProvider).byId(id);
+    if (!context.mounted || saved == null) return;
+    await showRechnungEditor(
+      context,
+      eintrag: RechnungWithKunde(saved, kunde, auftrag),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(rechnungenListProvider).valueOrNull ?? const [];
     final mine = all.where((r) => r.rechnung.auftragId == auftragId).toList();
     if (mine.isEmpty) {
-      return _emptyTab(context, Icons.request_page_outlined,
-          'Noch keine Rechnungen zu dieser Akte.', '/rechnungen',
-          createLabel: '+ Neue Rechnung',
-          onCreate: () => _neueRechnung(context));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.request_page_outlined,
+                  size: 44, color: AppTheme.slate400),
+              const SizedBox(height: 10),
+              Text('Noch keine Rechnungen zu dieser Akte.',
+                  style: TextStyle(color: AppTheme.slate600, fontSize: 13)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _neueRechnung(context),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('+ Neue Rechnung'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () => _jvegLiquidationErstellen(context, ref),
+                    icon: const Icon(Icons.gavel_outlined, size: 16),
+                    label: const Text('JVEG-Liquidation aus Akte (1-Klick)'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => context.go('/rechnungen'),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Modul öffnen'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
     }
     return _listWrapper(
       context,
@@ -1110,6 +1288,13 @@ class _RechnungenTab extends ConsumerWidget {
       onOpen: () => context.go('/rechnungen'),
       createLabel: '+ Neue Rechnung',
       onCreate: () => _neueRechnung(context),
+      extraActions: [
+        OutlinedButton.icon(
+          icon: const Icon(Icons.gavel_outlined, size: 16),
+          label: const Text('JVEG-Liquidation aus Akte (1-Klick)'),
+          onPressed: () => _jvegLiquidationErstellen(context, ref),
+        ),
+      ],
       table: DataTable(
         showCheckboxColumn: false,
         columns: const [
@@ -1295,12 +1480,126 @@ class _GutachtenTab extends ConsumerWidget {
 class _FotosTab extends ConsumerWidget {
   const _FotosTab({required this.auftragId});
   final int auftragId;
+
+  Future<void> _exportFotodokuPdf(
+    BuildContext context,
+    WidgetRef ref,
+    List<Foto> items,
+  ) async {
+    int bilderProSeite = 2;
+    bool inAkteAblegen = true;
+    final titelCtrl = TextEditingController(
+      text: 'Anlage — Fotodokumentation / Lichtbildanlage',
+    );
+    final ok = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Express-Fotodokumentation (PDF)'),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: titelCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Überschrift / Anlagen-Titel',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Seitenlayout (Fotos pro DIN-A4-Seite):',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 1, label: Text('1 Bild')),
+                    ButtonSegment(value: 2, label: Text('2 Bilder')),
+                    ButtonSegment(value: 4, label: Text('4 Bilder')),
+                    ButtonSegment(value: 6, label: Text('6 Bilder')),
+                  ],
+                  selected: {bilderProSeite},
+                  onSelectionChanged: (s) =>
+                      setState(() => bilderProSeite = s.first),
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: inAkteAblegen,
+                  onChanged: (v) => setState(() => inAkteAblegen = v ?? true),
+                  title: const Text(
+                    'Zusätzlich als PDF-Anlage in den Akten-Dokumenten ablegen',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+              label: const Text('PDF erzeugen'),
+              onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    final chosenTitel = titelCtrl.text.trim();
+    titelCtrl.dispose();
+    if (ok != true) return;
+
+    final db = ref.read(appDatabaseProvider);
+    final auftrag = await (db.select(db.auftraege)
+          ..where((t) => t.id.equals(auftragId)))
+        .getSingleOrNull();
+    if (auftrag == null) return;
+    final absender = await absenderFromSettings(ref);
+    final data = FotodokumentationPdfData(
+      auftrag: auftrag,
+      fotos: items,
+      bilderProSeite: bilderProSeite,
+      anlagenTitel: chosenTitel.isEmpty
+          ? 'Anlage — Fotodokumentation / Lichtbildanlage'
+          : chosenTitel,
+      absender: absender,
+    );
+    if (inAkteAblegen) {
+      final bytes = await buildFotodokumentationPdf(data);
+      final fn =
+          'Fotodokumentation_${(auftrag.aktenzeichen ?? "Akte").replaceAll(RegExp(r"[^A-Za-z0-9-]"), "_")}_${bilderProSeite}er.pdf';
+      await ref.read(dokumenteRepositoryProvider).upsert(
+            DokumenteCompanion.insert(
+              titel: Value(fn),
+              mimeType: const Value('application/pdf'),
+              dateigroesse: Value(bytes.length),
+              daten: Value(bytes),
+              auftragId: Value(auftragId),
+              kategorie: const Value('Fotodokumentation (Anlage)'),
+              datum: Value(DateTime.now()),
+              beschreibung: Value(
+                  '${items.length} Fotos ($bilderProSeite pro A4-Seite)'),
+            ),
+          );
+    }
+    await previewFotodokumentationPdf(data);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final db = ref.watch(appDatabaseProvider);
     return StreamBuilder<List<Foto>>(
       stream: (db.select(db.fotos)
-            ..where((t) => t.auftragId.equals(auftragId)))
+            ..where((t) => t.auftragId.equals(auftragId))
+            ..orderBy([(t) => OrderingTerm(expression: t.reihenfolge)]))
           .watch(),
       builder: (ctx, snap) {
         final items = snap.data ?? const [];
@@ -1319,6 +1618,12 @@ class _FotosTab extends ConsumerWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 const Spacer(),
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                  label: const Text('Fotodokumentation (PDF)'),
+                  onPressed: () => _exportFotodokuPdf(ctx, ref, items),
+                ),
+                const SizedBox(width: 8),
                 TextButton(
                     onPressed: () => ctx.go('/fotos'),
                     child: const Text('im Foto-Modul öffnen →')),
@@ -1406,7 +1711,7 @@ class _DokumenteTab extends ConsumerWidget {
             rows: [
               for (final d in items)
                 DataRow(
-                  onSelectChanged: (_) => openDokument(ctx, d),
+                  onSelectChanged: (_) => openDokument(ctx, d, ref),
                   cells: [
                     DataCell(Text(_dateFmt.format(d.datum))),
                     DataCell(Text(d.titel ?? '')),
@@ -1422,7 +1727,7 @@ class _DokumenteTab extends ConsumerWidget {
                           icon: const Icon(Icons.visibility_outlined,
                               size: 18),
                           tooltip: 'Öffnen / Vorschau',
-                          onPressed: () => openDokument(ctx, d),
+                          onPressed: () => openDokument(ctx, d, ref),
                         ),
                         IconButton(
                           icon:

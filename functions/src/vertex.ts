@@ -6,9 +6,10 @@
 import { GoogleAuth } from "google-auth-library";
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT ?? "aktenwerk-88c35";
-const LOCATION = "europe-west1";
+const EMBED_LOCATION = "europe-west1";
 const EMBEDDING_MODEL = "text-embedding-004";
-const GEN_MODEL = "gemini-2.5-flash";
+const GEN_LOCATION = process.env.GEN_LOCATION ?? "europe-west3";
+const GEN_MODEL = "gemini-3.5-flash";
 
 let cachedToken: string | undefined;
 let cachedTokenExpiresAt = 0;
@@ -53,7 +54,7 @@ function invalidateTokenCache(): void {
  */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
-  const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${EMBEDDING_MODEL}:predict`;
+  const url = `https://${EMBED_LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${EMBED_LOCATION}/publishers/google/models/${EMBEDDING_MODEL}:predict`;
 
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += 5) {
@@ -139,34 +140,60 @@ async function fetchWithRetry(
   );
 }
 
+interface ChatAnhangPayload {
+  mimeType: string;
+  base64Data: string;
+}
+
 interface AnswerArgs {
   system: string;
-  historie: { rolle: string; text: string }[];
+  historie?: { rolle: string; text: string }[];
   userPrompt: string;
+  anhaenge?: ChatAnhangPayload[];
 }
 
 /**
- * Ruft Gemini 2.5 Flash via Vertex AI an und liefert den Antworttext zurück.
+ * Ruft Gemini 3.5 Flash via Vertex AI an und liefert den Antworttext zurück.
+ * Unterstützt multimodale Eingaben (Bilder, Dokumente, PDFs).
  */
 export async function generateAnswer(args: AnswerArgs): Promise<string> {
-  const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${GEN_MODEL}:generateContent`;
+  const host =
+    GEN_LOCATION === "global"
+      ? "aiplatform.googleapis.com"
+      : `${GEN_LOCATION}-aiplatform.googleapis.com`;
+  const url = `https://${host}/v1/projects/${PROJECT_ID}/locations/${GEN_LOCATION}/publishers/google/models/${GEN_MODEL}:generateContent`;
   const auth = await getAuthHeader();
 
-  const contents: { role: string; parts: { text: string }[] }[] = [];
-  for (const turn of args.historie) {
+  const contents: { role: string; parts: unknown[] }[] = [];
+  for (const turn of args.historie ?? []) {
     const role = turn.rolle === "user" ? "user" : "model";
     if (turn.text && turn.text.trim().length > 0) {
       contents.push({ role, parts: [{ text: turn.text }] });
     }
   }
-  contents.push({ role: "user", parts: [{ text: args.userPrompt }] });
+
+  const userParts: unknown[] = [{ text: args.userPrompt }];
+  if (args.anhaenge && args.anhaenge.length > 0) {
+    for (const a of args.anhaenge) {
+      if (a.base64Data && a.mimeType) {
+        userParts.push({
+          inlineData: {
+            mimeType: a.mimeType,
+            data: a.base64Data,
+          },
+        });
+      }
+    }
+  }
+
+  contents.push({ role: "user", parts: userParts });
 
   const body = {
     systemInstruction: { role: "system", parts: [{ text: args.system }] },
     contents,
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 8192,
     },
   };
   const resp = await fetch(url, {

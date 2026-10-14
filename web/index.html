@@ -5,6 +5,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover">
   <meta name="description" content="Aktenwerk · Bausachverständigen-Verwaltung von Alexander Höpken — Akten, Gutachten, Rechnungen, Angebote">
   <meta name="theme-color" content="#0B1220">
 
@@ -27,7 +28,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #FAFAF7; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      background: #FAFAF7;
+      overflow: hidden;
+      -webkit-text-size-adjust: 100%;
+    }
     body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
     #splash {
       position: fixed; inset: 0; display: flex; align-items: center;

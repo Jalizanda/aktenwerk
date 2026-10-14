@@ -56,6 +56,18 @@ class RechnungenRepository {
           .getSingleOrNull();
 
   Future<int> upsert(RechnungenCompanion entry) async {
+    if (entry.netto.present && entry.netto.value < 0) {
+      throw Exception('Netto-Betrag darf nicht negativ sein.');
+    }
+    if (entry.brutto.present && entry.brutto.value < 0) {
+      throw Exception('Brutto-Betrag darf nicht negativ sein.');
+    }
+    if (entry.status.present && entry.status.value != 'entwurf') {
+      if (!entry.rechnungsnummer.present || entry.rechnungsnummer.value?.trim().isEmpty == true) {
+         throw Exception('Fertige Rechnungen benötigen eine Rechnungsnummer.');
+      }
+    }
+
     final int id;
     if (entry.id.present) {
       await (_db.update(_db.rechnungen)
@@ -76,7 +88,17 @@ class RechnungenRepository {
     try {
       final r = await byId(id);
       if (r == null) return;
-      if (r.status == 'bezahlt' || r.status == 'storniert') return;
+      if (r.status == 'bezahlt' || r.status == 'storniert') {
+        // Markiere offene Mahnungs-Wiedervorlagen als erledigt
+        await (_db.update(_db.wiedervorlagen)
+              ..where((t) => t.triggerTyp.equals('rechnung.mahnung') & t.triggerQuellId.equals(id) & t.erledigt.equals(false)))
+            .write(WiedervorlagenCompanion(
+          erledigt: const Value(true),
+          erledigtAm: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+        ));
+        return;
+      }
       final faellig = r.faelligAm;
       if (faellig == null) return;
       await _wv.ausloeseTrigger(
@@ -89,8 +111,9 @@ class RechnungenRepository {
         anlass: 'Rechnungs-Fälligkeit überschritten?',
         prioritaet: 'hoch',
       );
-    } catch (_) {
-      // Trigger ist best-effort, niemals blockierend.
+    } catch (e, stack) {
+      // Trigger ist best-effort, log errors instead of silent ignore
+      print('Wiedervorlage trigger error: $e\n$stack');
     }
   }
 
@@ -109,6 +132,16 @@ class RechnungenRepository {
         pdfDateiname: Value(dateiname),
         pdfGroesse: Value(groesse),
         pdfErstelltAm: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> freezeRechnung({required int id, String? newStatus}) async {
+    await (_db.update(_db.rechnungen)..where((t) => t.id.equals(id))).write(
+      RechnungenCompanion(
+        pdfErstelltAm: Value(DateTime.now()),
+        status: newStatus != null ? Value(newStatus) : const Value.absent(),
         updatedAt: Value(DateTime.now()),
       ),
     );

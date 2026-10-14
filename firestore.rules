@@ -196,6 +196,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // `norm_chats/{id}` speichert die Chatverläufe für Cross-Domain-Sync (app.aktenwerk.app <-> chat.aktenwerk.app)
+    match /norm_chats/{id} {
+      allow read, create, update, delete: if isApprovedUser();
+    }
+
     // Default-Deny.
     match /{document=**} {
       allow read, write: if false;

@@ -133,7 +133,7 @@ class AppDatabase extends _$AppDatabase {
         ));
 
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -411,6 +411,11 @@ class AppDatabase extends _$AppDatabase {
           // Ausgangs-/Eingangsrechnungen verknüpft werden können.
           if (from < 36) {
             await m.createTable(bankBewegungen);
+          }
+
+          // v36 → v37: Digitaler Stempel für den Sachverständigen.
+          if (from < 37) {
+            await _addCol(m, benutzer, benutzer.stempelPfad);
           }
         },
       );

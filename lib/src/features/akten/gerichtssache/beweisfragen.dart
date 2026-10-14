@@ -4,17 +4,36 @@ import 'dart:convert';
 class Beweisfrage {
   final String nr;
   final String frage;
-  const Beweisfrage({required this.nr, required this.frage});
+  final String? einschaetzung;
 
-  Map<String, dynamic> toJson() => {'nr': nr, 'frage': frage};
+  const Beweisfrage({
+    required this.nr,
+    required this.frage,
+    this.einschaetzung,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'nr': nr,
+        'frage': frage,
+        if (einschaetzung != null) 'einschaetzung': einschaetzung,
+      };
 
   factory Beweisfrage.fromJson(Map<String, dynamic> j) => Beweisfrage(
         nr: j['nr']?.toString() ?? '',
         frage: j['frage']?.toString() ?? '',
+        einschaetzung: j['einschaetzung']?.toString(),
       );
 
-  Beweisfrage copyWith({String? nr, String? frage}) =>
-      Beweisfrage(nr: nr ?? this.nr, frage: frage ?? this.frage);
+  Beweisfrage copyWith({
+    String? nr,
+    String? frage,
+    String? einschaetzung,
+  }) =>
+      Beweisfrage(
+        nr: nr ?? this.nr,
+        frage: frage ?? this.frage,
+        einschaetzung: einschaetzung ?? this.einschaetzung,
+      );
 }
 
 List<Beweisfrage> decodeBeweisfragen(String? json) {

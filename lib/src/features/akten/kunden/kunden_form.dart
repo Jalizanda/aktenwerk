@@ -71,6 +71,7 @@ Future<bool?> showKundenFormDialog(
   KundenData? kunde,
 }) {
   return showDialog<bool>(
+    barrierDismissible: false,
     context: context,
     builder: (_) => Dialog(
       insetPadding: const EdgeInsets.all(24),

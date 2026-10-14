@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/sync/wiedervorlagen_push.dart';
@@ -13,7 +14,22 @@ import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'wiedervorlagen_repository.dart';
 
-final _wiedervorlagenQueryProvider = StateProvider<String>((ref) => '');
+class WiedervorlagenQueryNotifier extends StateNotifier<String> {
+  WiedervorlagenQueryNotifier() : super('') {
+    _init();
+  }
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString('filter_wiedervorlagen_query') ?? '';
+  }
+  void setQuery(String v) async {
+    state = v;
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('filter_wiedervorlagen_query', v);
+  }
+}
+
+final _wiedervorlagenQueryProvider = StateNotifierProvider<WiedervorlagenQueryNotifier, String>((ref) => WiedervorlagenQueryNotifier());
 
 class WiedervorlagenScreen extends ConsumerWidget {
   const WiedervorlagenScreen({super.key});
@@ -66,7 +82,7 @@ class WiedervorlagenScreen extends ConsumerWidget {
           ],
           searchHint: 'Suche Titel, Anlass, Akte …',
           onSearchChanged: (v) =>
-              ref.read(_wiedervorlagenQueryProvider.notifier).state = v,
+              ref.read(_wiedervorlagenQueryProvider.notifier).setQuery(v),
           filters: [
             SegmentedButton<WiedervorlagenScope>(
               segments: [
@@ -123,6 +139,7 @@ class WiedervorlagenScreen extends ConsumerWidget {
   Future<void> _show(BuildContext context, WidgetRef ref,
       [WiedervorlageWithAuftrag? w]) async {
     await showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (_) => _WiedervorlageForm(eintrag: w),
     );
@@ -149,6 +166,7 @@ class _Tile extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => showDialog(
+              barrierDismissible: false,
           context: context,
           builder: (_) => _WiedervorlageForm(eintrag: item),
         ),

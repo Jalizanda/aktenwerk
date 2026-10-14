@@ -261,6 +261,7 @@ class _QuickActionsBar extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
+        action('Schnellanlage Privatgutachten', Icons.draw_outlined, '/auftraege/schnellanlage'),
         action('Auftraggeber', Icons.person_add_alt_1_outlined, '/kunden'),
         action('Akte', Icons.folder_open_outlined, '/akten'),
         action('Angebot', Icons.price_change_outlined, '/angebote'),

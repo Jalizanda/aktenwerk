@@ -1,8 +1,13 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
+import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'dart:typed_data';
 
 import '../../../data/database/app_database.dart';
+import 'dokumente_repository.dart';
 
 /// Öffnet ein Akten-Dokument zur Anzeige. Strategie nach Dateityp:
 /// - **Cloud-URL vorhanden** → öffnet die URL im neuen Browser-Tab.
@@ -14,8 +19,9 @@ import '../../../data/database/app_database.dart';
 ///   Mime-Types als „save as").
 Future<void> openDokument(
   BuildContext context,
-  DokumenteData d,
-) async {
+  DokumenteData d, [
+  WidgetRef? ref,
+]) async {
   // 1. Cloud-URL bevorzugt.
   final url = d.storageUrl;
   if (url != null && url.trim().isNotEmpty) {
@@ -62,9 +68,23 @@ Future<void> openDokument(
             Positioned(
               top: 8,
               right: 8,
-              child: IconButton.filled(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(ctx).pop(),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (ref != null)
+                    IconButton.filled(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        await _editImage(context, ref, d, bytes);
+                      },
+                    ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
               ),
             ),
           ],
@@ -76,4 +96,28 @@ Future<void> openDokument(
 
   // 4. Sonstige Dateien → Download im Browser.
   await Printing.sharePdf(bytes: bytes, filename: dateiname);
+}
+
+Future<void> _editImage(BuildContext context, WidgetRef ref, DokumenteData d, Uint8List bytes) async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => ProImageEditor.memory(
+        bytes,
+        callbacks: ProImageEditorCallbacks(
+          onImageEditingComplete: (Uint8List newBytes) async {
+            await ref.read(dokumenteRepositoryProvider).upsert(
+                  DokumenteCompanion(
+                    id: Value(d.id),
+                    daten: Value(newBytes),
+                    dateigroesse: Value(newBytes.length),
+                  ),
+                );
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+      ),
+    ),
+  );
 }

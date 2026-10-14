@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/aw_tokens.dart';
 import 'normen_pdf_bulk.dart';
 import 'normen_repository.dart';
 
@@ -53,14 +54,8 @@ class _NormenPdfBulkDialogState
     }
     if (dateien.isEmpty) return;
 
-    // Aktuelle Normen-Liste holen (synchron aus Stream via valueOrNull).
     final normenAsync = ref.read(normenListProvider);
     final normen = normenAsync.valueOrNull ?? const [];
-    if (normen.isEmpty) {
-      setState(() => _fehler =
-          'Keine Normen im Katalog vorhanden — erst JSON-Import durchführen.');
-      return;
-    }
 
     final matches = matchePdfs(dateien: dateien, normen: normen);
     setState(() {
@@ -150,6 +145,25 @@ class _NormenPdfBulkDialogState
   }
 
   Widget _body(ColorScheme scheme) {
+    if (_fehler != null && _phase == _Phase.fertig) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: scheme.error),
+              const SizedBox(height: 16),
+              Text('Fehler beim Upload',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(_fehler!, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
+    }
+
     switch (_phase) {
       case _Phase.auswahl:
         return _auswahl(scheme);
@@ -163,44 +177,41 @@ class _NormenPdfBulkDialogState
   }
 
   Widget _auswahl(ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.picture_as_pdf,
-              size: 56, color: scheme.primary),
-          const SizedBox(height: 14),
-          Text('PDF-Dateien auswählen',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            'Wähle mehrere PDF-Dateien. Aktenwerk versucht, jede '
-            'Datei über ihren Namen der passenden Norm im Katalog '
-            'zuzuordnen und lädt die PDFs anschließend nach '
-            'Firebase Storage hoch.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: scheme.onSurfaceVariant),
-          ),
-          if (_fehler != null) ...[
-            const SizedBox(height: 12),
-            Text(_fehler!,
-                style: TextStyle(color: scheme.error, fontSize: 13)),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.folder_open, size: 64, color: scheme.primary),
+            const SizedBox(height: 16),
+            Text('PDF-Dateien auswählen',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            const Text(
+              'Wähle eine oder mehrere PDF-Dateien aus.\n'
+              'Bestehende Katalog-Normen werden automatisch gematcht.\n'
+              'Für noch nicht existierende Normen wird automatisch ein neuer Katalog-Eintrag angelegt.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('PDFs auswählen…'),
+              onPressed: _dateienWaehlen,
+            ),
           ],
-          const SizedBox(height: 22),
-          FilledButton.icon(
-            icon: const Icon(Icons.folder_open),
-            label: const Text('PDFs auswählen …'),
-            onPressed: _dateienWaehlen,
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _vorschau(ColorScheme scheme) {
-    final zuordenbar = _kandidaten.where((k) => k.hatZuordnung).length;
-    final nichtZuordenbar = _kandidaten.length - zuordenbar;
+    final bestehend =
+        _kandidaten.where((k) => k.hatZuordnung && !k.istNeueNorm && !k.ist1zu1Dublette).length;
+    final neuAnzulegen = _kandidaten.where((k) => k.istNeueNorm && !k.ist1zu1Dublette).length;
+    final dubletten = _kandidaten.where((k) => k.ist1zu1Dublette).length;
     final gesamtGroesse =
         _kandidaten.fold<int>(0, (s, k) => s + k.groesse);
     return Column(
@@ -215,14 +226,24 @@ class _NormenPdfBulkDialogState
               _kennzahl(scheme, '${_kandidaten.length} Dateien',
                   '${(gesamtGroesse / 1024 / 1024).toStringAsFixed(1)} MB'),
               const SizedBox(width: 24),
-              _kennzahl(
-                  scheme, '$zuordenbar zugeordnet', 'werden hochgeladen',
-                  grun: true),
-              const SizedBox(width: 24),
-              if (nichtZuordenbar > 0)
-                _kennzahl(scheme, '$nichtZuordenbar nicht zugeordnet',
-                    'werden übersprungen',
+              if (bestehend > 0) ...[
+                _kennzahl(
+                    scheme, '$bestehend bestehend', 'werden aktualisiert',
+                    grun: true),
+                const SizedBox(width: 24),
+              ],
+              if (neuAnzulegen > 0) ...[
+                _kennzahl(
+                    scheme, '$neuAnzulegen neu', 'werden neu angelegt',
+                    blau: true),
+                const SizedBox(width: 24),
+              ],
+              if (dubletten > 0) ...[
+                _kennzahl(
+                    scheme, '$dubletten Dubletten', 'werden übersprungen',
                     rot: true),
+                const SizedBox(width: 24),
+              ],
               const Spacer(),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -246,24 +267,40 @@ class _NormenPdfBulkDialogState
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (_, i) {
               final k = _kandidaten[i];
-              final ok = k.hatZuordnung;
+              final istDublette = k.ist1zu1Dublette;
+              final istNeu = k.istNeueNorm;
+
+              final IconData icon = istDublette
+                  ? Icons.block
+                  : (istNeu ? Icons.add_circle_outline : Icons.check_circle);
+              final Color iconColor = istDublette
+                  ? Colors.orange.shade800
+                  : (istNeu ? Colors.blue.shade700 : scheme.primary);
+
               return ListTile(
                 dense: true,
                 leading: Icon(
-                  ok ? Icons.check_circle : Icons.error_outline,
-                  color: ok ? scheme.primary : scheme.error,
+                  icon,
+                  color: iconColor,
                   size: 20,
                 ),
                 title: Text(k.dateiname,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        decoration: istDublette ? TextDecoration.lineThrough : null)),
                 subtitle: Text(
-                  ok
-                      ? '→ ${k.zugeordneteNorm!.nummer}'
-                          '${k.zugeordneteNorm!.titel != null ? " · ${k.zugeordneteNorm!.titel}" : ""}'
-                          '   [${k.matchGrund}]'
-                      : 'Keine passende Norm gefunden — bitte im Katalog die Nummer prüfen.',
-                  style: const TextStyle(fontSize: 11),
+                  istDublette
+                      ? '🚫 1:1 Inhaltlich identische Dublette — wird übersprungen (${k.matchGrund})'
+                      : (istNeu
+                          ? '→ Neue Norm wird angelegt: ${k.zugeordneteNorm!.nummer}'
+                              ' (${k.zugeordneteNorm!.herausgeber})'
+                          : '→ Bestehende Norm: ${k.zugeordneteNorm!.nummer}'
+                              '${k.zugeordneteNorm!.titel != null ? " · ${k.zugeordneteNorm!.titel}" : ""}'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: istDublette ? Colors.red.shade700 : null,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -333,12 +370,16 @@ class _NormenPdfBulkDialogState
     }
     final r = _ergebnis!;
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.check_circle, size: 56, color: scheme.primary),
-          const SizedBox(height: 14),
+          Icon(
+            r.fehler > 0 ? Icons.warning_amber_rounded : Icons.check_circle,
+            size: 52,
+            color: r.fehler > 0 ? AwTokens.orange : scheme.primary,
+          ),
+          const SizedBox(height: 12),
           Text('Upload abgeschlossen',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 10),
@@ -360,6 +401,43 @@ class _NormenPdfBulkDialogState
               ],
             ),
           ),
+          if (r.fehlerListe.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Fehler-Details (${r.fehlerListe.length}):',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.error),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: scheme.error.withValues(alpha: 0.3)),
+                ),
+                child: ListView.builder(
+                  itemCount: r.fehlerListe.length,
+                  itemBuilder: (context, i) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      '• ${r.fehlerListe[i]}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onErrorContainer,
+                          fontFamily: 'monospace'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -385,12 +463,14 @@ class _NormenPdfBulkDialogState
   }
 
   Widget _kennzahl(ColorScheme scheme, String wert, String label,
-      {bool grun = false, bool rot = false}) {
+      {bool grun = false, bool rot = false, bool blau = false}) {
     final color = grun
         ? scheme.primary
         : rot
             ? scheme.error
-            : scheme.onSurface;
+            : blau
+                ? Colors.blue.shade700
+                : scheme.onSurface;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

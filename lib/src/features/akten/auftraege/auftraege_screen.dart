@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../../../shared/widgets/badges.dart';
 import '../kunden/kunden_repository.dart';
+import '../workflow/akten_import_service.dart';
+import '../export/akten_export_service.dart';
 import 'auftraege_form.dart';
 import 'auftraege_repository.dart';
 
@@ -137,6 +139,19 @@ class _ToolbarState extends ConsumerState<_Toolbar> {
             icon: const Icon(Icons.add),
             label: const Text('Neuer Auftrag'),
           ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.file_upload_outlined, size: 18),
+            label: const Text('ZIP Import'),
+            onPressed: () async {
+              try {
+                await ref.read(aktenImportServiceProvider).importAkte();
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler beim Import: $e')));
+                }
+              }
+            },
+          ),
         ],
       ),
     );
@@ -216,6 +231,18 @@ class _AuftraegeTable extends ConsumerWidget {
                 icon: const Icon(Icons.edit_outlined, size: 20),
                 onPressed: () =>
                     showAuftragFormDialog(context, auftrag: a),
+              ),
+              IconButton(
+                tooltip: 'Akte archivieren (ZIP Export)',
+                icon: const Icon(Icons.archive_outlined, size: 20),
+                onPressed: () async {
+                  try {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export wird erstellt, bitte warten...')));
+                    await ref.read(aktenExportServiceProvider).exportAkte(a.id);
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fehler beim Export: $e')));
+                  }
+                },
               ),
               IconButton(
                 tooltip: 'Löschen',

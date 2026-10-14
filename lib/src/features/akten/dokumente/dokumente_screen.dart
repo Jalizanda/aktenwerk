@@ -121,7 +121,7 @@ class DokumenteScreen extends ConsumerWidget {
     final hatBytes = (d.dokument.daten?.isNotEmpty ?? false);
     return DataRow(
       onSelectChanged: (hasCloud || hatBytes)
-          ? (_) => openDokument(context, d.dokument)
+          ? (_) => openDokument(context, d.dokument, ref)
           : (_) => _edit(context, ref, d),
       cells: [
         DataCell(Text(_dateFmt.format(d.dokument.datum))),
@@ -151,7 +151,7 @@ class DokumenteScreen extends ConsumerWidget {
               IconButton(
                 tooltip: 'Öffnen / Vorschau',
                 icon: const Icon(Icons.visibility_outlined, size: 20),
-                onPressed: () => openDokument(context, d.dokument),
+                onPressed: () => openDokument(context, d.dokument, ref),
               ),
             IconButton(
               tooltip: 'Bearbeiten',
@@ -299,7 +299,7 @@ class _DokumentFormDialogState extends ConsumerState<_DokumentFormDialog> {
               icon: const Icon(Icons.visibility_outlined, size: 16),
               label: const Text('Datei öffnen / Vorschau'),
               onPressed: () =>
-                  openDokument(context, widget.eintrag.dokument),
+                  openDokument(context, widget.eintrag.dokument, ref),
             )
           : null,
       onDelete: () async {

@@ -31,6 +31,7 @@ class Benutzer extends Table {
 
   TextColumn get unterschriftPfad => text().nullable()();
   TextColumn get logoPfad => text().nullable()();
+  TextColumn get stempelPfad => text().nullable()();
 
   /// Profilbild als Base64 (Avatar).
   TextColumn get profilBildBase64 => text().nullable()();

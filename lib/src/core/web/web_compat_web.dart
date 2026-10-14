@@ -80,3 +80,68 @@ void showBrowserNotification(String title,
     // ignore
   }
 }
+
+// ---------------- Viewport & Virtual Keyboard (iOS / iPadOS) ----------------
+
+/// Berechnet den Versatz (Bottom-Inset in CSS-Pixeln), den die virtuelle
+/// Software-Tastatur auf mobilen Web-Browsern (insb. Safari auf iOS / iPadOS)
+/// erzeugt, indem der VisualViewport mit der Fensterhöhe verglichen wird.
+/// Gibt 0.0 zurück, wenn die Differenz vernachlässigbar klein ist (< 60px).
+double get visualViewportKeyboardInset {
+  try {
+    final vv = web.window.visualViewport;
+    if (vv == null) return 0.0;
+    final winH = web.window.innerHeight;
+    final vvH = vv.height;
+    final diff = winH - vvH;
+    // Tastaturhöhe auf Mobilgeräten typischerweise 150px - 450px.
+    // Schwellenwert 60px filtert URL-Leisten-Änderungen in Safari heraus.
+    if (diff > 60 && diff < winH * 0.85) {
+      return diff.toDouble();
+    }
+    return 0.0;
+  } catch (_) {
+    return 0.0;
+  }
+}
+
+/// Stream für Änderungen des VisualViewports (z. B. Tastatur auf-/zugeklappt
+/// auf iPadOS / iOS Safari).
+Stream<double> get visualViewportKeyboardStream {
+  try {
+    final vv = web.window.visualViewport;
+    if (vv == null) return const Stream.empty();
+    return web.EventStreamProviders.resizeEvent
+        .forTarget(vv)
+        .map((_) => visualViewportKeyboardInset);
+  } catch (_) {
+    return const Stream.empty();
+  }
+}
+
+/// Setzt das Window-Scroll-Offset auf (0, 0) zurück. Verhindert, dass WebKit
+/// bei Fokus auf ein Textfeld das gesamte Flutter-Canvas unerwünscht nach oben schiebt.
+void resetWindowScroll() {
+  try {
+    web.window.scrollTo(0.toJS, 0);
+  } catch (_) {}
+}
+
+/// Prüft, ob der Browser auf einem iOS- oder iPadOS-Gerät läuft.
+/// Erkennt auch iPads ab iPadOS 13, die sich als Desktop-Safari (Macintosh)
+/// ausgeben, aber Multi-Touch unterstützen.
+bool get isIOSorIPad {
+  try {
+    final ua = web.window.navigator.userAgent;
+    if (ua.contains('iPad') || ua.contains('iPhone') || ua.contains('iPod')) {
+      return true;
+    }
+    if (ua.contains('Macintosh') && web.window.navigator.maxTouchPoints > 1) {
+      return true;
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+

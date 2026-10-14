@@ -18,6 +18,7 @@ import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 
 import 'normen_chat_dialog.dart';
+import 'normen_dubletten_dialog.dart';
 import 'normen_rag_chat_dialog.dart';
 import 'normen_import.dart';
 import 'normen_pdf_bulk_dialog.dart';
@@ -116,6 +117,15 @@ class NormenScreen extends ConsumerWidget {
                     icon: const Icon(Icons.upload_file_outlined, size: 18),
                     label: const Text('JSON-Import'),
                     onPressed: () => _importJson(context, ref),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.copy_rounded, size: 18),
+                    label: const Text('Dubletten prüfen'),
+                    onPressed: () => showDialog(
+                      context: context,
+                      useRootNavigator: true,
+                      builder: (_) => const NormenDublettenDialog(),
+                    ),
                   ),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.cloud_upload_outlined, size: 18),
@@ -501,6 +511,8 @@ class _NormenTabelleState extends ConsumerState<_NormenTabelle> {
       Map<int, NormIndexStatus> statusMap) {
     String s(String? v) => (v ?? '').toLowerCase();
     switch (col) {
+      case 0:
+        return n.favorit ? 0 : 1;
       case 1:
         return s(n.nummer);
       case 2:
@@ -590,123 +602,420 @@ class _NormenTabelleState extends ConsumerState<_NormenTabelle> {
       );
     }
 
-    // ── Desktop: DataTable ────────────────────────────────────────────────
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: dimmed ? AppTheme.slate500 : AppTheme.slate900,
-              ),
+    // ── Desktop: Resizable Table ─────────────────────────────────────────
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 24, top: 4),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: dimmed ? AppTheme.slate500 : AppTheme.slate900,
             ),
           ),
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant),
-            ),
-            child: Opacity(
-              opacity: dimmed ? 0.72 : 1.0,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  showCheckboxColumn: false,
-                  sortColumnIndex:
-                      _sortColumnIndex < 0 ? null : _sortColumnIndex,
-                  sortAscending: _sortAscending,
-                  headingRowColor: WidgetStateProperty.all(
-                    Theme.of(context).colorScheme.surfaceContainerLow,
-                  ),
-                  columns: [
-                    const DataColumn(
-                        label: SizedBox(width: 24, child: Text(''))),
-                    DataColumn(label: const Text('Nummer'), onSort: _onSort),
-                    DataColumn(label: const Text('Ausgabe'), onSort: _onSort),
-                    DataColumn(label: const Text('Titel'), onSort: _onSort),
-                    DataColumn(label: const Text('Gewerk'), onSort: _onSort),
-                    DataColumn(label: const Text('Kategorie'), onSort: _onSort),
-                    DataColumn(label: const Text('Aktualität'), onSort: _onSort),
-                    DataColumn(label: const Text('Indexiert'), onSort: _onSort),
-                    const DataColumn(
-                        label: SizedBox(width: 28, child: Text(''))),
-                    const DataColumn(
-                        label: SizedBox(width: 28, child: Text(''))),
-                  ],
-                  rows: [
-                    for (final n in sorted)
-                      DataRow(
-                        onSelectChanged: (_) => onEdit(n),
-                        cells: [
-                          DataCell(IconButton(
-                            tooltip: n.favorit
-                                ? 'Favorit entfernen'
-                                : 'Als Favorit markieren',
-                            icon: Icon(
-                              n.favorit ? Icons.star : Icons.star_outline,
-                              size: 18,
-                              color: n.favorit
-                                  ? Theme.of(context).colorScheme.tertiary
-                                  : null,
-                            ),
-                            onPressed: () => onToggleFavorit(n),
-                          )),
-                          DataCell(Text(n.nummer,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontFeatures: [
-                                    FontFeature.tabularFigures()
-                                  ]))),
-                          DataCell(Text(n.ausgabe ?? '—')),
-                          DataCell(SizedBox(
-                            width: 380,
-                            child: Text(
-                              n.titel ?? '—',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          )),
-                          DataCell(SizedBox(
-                            width: 160,
-                            child: Text(
-                              n.gewerk ?? '—',
-                              style: const TextStyle(fontSize: 12),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          )),
-                          DataCell(_KategorieBadge(kategorie: n.kategorie)),
-                          DataCell(_AktualitaetsPill(norm: n)),
-                          DataCell(_IndexStatusZelle(
-                              status: statusMap[n.id] ??
-                                  NormIndexStatus.unbekannt)),
-                          DataCell(_PdfCell(norm: n)),
-                          DataCell(IconButton(
-                            tooltip: 'Bearbeiten',
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            onPressed: () => onEdit(n),
-                          )),
-                          DataCell(IconButton(
-                            tooltip: 'Löschen',
-                            icon:
-                                const Icon(Icons.delete_outline, size: 18),
-                            onPressed: () => onDelete(n),
-                          )),
-                        ],
+        ),
+        _ResizableNormenTabelle(
+          sortedItems: sorted,
+          statusMap: statusMap,
+          dimmed: dimmed,
+          sortColumnIndex: _sortColumnIndex,
+          sortAscending: _sortAscending,
+          onSort: _onSort,
+          onEdit: onEdit,
+          onDelete: onDelete,
+          onToggleFavorit: onToggleFavorit,
+        ),
+      ],
+    );
+  }
+}
+
+/// Formatierer für das Ausgabejahr im Format JJJJ:MM.
+String formatAusgabeJahr(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return '—';
+  final trimmed = raw.trim();
+
+  final matchWithMonth = RegExp(r'^(\d{4})[\-.:/](\d{1,2})$').firstMatch(trimmed);
+  if (matchWithMonth != null) {
+    final year = matchWithMonth.group(1);
+    final month = matchWithMonth.group(2)!.padLeft(2, '0');
+    return '$year:$month';
+  }
+
+  final matchYearOnly = RegExp(r'^(\d{4})$').firstMatch(trimmed);
+  if (matchYearOnly != null) {
+    final year = matchYearOnly.group(1);
+    return '$year:01';
+  }
+
+  final matchMonthYear = RegExp(r'^(\d{1,2})[\-.:/](\d{4})$').firstMatch(trimmed);
+  if (matchMonthYear != null) {
+    final month = matchMonthYear.group(1)!.padLeft(2, '0');
+    final year = matchMonthYear.group(2);
+    return '$year:$month';
+  }
+
+  return trimmed;
+}
+
+// ── Desktop: Resizable Custom Table ──────────────────────────────────
+class _ResizableNormenTabelle extends StatefulWidget {
+  const _ResizableNormenTabelle({
+    required this.sortedItems,
+    required this.statusMap,
+    required this.dimmed,
+    required this.sortColumnIndex,
+    required this.sortAscending,
+    required this.onSort,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggleFavorit,
+  });
+
+  final List<NormenData> sortedItems;
+  final Map<int, NormIndexStatus> statusMap;
+  final bool dimmed;
+  final int sortColumnIndex;
+  final bool sortAscending;
+  final void Function(int, bool) onSort;
+  final void Function(NormenData) onEdit;
+  final void Function(NormenData) onDelete;
+  final void Function(NormenData) onToggleFavorit;
+
+  @override
+  State<_ResizableNormenTabelle> createState() => _ResizableNormenTabelleState();
+}
+
+class _ResizableNormenTabelleState extends State<_ResizableNormenTabelle> {
+  // Vom Nutzer manuell veränderte Spaltenbreiten merken
+  final Map<int, bool> _userResized = {};
+  final _hScrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _hScrollCtrl.dispose();
+    super.dispose();
+  }
+
+  // Spaltenbreiten (Standard an Inhalt/Text angepasst)
+  final Map<int, double> _colWidths = {
+    0: 44.0,   // Fav
+    1: 170.0,  // Nummer
+    2: 100.0,  // Ausgabe
+    3: 500.0,  // Titel (dynamisch erweitert)
+    4: 160.0,  // Gewerk
+    5: 140.0,  // Kategorie
+    6: 120.0,  // Aktualität
+    7: 120.0,  // Indexiert
+    8: 48.0,   // PDF
+    9: 44.0,   // Edit
+    10: 44.0,  // Delete
+  };
+
+  Widget _buildHeaderCell(int index, String label, {bool sortable = true}) {
+    final isSorted = widget.sortColumnIndex == index;
+    final width = _colWidths[index] ?? 100.0;
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: width,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: sortable
+                  ? () => widget.onSort(
+                        index,
+                        isSorted ? !widget.sortAscending : true,
+                      )
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: isSorted ? theme.colorScheme.primary : null,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    if (isSorted) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        widget.sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        size: 14,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragUpdate: (details) {
+              setState(() {
+                _userResized[index] = true;
+                final newW = (width + details.delta.dx).clamp(40.0, 1200.0);
+                _colWidths[index] = newW;
+              });
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: Container(
+                width: 8,
+                height: 24,
+                color: Colors.transparent,
+                child: Center(
+                  child: Container(
+                    width: 2,
+                    height: 14,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final totalWidth = constraints.maxWidth;
+          // Titel-Spalte (index 3) dynamisch strecken, wenn der Nutzer sie nicht manuell skaliert hat
+          if (_userResized[3] != true) {
+            double fixedSum = 0;
+            _colWidths.forEach((k, v) {
+              if (k != 3) fixedSum += v;
+            });
+            final avail = totalWidth - fixedSum - 16;
+            if (avail > 360.0) {
+              _colWidths[3] = avail;
+            }
+          }
+
+          return Card(
+            elevation: 0,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Opacity(
+              opacity: widget.dimmed ? 0.72 : 1.0,
+              child: SingleChildScrollView(
+                controller: _hScrollCtrl,
+                scrollDirection: Axis.horizontal,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Sticky Header Row (Fixierter Tabellenkopf)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                      ),
+                      child: Row(
+                        children: [
+                          _buildHeaderCell(0, '★', sortable: true),
+                          _buildHeaderCell(1, 'Nummer'),
+                          _buildHeaderCell(2, 'Ausgabe'),
+                          _buildHeaderCell(3, 'Titel'),
+                          _buildHeaderCell(4, 'Gewerk'),
+                          _buildHeaderCell(5, 'Kategorie'),
+                          _buildHeaderCell(6, 'Aktualität'),
+                          _buildHeaderCell(7, 'Indexiert'),
+                          _buildHeaderCell(8, 'PDF', sortable: false),
+                          _buildHeaderCell(9, '', sortable: false),
+                          _buildHeaderCell(10, '', sortable: false),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    // Vertical Scrollable Data Rows
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: (MediaQuery.sizeOf(context).height - 230)
+                            .clamp(650.0, 1600.0),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final n in widget.sortedItems)
+                              InkWell(
+                                onTap: () => widget.onEdit(n),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                          color: theme.colorScheme.outlineVariant
+                                              .withValues(alpha: 0.4),
+                                          width: 0.5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: _colWidths[0],
+                                        child: IconButton(
+                                          iconSize: 18,
+                                          tooltip: n.favorit
+                                              ? 'Favorit entfernen'
+                                              : 'Als Favorit markieren',
+                                          icon: Icon(
+                                            n.favorit
+                                                ? Icons.star
+                                                : Icons.star_outline,
+                                            color: n.favorit
+                                                ? theme.colorScheme.tertiary
+                                                : null,
+                                          ),
+                                          onPressed: () => widget.onToggleFavorit(n),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[1],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: Text(
+                                            n.nummer,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontFeatures: [
+                                                FontFeature.tabularFigures()
+                                              ],
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[2],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: Text(
+                                            formatAusgabeJahr(n.ausgabe),
+                                            style: const TextStyle(
+                                              fontFeatures: [
+                                                FontFeature.tabularFigures()
+                                              ],
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[3],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 8),
+                                          child: Text(
+                                            n.titel ?? '—',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[4],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: Text(
+                                            n.gewerk ?? '—',
+                                            style: const TextStyle(fontSize: 12),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[5],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: _KategorieBadge(
+                                              kategorie: n.kategorie),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[6],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: _AktualitaetsPill(norm: n),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[7],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: _IndexStatusZelle(
+                                              status: widget.statusMap[n.id] ??
+                                                  NormIndexStatus.unbekannt),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[8],
+                                        child: _PdfCell(norm: n),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[9],
+                                        child: IconButton(
+                                          tooltip: 'Bearbeiten',
+                                          icon: const Icon(Icons.edit_outlined,
+                                              size: 18),
+                                          onPressed: () => widget.onEdit(n),
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: _colWidths[10],
+                                        child: IconButton(
+                                          tooltip: 'Löschen',
+                                          icon: const Icon(Icons.delete_outline,
+                                              size: 18),
+                                          onPressed: () => widget.onDelete(n),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -2567,6 +2876,40 @@ Future<void> _zeigeFehlerDialog(BuildContext context, WidgetRef ref) async {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
+                  if (liste.isNotEmpty)
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Fehlgeschlagene erneut versuchen'),
+                      onPressed: () async {
+                        Navigator.of(dialogCtx).pop();
+                        final db = ref.read(appDatabaseProvider);
+                        final alle = await db.select(db.normen).get();
+                        final fehlerNormIds = liste
+                            .map((e) => e.normId)
+                            .whereType<int>()
+                            .toSet();
+                        final betroffeneNormen = alle
+                            .where((n) => fehlerNormIds.contains(n.id))
+                            .toList();
+                        if (betroffeneNormen.isNotEmpty) {
+                          await ref
+                              .read(normRagServiceProvider)
+                              .markiereAlleZurIndexierung(
+                                betroffeneNormen,
+                                onlyMissing: false,
+                              );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${betroffeneNormen.length} fehlgeschlagene Normen erneut zur Indexierung angemeldet.',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
                   const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(dialogCtx).pop(),

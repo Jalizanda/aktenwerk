@@ -129,17 +129,51 @@ class NormChatAntwort {
       );
 }
 
+/// Anhang an einer Chat-Nachricht (Foto oder Dokument).
+class NormChatAnhang {
+  final String dateiname;
+  final String mimeType;
+  final String base64Data;
+  final String? storageUrl;
+
+  const NormChatAnhang({
+    required this.dateiname,
+    required this.mimeType,
+    required this.base64Data,
+    this.storageUrl,
+  });
+
+  bool get istBild => mimeType.startsWith('image/');
+  bool get istPdf => mimeType == 'application/pdf';
+
+  Map<String, dynamic> toMap() => {
+        'dateiname': dateiname,
+        'mimeType': mimeType,
+        'base64Data': base64Data,
+        if (storageUrl != null) 'storageUrl': storageUrl,
+      };
+
+  factory NormChatAnhang.fromMap(Map m) => NormChatAnhang(
+        dateiname: m['dateiname']?.toString() ?? 'Anhang',
+        mimeType: m['mimeType']?.toString() ?? 'application/octet-stream',
+        base64Data: m['base64Data']?.toString() ?? '',
+        storageUrl: m['storageUrl']?.toString(),
+      );
+}
+
 /// Eintrag in der Chat-Historie für die UI.
 class NormChatNachricht {
   final String rolle; // 'user' | 'assistant'
   final String text;
   final List<NormChatQuelle> quellen;
+  final List<NormChatAnhang> anhaenge;
   final DateTime zeit;
 
   const NormChatNachricht({
     required this.rolle,
     required this.text,
     this.quellen = const [],
+    this.anhaenge = const [],
     required this.zeit,
   });
 }
@@ -361,8 +395,10 @@ class NormRagService {
   Future<NormChatAntwort> frage({
     required String frage,
     List<NormChatNachricht> historie = const [],
+    List<NormChatAnhang> anhaenge = const [],
     List<int>? filterNormIds,
     String? orgId,
+    bool fastMode = false,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -373,8 +409,17 @@ class NormRagService {
       'frage': frage,
       'historie':
           historie.map((m) => {'rolle': m.rolle, 'text': m.text}).toList(),
+      if (anhaenge.isNotEmpty)
+        'anhaenge': anhaenge
+            .map((a) => {
+                  'dateiname': a.dateiname,
+                  'mimeType': a.mimeType,
+                  'base64Data': a.base64Data,
+                })
+            .toList(),
       if (filterNormIds != null) 'normIds': filterNormIds,
       if (orgId != null) 'orgId': orgId,
+      'fastMode': fastMode,
     });
     final response = await http
         .post(

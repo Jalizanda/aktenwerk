@@ -52,9 +52,8 @@ ${gewerk == null || gewerk.isEmpty ? "" : "Gewerk: $gewerk\n"}${einheit == null 
 Bitte generiere den passenden Langtext.
 ''';
 
-  final model =
-      FirebaseAI.vertexAI(location: 'europe-west1').generativeModel(
-    model: modellId,
+  final model = getVertexGenerativeModel(
+    modelId: modellId,
     systemInstruction: Content.system(systemPrompt),
     generationConfig: GenerationConfig(
       temperature: 0.4,

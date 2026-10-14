@@ -44,7 +44,7 @@ export const indexNormPdf = onDocumentWritten(
   {
     document: "norm_pdfs/{key}",
     timeoutSeconds: 540,
-    memory: "2GiB",
+    memory: "4GiB",
   },
   async (event: FirestoreEvent<Change<DocumentSnapshot> | undefined, { key: string }>) => {
     const after = event.data?.after.data();
@@ -177,14 +177,117 @@ async function deleteExistingChunks(
 }
 
 // ---------------------------------------------------------------------------
+// 1b) Hintergrund-Re-Indexierung aller gespeicherten Dokumente & PDFs
+// ---------------------------------------------------------------------------
+
+export const reindexAllNormPdfs = onRequest(
+  {
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    cors: true,
+  },
+  async (req: Request, res: Response) => {
+    try {
+      const db = getFirestore();
+
+      // 1) Alle existierenden norm_pdfs durchgehen und auf status: "pending" setzen
+      const snap = await db.collection("norm_pdfs").get();
+      let updated = 0;
+
+      for (const doc of snap.docs) {
+        await doc.ref.update({
+          status: "pending",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        updated++;
+      }
+
+      // 2) Zusätzlich: Storage durchsuchen nach PDFs unter 'normen/', falls noch kein doc existiert
+      const bucket = getStorage().bucket();
+      const [files] = await bucket.getFiles({ prefix: "normen/" });
+      let neuRegistriert = 0;
+
+      for (const file of files) {
+        if (!file.name.endsWith(".pdf")) continue;
+        const filename = file.name.split("/").pop() || "";
+        const cleanName = filename.replace(/\.pdf$/i, "");
+        const docKey = `norm_storage_${cleanName.replace(/[^A-Za-z0-9._\-]/g, "_")}`;
+        const docRef = db.collection("norm_pdfs").doc(docKey);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+          await docRef.set({
+            nummer: cleanName,
+            titel: cleanName,
+            storagePath: file.name,
+            status: "pending",
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          neuRegistriert++;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Hintergrund-Indexierung gestartet: ${updated} bestehende Dokumente zurückgesetzt, ${neuRegistriert} neue Storage-PDFs registriert.`,
+        updated,
+        neuRegistriert,
+      });
+    } catch (err) {
+      logger.error("reindexAllNormPdfs failed", err);
+      res.status(500).json({ error: (err as Error).message });
+    }
+  }
+);
+
+export const getNormIndexProgress = onRequest(
+  {
+    timeoutSeconds: 30,
+    memory: "256MiB",
+    cors: true,
+  },
+  async (req: Request, res: Response) => {
+    try {
+      const db = getFirestore();
+      const snap = await db.collection("norm_pdfs").get();
+      const counts: Record<string, number> = {
+        indexed: 0,
+        indexing: 0,
+        pending: 0,
+        failed: 0,
+        gesamt: snap.size,
+      };
+      for (const doc of snap.docs) {
+        const st = (doc.data().status as string) || "unbekannt";
+        counts[st] = (counts[st] || 0) + 1;
+      }
+      const chunkSnap = await db.collection("norm_chunks").count().get();
+      counts["chunksGesamt"] = chunkSnap.data().count;
+
+      res.json(counts);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
 // 2) Chat-Endpoint (HTTPS Callable)
 // ---------------------------------------------------------------------------
+
+interface ChatAnhangItem {
+  dateiname?: string;
+  mimeType?: string;
+  base64Data?: string;
+}
 
 interface ChatRequestData {
   frage?: string;
   historie?: { rolle: string; text: string }[];
   normIds?: number[];
   orgId?: string;
+  fastMode?: boolean;
+  anhaenge?: ChatAnhangItem[];
 }
 
 interface ChatQuelle {
@@ -224,12 +327,35 @@ export const normChat = onCall(
     const historie = data.historie ?? [];
     const filterNormIds = data.normIds ?? [];
     const filterOrgId = data.orgId;
+    const fastMode = !!data.fastMode;
+    const anhaenge = (data.anhaenge ?? []).map((a) => ({
+      mimeType: a.mimeType ?? "",
+      base64Data: a.base64Data ?? "",
+    })).filter((a) => a.mimeType && a.base64Data);
 
     const db = getFirestore();
     const t0 = Date.now();
 
+    // OCR Pre-pass für Vektorsuche, falls Fotos/Dokumente angehängt sind
+    let searchPrompt = frage;
+    if (anhaenge.length > 0) {
+      try {
+        const ocrText = await generateAnswer({
+          system:
+            "Du bist ein OCR- und Text-Extrahierer. Lies sämtlichen Text, Fragen, Norm-Nummern (z.B. DIN 18360, VOB/C) und Fachbegriffe aus den angehängten Bildern/Dokumenten exakt aus.",
+          userPrompt: "Lies den Inhalt und alle Fachbegriffe/Normen aus den Dokumenten/Bildern aus.",
+          anhaenge,
+        });
+        if (ocrText && ocrText.trim().length > 0) {
+          searchPrompt = `${frage}\n\n[Inhalt aus Anhang]:\n${ocrText.trim()}`;
+        }
+      } catch (err) {
+        logger.warn("Fehler beim OCR-Prepass für Vektorsuche in normChat", err);
+      }
+    }
+
     // 1) Frage embedden
-    const [embedding] = await embedTexts([frage]);
+    const [embedding] = await embedTexts([searchPrompt]);
     if (!embedding || embedding.length !== EMBEDDING_DIMS) {
       throw new HttpsError("internal", "Embedding der Frage fehlgeschlagen.");
     }
@@ -256,7 +382,7 @@ export const normChat = onCall(
           "Ich habe in der Normen-Bibliothek keine passenden Stellen gefunden. " +
           "Wenn die Norm hochgeladen ist, prüfe bitte, ob ihre Indexierung abgeschlossen ist.",
         quellen: [],
-        modell: "gemini-2.5-flash",
+        modell: "gemini-3.5-flash",
         dauerMs: String(Date.now() - t0),
         anzahlChunks: "0",
       };
@@ -281,30 +407,51 @@ export const normChat = onCall(
       });
     }
 
-    const systemAnweisung =
+    let systemAnweisung =
       "Du bist ein Bauwesen-Sachverständigen-Assistent. Du beantwortest Fragen " +
-      "zu DIN-/EN-/ISO-Normen ausschließlich auf Basis der untenstehenden Auszüge " +
-      "aus der Normen-Bibliothek. Regeln:\n" +
+      "zu DIN-/EN-/ISO-Normen auf Basis der untenstehenden Auszüge aus der Normen-Bibliothek " +
+      "sowie den vom Nutzer bereitgestellten Fotos oder Dokumenten. Regeln:\n" +
       "1. Antworte fachlich präzise und in deutscher Sachverständigen-Sprache.\n" +
       "2. Zitiere immer die Quelle in eckigen Klammern: [Norm · Seite].\n" +
-      "3. Wenn die Auszüge die Frage nicht eindeutig beantworten, sag das offen " +
+      "3. Falls der Nutzer Fotos/Dokumente angehängt hat, beziehe diese direkt in deine Analyse ein (z. B. Baustellenfoto, Schaden, Fenster, Bewehrung).\n" +
+      "4. Wenn die Auszüge die Frage nicht eindeutig beantworten, sag das offen " +
       "und schlage konkret vor, welche weitere Norm hilfreich wäre.\n" +
-      "4. Erfinde KEINE Norm-Inhalte. Wenn etwas nicht in den Auszügen steht, " +
-      "nicht behaupten.";
+      "5. Erfinde KEINE Norm-Inhalte.";
+
+    if (fastMode) {
+      systemAnweisung +=
+        "\n\nWICHTIG — FAST-MODUS AKTIV:\n" +
+        "- Bei Multiple-Choice-Fragen: Gib NUR kurz die Lösungsnummer/Buchstabe an und eine ganz kurze (max. 1 Satz) Begründung zur richtigen Antwort.\n" +
+        "- Bei freien Fragen (Textantwort): Antworte extrem kurz, prägnant und in Stichpunkten. Nur das absolut Essenzielle und Wichtigste sehr schnell antworten.";
+    }
 
     const kontext = kontextBlocks.join("\n\n---\n\n");
     const userPrompt = `Auszüge aus der Normen-Bibliothek:\n\n${kontext}\n\nFrage: ${frage}\n\nAntwort:`;
 
-    const antwort = await generateAnswer({
+    const antwortRaw = await generateAnswer({
       system: systemAnweisung,
       historie: historie.slice(-6),
       userPrompt,
+      anhaenge,
+    });
+    const antwort = antwortRaw.trim();
+
+    // Nur Quellen zurückgeben, die in der Antwort tatsächlich zitiert oder erwähnt werden
+    const relevanteQuellen = quellen.filter((q) => {
+      if (!q.nummer) return false;
+      const antwortLow = antwort.toLowerCase();
+      const numLow = q.nummer.trim().toLowerCase();
+      const titleLow = q.titel.trim().toLowerCase();
+      return (
+        antwortLow.includes(numLow) ||
+        (titleLow.length > 5 && antwortLow.includes(titleLow))
+      );
     });
 
     return {
-      antwort: antwort.trim(),
-      quellen,
-      modell: "gemini-2.5-flash",
+      antwort,
+      quellen: relevanteQuellen,
+      modell: "gemini-3.5-flash",
       dauerMs: String(Date.now() - t0),
       anzahlChunks: String(snap.size),
     };
@@ -350,12 +497,37 @@ export const normChatHttp = onRequest(
     const historie = data.historie ?? [];
     const filterNormIds = data.normIds ?? [];
     const filterOrgId = data.orgId;
+    const fastMode = !!data.fastMode;
+    const anhaenge = (data.anhaenge ?? [])
+      .map((a: any) => ({
+        mimeType: String(a?.mimeType ?? ""),
+        base64Data: String(a?.base64Data ?? ""),
+      }))
+      .filter((a) => a.mimeType && a.base64Data);
 
     const db = getFirestore();
     const t0 = Date.now();
 
     try {
-      const [embedding] = await embedTexts([frage]);
+      // OCR Pre-pass für Vektorsuche, falls Fotos/Dokumente angehängt sind
+      let searchPrompt = frage;
+      if (anhaenge.length > 0) {
+        try {
+          const ocrText = await generateAnswer({
+            system:
+              "Du bist ein OCR- und Text-Extrahierer. Lies sämtlichen Text, Fragen, Norm-Nummern (z.B. DIN 18360, VOB/C) und Fachbegriffe aus den angehängten Bildern/Dokumenten exakt aus.",
+            userPrompt: "Lies den Inhalt und alle Fachbegriffe/Normen aus den Dokumenten/Bildern aus.",
+            anhaenge,
+          });
+          if (ocrText && ocrText.trim().length > 0) {
+            searchPrompt = `${frage}\n\n[Inhalt aus Anhang]:\n${ocrText.trim()}`;
+          }
+        } catch (err) {
+          logger.warn("Fehler beim OCR-Prepass für Vektorsuche in normChatHttp", err);
+        }
+      }
+
+      const [embedding] = await embedTexts([searchPrompt]);
       if (!embedding || embedding.length !== EMBEDDING_DIMS) {
         res.status(500).json({ error: "embedding_failed" });
         return;
@@ -380,9 +552,9 @@ export const normChatHttp = onRequest(
         res.json({
           antwort:
             "Ich habe in der Normen-Bibliothek keine passenden Stellen gefunden. " +
-            "Wenn die Norm hochgeladen ist, prüfe bitte, ob ihre Indexierung abgeschlossen ist.",
+            "Wenn the Norm hochgeladen ist, prüfe bitte, ob ihre Indexierung abgeschlossen ist.",
           quellen: [],
-          modell: "gemini-2.5-flash",
+          modell: "gemini-3.5-flash",
           dauerMs: String(Date.now() - t0),
           anzahlChunks: "0",
         });
@@ -407,30 +579,51 @@ export const normChatHttp = onRequest(
         });
       }
 
-      const systemAnweisung =
+      let systemAnweisung =
         "Du bist ein Bauwesen-Sachverständigen-Assistent. Du beantwortest Fragen " +
-        "zu DIN-/EN-/ISO-Normen ausschließlich auf Basis der untenstehenden Auszüge " +
-        "aus der Normen-Bibliothek. Regeln:\n" +
+        "zu DIN-/EN-/ISO-Normen auf Basis der untenstehenden Auszüge aus der Normen-Bibliothek " +
+        "sowie den vom Nutzer bereitgestellten Fotos oder Dokumenten. Regeln:\n" +
         "1. Antworte fachlich präzise und in deutscher Sachverständigen-Sprache.\n" +
         "2. Zitiere immer die Quelle in eckigen Klammern: [Norm · Seite].\n" +
-        "3. Wenn die Auszüge die Frage nicht eindeutig beantworten, sag das offen " +
+        "3. Falls der Nutzer Fotos/Dokumente angehängt hat, beziehe diese direkt in deine Analyse ein (z. B. Baustellenfoto, Schaden, Fenster, Bewehrung).\n" +
+        "4. Wenn die Auszüge die Frage nicht eindeutig beantworten, sag das offen " +
         "und schlage konkret vor, welche weitere Norm hilfreich wäre.\n" +
-        "4. Erfinde KEINE Norm-Inhalte. Wenn etwas nicht in den Auszügen steht, " +
-        "nicht behaupten.";
+        "5. Erfinde KEINE Norm-Inhalte.";
+
+      if (fastMode) {
+        systemAnweisung +=
+          "\n\nWICHTIG — FAST-MODUS AKTIV:\n" +
+          "- Bei Multiple-Choice-Fragen: Gib NUR kurz die Lösungsnummer/Buchstabe an und eine ganz kurze (max. 1 Satz) Begründung zur richtigen Antwort.\n" +
+          "- Bei freien Fragen (Textantwort): Antworte extrem kurz, prägnant und in Stichpunkten. Nur das absolut Essenzielle und Wichtigste sehr schnell antworten.";
+      }
 
       const kontext = kontextBlocks.join("\n\n---\n\n");
       const userPrompt = `Auszüge aus der Normen-Bibliothek:\n\n${kontext}\n\nFrage: ${frage}\n\nAntwort:`;
 
-      const antwort = await generateAnswer({
+      const antwortRaw = await generateAnswer({
         system: systemAnweisung,
         historie: historie.slice(-6),
         userPrompt,
+        anhaenge,
+      });
+      const antwort = antwortRaw.trim();
+
+      // Nur Quellen zurückgeben, die tatsächlich in der Antwort zitiert werden
+      const relevanteQuellen = quellen.filter((q) => {
+        if (!q.nummer) return false;
+        const antwortLow = antwort.toLowerCase();
+        const numLow = q.nummer.trim().toLowerCase();
+        const titleLow = q.titel.trim().toLowerCase();
+        return (
+          antwortLow.includes(numLow) ||
+          (titleLow.length > 5 && antwortLow.includes(titleLow))
+        );
       });
 
       res.json({
-        antwort: antwort.trim(),
-        quellen,
-        modell: "gemini-2.5-flash",
+        antwort,
+        quellen: relevanteQuellen,
+        modell: "gemini-3.5-flash",
         dauerMs: String(Date.now() - t0),
         anzahlChunks: String(snap.size),
       });

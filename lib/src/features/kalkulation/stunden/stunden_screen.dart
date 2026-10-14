@@ -16,6 +16,7 @@ import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import '../../../shared/pdf/tagebuch_pdf.dart';
 import 'stunden_repository.dart';
 
 final stundenQueryProvider = StateProvider<String>((ref) => '');
@@ -232,7 +233,7 @@ String _formatDuration(int minuten) {
 
 /// Summary-Tabelle pro Auftrag: Akt.-Zeichen, Auftraggeber, Anzahl Einträge,
 /// Stunden, Netto-Betrag — plus Gesamt-KPI in einer Kopfzeile.
-class _AuftragSummary extends StatelessWidget {
+class _AuftragSummary extends ConsumerWidget {
   const _AuftragSummary({required this.items});
   final List<StundenWithAuftrag> items;
 
@@ -240,7 +241,7 @@ class _AuftragSummary extends StatelessWidget {
       NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) return const SizedBox.shrink();
     final groups = <int?, _Agg>{};
     for (final s in items) {
@@ -300,6 +301,7 @@ class _AuftragSummary extends StatelessWidget {
               DataColumn(label: Text('Einträge'), numeric: true),
               DataColumn(label: Text('Stunden'), numeric: true),
               DataColumn(label: Text('Betrag €'), numeric: true),
+              DataColumn(label: Text('')),
             ],
             rows: [
               for (final g in groups.values)
@@ -317,6 +319,24 @@ class _AuftragSummary extends StatelessWidget {
                   DataCell(Text(_money.format(g.betrag),
                       style:
                           const TextStyle(fontWeight: FontWeight.w600))),
+                  DataCell(
+                    g.auftrag == null ? const SizedBox.shrink() : IconButton(
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                      tooltip: 'Gutachtentagebuch als PDF',
+                      onPressed: () async {
+                         final stunden = items
+                             .where((i) => i.stunde.auftragId == g.auftrag!.id)
+                             .map((e) => e.stunde)
+                             .toList();
+                         final user = await ref.read(benutzerRepositoryProvider).getActive();
+                         await previewTagebuchPdf(TagebuchPdfData(
+                            auftrag: g.auftrag!,
+                            stunden: stunden,
+                            absender: user,
+                         ));
+                      },
+                    ),
+                  ),
                 ]),
             ],
           ),
@@ -574,6 +594,11 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     final minuten = int.tryParse(_minuten.text.trim()) ?? 0;
+    if (minuten <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Dauer muss größer als 0 Minuten sein.')));
+      return;
+    }
     final satz =
         double.tryParse(_satz.text.replaceAll(',', '.'));
     final companion = StundenCompanion(
@@ -638,9 +663,36 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 3,
-                    child: LabeledField(
-                      'Tätigkeit',
-                      TextFormField(controller: _taetigkeit),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        LabeledField(
+                          'Tätigkeit',
+                          TextFormField(controller: _taetigkeit),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final t in [
+                              'Aktenstudium',
+                              'Ortstermin',
+                              'Gutachtenerstellung',
+                              'Telefonat',
+                              'Fahrzeit'
+                            ])
+                              ActionChip(
+                                label: Text(t, style: const TextStyle(fontSize: 11)),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                onPressed: () {
+                                  _taetigkeit.text = t;
+                                },
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],

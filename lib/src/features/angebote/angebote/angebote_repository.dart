@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
@@ -98,8 +99,31 @@ class AngeboteFilter {
       );
 }
 
+class AngeboteFilterNotifier extends StateNotifier<AngeboteFilter> {
+  AngeboteFilterNotifier() : super(const AngeboteFilter()) {
+    _init();
+  }
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final query = prefs.getString('filter_angebote_query') ?? '';
+    final status = prefs.getString('filter_angebote_status');
+    state = AngeboteFilter(query: query, status: status);
+  }
+  void update(AngeboteFilter Function(AngeboteFilter) cb) async {
+    final next = cb(state);
+    state = next;
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('filter_angebote_query', next.query);
+    if (next.status != null) {
+      prefs.setString('filter_angebote_status', next.status!);
+    } else {
+      prefs.remove('filter_angebote_status');
+    }
+  }
+}
+
 final angeboteFilterProvider =
-    StateProvider<AngeboteFilter>((ref) => const AngeboteFilter());
+    StateNotifierProvider<AngeboteFilterNotifier, AngeboteFilter>((ref) => AngeboteFilterNotifier());
 
 final angeboteListProvider = StreamProvider<List<AngebotWithKunde>>((ref) {
   final f = ref.watch(angeboteFilterProvider);

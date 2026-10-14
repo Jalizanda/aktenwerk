@@ -19,7 +19,7 @@ service firebase.storage {
       allow read: if isOrgMember(orgId);
       allow write: if isOrgMember(orgId)
                    && (request.resource == null
-                       || request.resource.size < 20 * 1024 * 1024);
+                       || request.resource.size < 500 * 1024 * 1024);
     }
 
     match /{allPaths=**} {

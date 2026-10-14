@@ -112,7 +112,13 @@ Future<Uint8List> buildDocumentPdf(PdfDocumentData data) async {
   final money =
       NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
   final totals = PositionsTotals.fromList(data.positionen);
-  final logo = await _loadLogo(data.absender?.logoPfad);
+  
+  final bool isGericht = (data.gericht ?? '').trim().isNotEmpty ||
+         (data.gerichtsAktenzeichen ?? '').trim().isNotEmpty ||
+         (data.klaeger ?? '').trim().isNotEmpty ||
+         (data.beklagter ?? '').trim().isNotEmpty;
+         
+  final logo = isGericht ? null : await _loadLogo(data.absender?.logoPfad);
   // QR-Code immer zeigen bei Rechnungen (inkl. Korrektur), sobald Brutto > 0
   // und IBAN vorhanden.
   final istRechnung = data.dokumentTyp.startsWith('Rechnung') ||
@@ -342,7 +348,11 @@ Future<Uint8List> buildMergedDocumentsPdf(
   );
   for (final data in alle) {
     final totals = PositionsTotals.fromList(data.positionen);
-    final logo = await _loadLogo(data.absender?.logoPfad);
+    final bool isGericht = (data.gericht ?? '').trim().isNotEmpty ||
+           (data.gerichtsAktenzeichen ?? '').trim().isNotEmpty ||
+           (data.klaeger ?? '').trim().isNotEmpty ||
+           (data.beklagter ?? '').trim().isNotEmpty;
+    final logo = isGericht ? null : await _loadLogo(data.absender?.logoPfad);
     final istRechnung = data.dokumentTyp.startsWith('Rechnung') ||
         data.dokumentTyp == 'Rechnungskorrektur';
     final zeigeQr = data.mitSepaQr || istRechnung;
@@ -502,6 +512,10 @@ pw.Widget _pageHeader(PdfDocumentData d, pw.ImageProvider? logo,
       .join(' ');
   final titel = (d.absender?.titel ?? '').trim();
 
+  final bool isGericht = _hatGerichtInfo(d);
+  final bool isRechnung = d.dokumentTyp.contains('Rechnung') || d.dokumentTyp.contains('Kostenrechnung');
+  final bool suppressLogo = isGericht && isRechnung;
+
   return pw.Container(
     // Folgeseiten 1 cm flacher (28 → 18 mm) — Positions-Tabelle rückt
     // dadurch oben näher heran.
@@ -517,7 +531,7 @@ pw.Widget _pageHeader(PdfDocumentData d, pw.ImageProvider? logo,
           ),
         // Logo links auf Seite 1, weitere 20 % größer
         // (52.8→63.36 mm Breite, 23.04→27.648 mm Höhe).
-        if (logo != null && isFirst)
+        if (logo != null && isFirst && !suppressLogo)
           pw.Positioned(
             left: 0,
             top: 0,
@@ -529,7 +543,7 @@ pw.Widget _pageHeader(PdfDocumentData d, pw.ImageProvider? logo,
           ),
         // Logo rechts oben auf Folgeseiten — leicht kleiner (max 18 mm),
         // damit es in den 18-mm-Header passt.
-        if (logo != null && !isFirst)
+        if (logo != null && !isFirst && !suppressLogo)
           pw.Positioned(
             right: 0,
             top: 0,

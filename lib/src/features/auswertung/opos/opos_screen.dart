@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../features/akten/kunden/kunden_repository.dart';
 import '../../../features/akten/rechnungen/rechnungen_repository.dart';
@@ -11,7 +12,22 @@ import '../../system/einstellungen/absender_service.dart';
 import 'mahnwesen_pdf.dart';
 import 'opos_zahlung_dialog.dart';
 
-final oposQueryProvider = StateProvider<String>((ref) => '');
+class OposQueryNotifier extends StateNotifier<String> {
+  OposQueryNotifier() : super('') {
+    _init();
+  }
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString('filter_opos_query') ?? '';
+  }
+  void setQuery(String v) async {
+    state = v;
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('filter_opos_query', v);
+  }
+}
+
+final oposQueryProvider = StateNotifierProvider<OposQueryNotifier, String>((ref) => OposQueryNotifier());
 
 class OposScreen extends ConsumerWidget {
   const OposScreen({super.key});
@@ -33,7 +49,7 @@ class OposScreen extends ConsumerWidget {
           subtitle: 'Offene Posten mit Alter und Mahnstufen',
           searchHint: 'Suche Nr., Kunde, Az., Betreff, Betrag …',
           onSearchChanged: (v) =>
-              ref.read(oposQueryProvider.notifier).state = v,
+              ref.read(oposQueryProvider.notifier).setQuery(v),
           actions: [
             FilledButton.icon(
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),

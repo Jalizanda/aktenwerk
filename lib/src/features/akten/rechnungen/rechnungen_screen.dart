@@ -20,6 +20,7 @@ import '../../../shared/pdf/pdf_archiver.dart';
 import '../../../shared/positionen/position_model.dart';
 import '../../../shared/positionen/positions_editor.dart';
 import '../../../features/system/konten/konto_picker.dart';
+import '../../../features/akten/workflow/akten_export_service.dart';
 import '../../../shared/widgets/badges.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
@@ -652,30 +653,6 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     }
     setState(() => _saving = true);
 
-    // Nummernkreis: wenn neue Rechnung + Nummer leer → automatisch vergeben.
-    // Akontoanforderungen laufen in einem eigenen Kreis (AZ{YYYY}-{NNN}),
-    // alles andere (Rechnung, JVEG, Teil-, Schluss-, Gutschrift, Korrektur)
-    // nutzt den Standard-Rechnungskreis.
-    if (_nr.text.trim().isEmpty) {
-      final kreis = _typ == 'akonto'
-          ? NummernkreisTyp.akonto
-          : NummernkreisTyp.rechnung;
-      // Sicherstellen, dass keine Doppelvergabe entsteht: existierende
-      // Belegnummern aus der DB einlesen und den Zähler ggf. hochsetzen.
-      final db = ref.read(appDatabaseProvider);
-      final query = db.select(db.rechnungen);
-      if (_typ == 'akonto') {
-        query.where((t) => t.typ.equals('akonto'));
-      } else {
-        query.where((t) => t.typ.isNotIn(const ['akonto']));
-      }
-      final existing = await query.get();
-      final svc = ref.read(nummernkreisServiceProvider);
-      await svc.syncCounterToHighestUsed(
-          kreis, existing.map((r) => r.rechnungsnummer));
-      _nr.text = await svc.nextNumber(kreis);
-    }
-
     // Auto-Akte: wenn noch keine Akte verknüpft ist, eine neue mit nächster
     // AW-Nummer anlegen und den Kunden übernehmen.
     if (!_isEdit && _auftragId == null) {
@@ -732,9 +709,31 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
       notiz: _nt(_notiz),
       kontonummer: Value(_kontonummer),
     );
+    final wasBezahlt = widget.eintrag?.rechnung.status == 'bezahlt';
+    final isNowBezahlt = _status == 'bezahlt';
+
     try {
       final id = await ref.read(rechnungenRepositoryProvider).upsert(companion);
       if (mounted) setState(() => _savedId = id);
+      
+      if (!wasBezahlt && isNowBezahlt && mounted) {
+        final doExport = await showDialog<bool>(
+          context: context,
+          useRootNavigator: true,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Akten-Export'),
+            content: const Text('Die Rechnung wurde als bezahlt markiert. Möchten Sie die Akte jetzt als ZIP-Archiv exportieren, um die 10-jährige Aufbewahrungsfrist rechtssicher zu erfüllen?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Später')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Exportieren')),
+            ],
+          ),
+        );
+        if (doExport == true && mounted && _auftragId != null) {
+           await ref.read(aktenExportServiceProvider).exportAkte(_auftragId!);
+        }
+      }
+
       if (close && mounted) {
         Navigator.of(context, rootNavigator: true).pop(true);
       } else if (mounted) {
@@ -751,6 +750,29 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
 
   Future<void> _druckenUndEinfrieren() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Nummernkreis: wenn neue Rechnung + Nummer leer → erst JETZT beim Drucken automatisch vergeben.
+    // Akontoanforderungen laufen in einem eigenen Kreis (AZ{YYYY}-{NNN}),
+    // alles andere nutzt den Standard-Rechnungskreis.
+    if (_nr.text.trim().isEmpty) {
+      final kreis = _typ == 'akonto'
+          ? NummernkreisTyp.akonto
+          : NummernkreisTyp.rechnung;
+      // Sicherstellen, dass keine Doppelvergabe entsteht
+      final db = ref.read(appDatabaseProvider);
+      final query = db.select(db.rechnungen);
+      if (_typ == 'akonto') {
+        query.where((t) => t.typ.equals('akonto'));
+      } else {
+        query.where((t) => t.typ.isNotIn(const ['akonto']));
+      }
+      final existing = await query.get();
+      final svc = ref.read(nummernkreisServiceProvider);
+      await svc.syncCounterToHighestUsed(
+          kreis, existing.map((r) => r.rechnungsnummer).where((r) => r != null).cast<String>());
+      _nr.text = await svc.nextNumber(kreis);
+    }
+
     await _save(close: false);
     if (!mounted) return;
     final id = _savedId;
@@ -758,23 +780,6 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     final data = await _buildPdfData();
     // Vorschau + Druckmöglichkeit
     await previewDocumentPdf(data);
-    if (!mounted) return;
-    // Einfrieren in DB
-    final db = ref.read(appDatabaseProvider);
-    final now = DateTime.now();
-    await (db.update(db.rechnungen)..where((t) => t.id.equals(id))).write(
-      RechnungenCompanion(
-        pdfErstelltAm: Value(now),
-        status: _status == 'entwurf' ? const Value('versendet') : const Value.absent(),
-        updatedAt: Value(now),
-      ),
-    );
-    if (mounted) {
-      setState(() {
-        _pdfErstelltAm = now;
-        if (_status == 'entwurf') _status = 'versendet';
-      });
-    }
     // PDF sofort lokal ablegen + Cloud-Upload im Hintergrund
     await archivePdfLokalUndCloud(
       ref,
@@ -782,6 +787,21 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
       auftragId: _auftragId,
       prefix: 'belege/rechnungen',
     );
+    if (!mounted) return;
+    
+    // Einfrieren über das Repository
+    final now = DateTime.now();
+    await ref.read(rechnungenRepositoryProvider).freezeRechnung(
+      id: id,
+      newStatus: _status == 'entwurf' ? 'versendet' : null,
+    );
+    
+    if (mounted) {
+      setState(() {
+        _pdfErstelltAm = now;
+        if (_status == 'entwurf') _status = 'versendet';
+      });
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Dokument eingefroren und in der Akte abgelegt.')));
@@ -1268,12 +1288,25 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
                         ? null
                         : () => _honorarAusStunden(),
                   ),
-                  if (_typ == 'jveg')
+                  if (_typ == 'jveg') ...[
+                    FilledButton.tonalIcon(
+                      icon: const Icon(Icons.bolt, size: 16),
+                      label: const Text('JVEG-Komplettliquidation (1-Klick)'),
+                      onPressed: _auftragId == null
+                          ? null
+                          : _jvegKomplettLiquidation,
+                    ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.account_balance, size: 16),
-                      label: const Text('JVEG-Auslagen'),
+                      label: const Text('JVEG-Auslagen (Vorlage)'),
                       onPressed: _jvegPreset,
                     ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.auto_awesome, size: 16),
+                      label: const Text('JVEG-Auslagen (Gutachten)'),
+                      onPressed: _auftragId == null ? null : _jvegAuslagenAusGutachten,
+                    ),
+                  ],
                   if (_typ == 'schlussrechnung' && _auftragId != null)
                     OutlinedButton.icon(
                       icon: const Icon(Icons.remove_circle_outline, size: 16),
@@ -1413,6 +1446,61 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
     setState(() => _positionen = [..._positionen, ...neu]);
   }
 
+  Future<void> _jvegAuslagenAusGutachten() async {
+    if (_auftragId == null) return;
+    
+    double sumNetto = 0;
+    for (final p in _positionen) {
+      sumNetto += (p.menge * p.einzelpreis);
+    }
+
+    final helper = ref.read(rechnungenPositionenHelperProvider);
+    final neu = await helper.jvegAuslagenAusGutachten(
+      auftragId: _auftragId!, 
+      honorarNetto: sumNetto,
+    );
+    if (neu.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Gutachten enthält keine Zeichen/Fotos oder ist nicht vorhanden.')));
+      }
+      return;
+    }
+    setState(() => _positionen = [..._positionen, ...neu]);
+  }
+
+  Future<void> _jvegKomplettLiquidation() async {
+    if (_auftragId == null) return;
+    final helper = ref.read(rechnungenPositionenHelperProvider);
+    final res = await helper.jvegKomplettLiquidationAusAkte(
+      auftragId: _auftragId!,
+    );
+    if (!mounted) return;
+    if (res.positionen.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'Noch keine Stunden, Auslagen oder Gutachtendaten in dieser Akte erfasst.',
+        ),
+      ));
+      return;
+    }
+    setState(() {
+      _positionen = res.positionen;
+      if (res.vorschussHinweis != null &&
+          !_fuss.text.contains('Auslagenvorschuss')) {
+        final cur = _fuss.text.trim();
+        _fuss.text = cur.isEmpty
+            ? res.vorschussHinweis!
+            : '${res.vorschussHinweis!}\n\n$cur';
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        '${res.positionen.length} JVEG-Positionen aus Akte (Stunden, Auslagen, Gutachten & Fotos) übernommen.',
+      ),
+    ));
+  }
+
   Future<void> _auslagenUebernehmen() async {
     final helper = ref.read(rechnungenPositionenHelperProvider);
     final neu = await helper.auslagenAusAuftrag(auftragId: _auftragId!);
@@ -1457,7 +1545,7 @@ class _RechnungFormState extends ConsumerState<_RechnungForm> {
         locale: 'de_DE', symbol: '€', decimalDigits: 2);
 
     final abzuege = relevant.map((r) {
-      final nr = r.rechnungsnummer ?? '';
+      final nr = r.rechnungsnummer == null || r.rechnungsnummer!.trim().isEmpty ? 'Entwurf' : r.rechnungsnummer!;
       final datum =
           r.rechnungsdatum == null ? '' : 'vom ${df.format(r.rechnungsdatum!)}';
       final bezahlt =
@@ -1683,7 +1771,7 @@ class _SchlussrechnungAbzuege extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            "${istAkonto ? "Akonto" : "Teilrg."} ${r.rechnungsnummer ?? ""} · ${r.rechnungsdatum == null ? "" : _fmt.format(r.rechnungsdatum!)} · ${bezahlt ? "bezahlt" : "offen"}",
+                            "${istAkonto ? "Akonto" : "Teilrg."} ${r.rechnungsnummer == null || r.rechnungsnummer!.trim().isEmpty ? "Entwurf" : r.rechnungsnummer} · ${r.rechnungsdatum == null ? "" : _fmt.format(r.rechnungsdatum!)} · ${bezahlt ? "bezahlt" : "offen"}",
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),

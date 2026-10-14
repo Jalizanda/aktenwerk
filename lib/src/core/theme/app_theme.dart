@@ -199,17 +199,32 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         isDense: true,
         filled: true,
-        fillColor: AwTokens.white,
+        fillColor: b == Brightness.dark
+            ? const Color(0xFF1E293B)
+            : AwTokens.white,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        hintStyle: const TextStyle(fontSize: 12.5, color: AwTokens.mute),
-        labelStyle: const TextStyle(fontSize: 12.5, color: AwTokens.mute),
-        floatingLabelStyle: const TextStyle(fontSize: 11, color: AwTokens.mute),
+        hintStyle: TextStyle(
+          fontSize: 12.5,
+          color: b == Brightness.dark ? const Color(0xFF94A3B8) : AwTokens.mute,
+        ),
+        labelStyle: TextStyle(
+          fontSize: 12.5,
+          color: b == Brightness.dark ? const Color(0xFF94A3B8) : AwTokens.mute,
+        ),
+        floatingLabelStyle: TextStyle(
+          fontSize: 11,
+          color: b == Brightness.dark ? const Color(0xFF94A3B8) : AwTokens.mute,
+        ),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AwTokens.radiusMd)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AwTokens.radiusMd),
-          borderSide: const BorderSide(color: AwTokens.lineStrong),
+          borderSide: BorderSide(
+            color: b == Brightness.dark
+                ? const Color(0xFF334155)
+                : AwTokens.lineStrong,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AwTokens.radiusMd),

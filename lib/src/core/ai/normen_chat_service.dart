@@ -64,8 +64,8 @@ class NormenChatSession {
       if (bytes != null) mitPdf.add((n, bytes));
     }
 
-    final model = FirebaseAI.vertexAI(location: 'europe-west1').generativeModel(
-      model: modellId,
+    final model = getVertexGenerativeModel(
+      modelId: modellId,
       systemInstruction: Content.system(_systemPrompt()),
       generationConfig: GenerationConfig(
         temperature: 0.2,

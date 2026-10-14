@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
@@ -78,8 +79,32 @@ class AuslagenFilter {
       );
 }
 
+class AuslagenFilterNotifier extends StateNotifier<AuslagenFilter> {
+  AuslagenFilterNotifier() : super(const AuslagenFilter()) {
+    _init();
+  }
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final aid = prefs.getInt('filter_auslagen_auftrag');
+    final abg = prefs.getBool('filter_auslagen_abgerechnet');
+    final art = prefs.getString('filter_auslagen_art');
+    state = AuslagenFilter(auftragId: aid, abgerechnet: abg, art: art);
+  }
+  void update(AuslagenFilter Function(AuslagenFilter) cb) async {
+    final next = cb(state);
+    state = next;
+    final prefs = await SharedPreferences.getInstance();
+    if (next.auftragId != null) prefs.setInt('filter_auslagen_auftrag', next.auftragId!);
+    else prefs.remove('filter_auslagen_auftrag');
+    if (next.abgerechnet != null) prefs.setBool('filter_auslagen_abgerechnet', next.abgerechnet!);
+    else prefs.remove('filter_auslagen_abgerechnet');
+    if (next.art != null) prefs.setString('filter_auslagen_art', next.art!);
+    else prefs.remove('filter_auslagen_art');
+  }
+}
+
 final auslagenFilterProvider =
-    StateProvider<AuslagenFilter>((ref) => const AuslagenFilter());
+    StateNotifierProvider<AuslagenFilterNotifier, AuslagenFilter>((ref) => AuslagenFilterNotifier());
 
 final auslagenListProvider =
     StreamProvider<List<AuslageWithAuftrag>>((ref) {

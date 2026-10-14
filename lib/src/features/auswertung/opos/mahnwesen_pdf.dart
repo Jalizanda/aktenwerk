@@ -7,7 +7,6 @@ import 'package:printing/printing.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../features/akten/rechnungen/rechnungen_repository.dart';
-import '../../../features/system/einstellungen/absender_service.dart';
 
 
 class MahnlaufData {

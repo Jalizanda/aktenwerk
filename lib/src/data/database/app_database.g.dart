@@ -24787,6 +24787,17 @@ class $BenutzerTable extends Benutzer
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _stempelPfadMeta = const VerificationMeta(
+    'stempelPfad',
+  );
+  @override
+  late final GeneratedColumn<String> stempelPfad = GeneratedColumn<String>(
+    'stempel_pfad',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _profilBildBase64Meta = const VerificationMeta(
     'profilBildBase64',
   );
@@ -24923,6 +24934,7 @@ class $BenutzerTable extends Benutzer
     standardStundensatz,
     unterschriftPfad,
     logoPfad,
+    stempelPfad,
     profilBildBase64,
     profilBildMime,
     grussformel,
@@ -25088,6 +25100,15 @@ class $BenutzerTable extends Benutzer
       context.handle(
         _logoPfadMeta,
         logoPfad.isAcceptableOrUnknown(data['logo_pfad']!, _logoPfadMeta),
+      );
+    }
+    if (data.containsKey('stempel_pfad')) {
+      context.handle(
+        _stempelPfadMeta,
+        stempelPfad.isAcceptableOrUnknown(
+          data['stempel_pfad']!,
+          _stempelPfadMeta,
+        ),
       );
     }
     if (data.containsKey('profil_bild_base64')) {
@@ -25266,6 +25287,10 @@ class $BenutzerTable extends Benutzer
         DriftSqlType.string,
         data['${effectivePrefix}logo_pfad'],
       ),
+      stempelPfad: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stempel_pfad'],
+      ),
       profilBildBase64: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}profil_bild_base64'],
@@ -25339,6 +25364,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
   final double? standardStundensatz;
   final String? unterschriftPfad;
   final String? logoPfad;
+  final String? stempelPfad;
 
   /// Profilbild als Base64 (Avatar).
   final String? profilBildBase64;
@@ -25385,6 +25411,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     this.standardStundensatz,
     this.unterschriftPfad,
     this.logoPfad,
+    this.stempelPfad,
     this.profilBildBase64,
     this.profilBildMime,
     this.grussformel,
@@ -25465,6 +25492,9 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     }
     if (!nullToAbsent || logoPfad != null) {
       map['logo_pfad'] = Variable<String>(logoPfad);
+    }
+    if (!nullToAbsent || stempelPfad != null) {
+      map['stempel_pfad'] = Variable<String>(stempelPfad);
     }
     if (!nullToAbsent || profilBildBase64 != null) {
       map['profil_bild_base64'] = Variable<String>(profilBildBase64);
@@ -25548,6 +25578,9 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       logoPfad: logoPfad == null && nullToAbsent
           ? const Value.absent()
           : Value(logoPfad),
+      stempelPfad: stempelPfad == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stempelPfad),
       profilBildBase64: profilBildBase64 == null && nullToAbsent
           ? const Value.absent()
           : Value(profilBildBase64),
@@ -25604,6 +25637,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       ),
       unterschriftPfad: serializer.fromJson<String?>(json['unterschriftPfad']),
       logoPfad: serializer.fromJson<String?>(json['logoPfad']),
+      stempelPfad: serializer.fromJson<String?>(json['stempelPfad']),
       profilBildBase64: serializer.fromJson<String?>(json['profilBildBase64']),
       profilBildMime: serializer.fromJson<String?>(json['profilBildMime']),
       grussformel: serializer.fromJson<String?>(json['grussformel']),
@@ -25645,6 +25679,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
       'standardStundensatz': serializer.toJson<double?>(standardStundensatz),
       'unterschriftPfad': serializer.toJson<String?>(unterschriftPfad),
       'logoPfad': serializer.toJson<String?>(logoPfad),
+      'stempelPfad': serializer.toJson<String?>(stempelPfad),
       'profilBildBase64': serializer.toJson<String?>(profilBildBase64),
       'profilBildMime': serializer.toJson<String?>(profilBildMime),
       'grussformel': serializer.toJson<String?>(grussformel),
@@ -25682,6 +25717,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     Value<double?> standardStundensatz = const Value.absent(),
     Value<String?> unterschriftPfad = const Value.absent(),
     Value<String?> logoPfad = const Value.absent(),
+    Value<String?> stempelPfad = const Value.absent(),
     Value<String?> profilBildBase64 = const Value.absent(),
     Value<String?> profilBildMime = const Value.absent(),
     Value<String?> grussformel = const Value.absent(),
@@ -25722,6 +25758,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
         ? unterschriftPfad.value
         : this.unterschriftPfad,
     logoPfad: logoPfad.present ? logoPfad.value : this.logoPfad,
+    stempelPfad: stempelPfad.present ? stempelPfad.value : this.stempelPfad,
     profilBildBase64: profilBildBase64.present
         ? profilBildBase64.value
         : this.profilBildBase64,
@@ -25772,6 +25809,9 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
           ? data.unterschriftPfad.value
           : this.unterschriftPfad,
       logoPfad: data.logoPfad.present ? data.logoPfad.value : this.logoPfad,
+      stempelPfad: data.stempelPfad.present
+          ? data.stempelPfad.value
+          : this.stempelPfad,
       profilBildBase64: data.profilBildBase64.present
           ? data.profilBildBase64.value
           : this.profilBildBase64,
@@ -25821,6 +25861,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
           ..write('standardStundensatz: $standardStundensatz, ')
           ..write('unterschriftPfad: $unterschriftPfad, ')
           ..write('logoPfad: $logoPfad, ')
+          ..write('stempelPfad: $stempelPfad, ')
           ..write('profilBildBase64: $profilBildBase64, ')
           ..write('profilBildMime: $profilBildMime, ')
           ..write('grussformel: $grussformel, ')
@@ -25860,6 +25901,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
     standardStundensatz,
     unterschriftPfad,
     logoPfad,
+    stempelPfad,
     profilBildBase64,
     profilBildMime,
     grussformel,
@@ -25898,6 +25940,7 @@ class BenutzerData extends DataClass implements Insertable<BenutzerData> {
           other.standardStundensatz == this.standardStundensatz &&
           other.unterschriftPfad == this.unterschriftPfad &&
           other.logoPfad == this.logoPfad &&
+          other.stempelPfad == this.stempelPfad &&
           other.profilBildBase64 == this.profilBildBase64 &&
           other.profilBildMime == this.profilBildMime &&
           other.grussformel == this.grussformel &&
@@ -25934,6 +25977,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
   final Value<double?> standardStundensatz;
   final Value<String?> unterschriftPfad;
   final Value<String?> logoPfad;
+  final Value<String?> stempelPfad;
   final Value<String?> profilBildBase64;
   final Value<String?> profilBildMime;
   final Value<String?> grussformel;
@@ -25968,6 +26012,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     this.standardStundensatz = const Value.absent(),
     this.unterschriftPfad = const Value.absent(),
     this.logoPfad = const Value.absent(),
+    this.stempelPfad = const Value.absent(),
     this.profilBildBase64 = const Value.absent(),
     this.profilBildMime = const Value.absent(),
     this.grussformel = const Value.absent(),
@@ -26003,6 +26048,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     this.standardStundensatz = const Value.absent(),
     this.unterschriftPfad = const Value.absent(),
     this.logoPfad = const Value.absent(),
+    this.stempelPfad = const Value.absent(),
     this.profilBildBase64 = const Value.absent(),
     this.profilBildMime = const Value.absent(),
     this.grussformel = const Value.absent(),
@@ -26038,6 +26084,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     Expression<double>? standardStundensatz,
     Expression<String>? unterschriftPfad,
     Expression<String>? logoPfad,
+    Expression<String>? stempelPfad,
     Expression<String>? profilBildBase64,
     Expression<String>? profilBildMime,
     Expression<String>? grussformel,
@@ -26074,6 +26121,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
         'standard_stundensatz': standardStundensatz,
       if (unterschriftPfad != null) 'unterschrift_pfad': unterschriftPfad,
       if (logoPfad != null) 'logo_pfad': logoPfad,
+      if (stempelPfad != null) 'stempel_pfad': stempelPfad,
       if (profilBildBase64 != null) 'profil_bild_base64': profilBildBase64,
       if (profilBildMime != null) 'profil_bild_mime': profilBildMime,
       if (grussformel != null) 'grussformel': grussformel,
@@ -26111,6 +26159,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     Value<double?>? standardStundensatz,
     Value<String?>? unterschriftPfad,
     Value<String?>? logoPfad,
+    Value<String?>? stempelPfad,
     Value<String?>? profilBildBase64,
     Value<String?>? profilBildMime,
     Value<String?>? grussformel,
@@ -26146,6 +26195,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
       standardStundensatz: standardStundensatz ?? this.standardStundensatz,
       unterschriftPfad: unterschriftPfad ?? this.unterschriftPfad,
       logoPfad: logoPfad ?? this.logoPfad,
+      stempelPfad: stempelPfad ?? this.stempelPfad,
       profilBildBase64: profilBildBase64 ?? this.profilBildBase64,
       profilBildMime: profilBildMime ?? this.profilBildMime,
       grussformel: grussformel ?? this.grussformel,
@@ -26231,6 +26281,9 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
     if (logoPfad.present) {
       map['logo_pfad'] = Variable<String>(logoPfad.value);
     }
+    if (stempelPfad.present) {
+      map['stempel_pfad'] = Variable<String>(stempelPfad.value);
+    }
     if (profilBildBase64.present) {
       map['profil_bild_base64'] = Variable<String>(profilBildBase64.value);
     }
@@ -26290,6 +26343,7 @@ class BenutzerCompanion extends UpdateCompanion<BenutzerData> {
           ..write('standardStundensatz: $standardStundensatz, ')
           ..write('unterschriftPfad: $unterschriftPfad, ')
           ..write('logoPfad: $logoPfad, ')
+          ..write('stempelPfad: $stempelPfad, ')
           ..write('profilBildBase64: $profilBildBase64, ')
           ..write('profilBildMime: $profilBildMime, ')
           ..write('grussformel: $grussformel, ')
@@ -62770,6 +62824,7 @@ typedef $$BenutzerTableCreateCompanionBuilder =
       Value<double?> standardStundensatz,
       Value<String?> unterschriftPfad,
       Value<String?> logoPfad,
+      Value<String?> stempelPfad,
       Value<String?> profilBildBase64,
       Value<String?> profilBildMime,
       Value<String?> grussformel,
@@ -62806,6 +62861,7 @@ typedef $$BenutzerTableUpdateCompanionBuilder =
       Value<double?> standardStundensatz,
       Value<String?> unterschriftPfad,
       Value<String?> logoPfad,
+      Value<String?> stempelPfad,
       Value<String?> profilBildBase64,
       Value<String?> profilBildMime,
       Value<String?> grussformel,
@@ -62939,6 +62995,11 @@ class $$BenutzerTableFilterComposer
 
   ColumnFilters<String> get logoPfad => $composableBuilder(
     column: $table.logoPfad,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stempelPfad => $composableBuilder(
+    column: $table.stempelPfad,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -63117,6 +63178,11 @@ class $$BenutzerTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get stempelPfad => $composableBuilder(
+    column: $table.stempelPfad,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get profilBildBase64 => $composableBuilder(
     column: $table.profilBildBase64,
     builder: (column) => ColumnOrderings(column),
@@ -63252,6 +63318,11 @@ class $$BenutzerTableAnnotationComposer
   GeneratedColumn<String> get logoPfad =>
       $composableBuilder(column: $table.logoPfad, builder: (column) => column);
 
+  GeneratedColumn<String> get stempelPfad => $composableBuilder(
+    column: $table.stempelPfad,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get profilBildBase64 => $composableBuilder(
     column: $table.profilBildBase64,
     builder: (column) => column,
@@ -63347,6 +63418,7 @@ class $$BenutzerTableTableManager
                 Value<double?> standardStundensatz = const Value.absent(),
                 Value<String?> unterschriftPfad = const Value.absent(),
                 Value<String?> logoPfad = const Value.absent(),
+                Value<String?> stempelPfad = const Value.absent(),
                 Value<String?> profilBildBase64 = const Value.absent(),
                 Value<String?> profilBildMime = const Value.absent(),
                 Value<String?> grussformel = const Value.absent(),
@@ -63381,6 +63453,7 @@ class $$BenutzerTableTableManager
                 standardStundensatz: standardStundensatz,
                 unterschriftPfad: unterschriftPfad,
                 logoPfad: logoPfad,
+                stempelPfad: stempelPfad,
                 profilBildBase64: profilBildBase64,
                 profilBildMime: profilBildMime,
                 grussformel: grussformel,
@@ -63417,6 +63490,7 @@ class $$BenutzerTableTableManager
                 Value<double?> standardStundensatz = const Value.absent(),
                 Value<String?> unterschriftPfad = const Value.absent(),
                 Value<String?> logoPfad = const Value.absent(),
+                Value<String?> stempelPfad = const Value.absent(),
                 Value<String?> profilBildBase64 = const Value.absent(),
                 Value<String?> profilBildMime = const Value.absent(),
                 Value<String?> grussformel = const Value.absent(),
@@ -63451,6 +63525,7 @@ class $$BenutzerTableTableManager
                 standardStundensatz: standardStundensatz,
                 unterschriftPfad: unterschriftPfad,
                 logoPfad: logoPfad,
+                stempelPfad: stempelPfad,
                 profilBildBase64: profilBildBase64,
                 profilBildMime: profilBildMime,
                 grussformel: grussformel,

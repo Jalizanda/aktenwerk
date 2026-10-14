@@ -16,31 +16,38 @@ import 'quill_image_embed.dart';
 import '../../../core/web/web_compat.dart';
 
 import '../../../core/ai/rechtschreibung_service.dart';
+import '../../../data/sync/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
+import '../../../core/theme/aw_tokens.dart';
+
+import '../../../shared/widgets/date_field.dart';
+import '../../../shared/widgets/form_widgets.dart';
+import '../../../core/web/web_compat.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
-import '../../../features/akten/auftraege/auftrag_picker.dart';
-import '../../../features/akten/auftraege/auftraege_repository.dart';
-import '../../../features/system/einstellungen/absender_service.dart';
-import '../../../features/system/einstellungen/einstellungen_repository.dart';
-import '../../../features/system/einstellungen/nummernkreis_service.dart';
+import '../../../core/ai/beweisbeschluss_scanner.dart';
 import '../../../features/akten/akte/beteiligte_tab.dart';
 import '../../../features/akten/akte/normen_picker_dialog.dart';
+import '../../../features/akten/auftraege/auftrag_picker.dart';
+import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/akten/dokumente/dokumente_repository.dart';
 import '../../../features/akten/gutachten/gutachten_abschnitt_popup.dart';
 import '../../../features/akten/lv/lv_insert_dialog.dart';
+import '../../../features/system/einstellungen/absender_service.dart';
+import '../../../features/system/einstellungen/einstellungen_repository.dart';
+import '../../../features/system/einstellungen/nummernkreis_service.dart';
 import '../../../features/werkzeuge/recherche_ablage/recherche_ablage_repository.dart';
-import '../../../shared/pdf/document_pdf.dart' show rasterizeIfSvg;
-import '../../../shared/pdf/pdf_preview_dialog.dart';
 import '../../../features/werkzeuge/textbausteine/textbausteine_repository.dart';
-import '../../../shared/richtext/quill_editor.dart';
+import '../../../shared/pdf/document_pdf.dart' show rasterizeIfSvg;
 import '../../../shared/pdf/gutachten_pdf.dart';
+import '../../../shared/pdf/pdf_preview_dialog.dart';
+import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/badges.dart';
-import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'gutachten_repository.dart';
+import 'quill_image_embed.dart';
 
 class GutachtenScreen extends ConsumerWidget {
   const GutachtenScreen({super.key});
@@ -397,6 +404,8 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
   /// aktualisieren nur die Felder, die der Nutzer im Dialog nicht selbst
   /// editiert hat (Vergleich gegen `_initialAbschnitte`), damit lokales
   /// Tippen nicht überschrieben wird.
+  bool _conflictWarned = false;
+
   StreamSubscription<GutachtenData?>? _maybeWatchGutachten() {
     final id = widget.gutachten?.id;
     if (id == null) return null;
@@ -408,15 +417,26 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       if (!mounted || row == null) return;
       final neuAbschnitte = abschnitteFromJson(row.abschnitteJson);
       var changed = false;
+      var conflictDetected = false;
+      
       for (final a in gutachtenAbschnitte) {
         final ctrl = _sektionCtrls[a.key];
         if (ctrl == null) continue;
-        final lokalGetippt = ctrl.text != (_initialAbschnitte[a.key] ?? '');
-        if (lokalGetippt) continue;
-        // Quill-Delta in Plain-Text wandeln, damit das Material-TextField
-        // sinnvoll anzeigt. Reine Plain-Text-Inhalte bleiben unverändert.
+        final initial = _initialAbschnitte[a.key] ?? '';
+        final lokalGetippt = ctrl.text != initial;
+        
         final dbVal = neuAbschnitte[a.key] ?? '';
         final neuPlain = _quillOderPlain(dbVal, key: a.key);
+        
+        if (lokalGetippt) {
+          if (neuPlain != initial && neuPlain != ctrl.text) {
+             conflictDetected = true;
+          }
+          continue;
+        }
+        
+        // Quill-Delta in Plain-Text wandeln, damit das Material-TextField
+        // sinnvoll anzeigt. Reine Plain-Text-Inhalte bleiben unverändert.
         if (ctrl.text != neuPlain) {
           ctrl.text = neuPlain;
           _initialAbschnitte = {..._initialAbschnitte, a.key: neuPlain};
@@ -424,6 +444,14 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
         }
       }
       if (changed) setState(() {});
+      
+      if (conflictDetected && !_conflictWarned) {
+        _conflictWarned = true;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Achtung: Externe Änderungen im Gutachten erkannt. Deine hier neu getippten Felder überschreiben diese beim Speichern!'),
+          duration: Duration(seconds: 6),
+        ));
+      }
     });
   }
 
@@ -481,9 +509,20 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     // Letzten Stand noch flushen, falls der Anwender den Dialog
     // schließt bevor der Debounce abgelaufen ist.
     if (_isEdit) {
-      // Best-effort: kein await im dispose möglich. Speichert i.d.R.
-      // erfolgreich, weil die Drift-DB lokal ist.
-      _save(silent: true);
+      // Synchronous capture of all text fields to avoid accessing them after dispose
+      final capturedNummer = _nummer.text.trim();
+      final capturedTitel = _titel.text.trim();
+      final capturedBezeichnung = _bezeichnung.text.trim();
+      final capturedAbschnitte = _currentAbschnitte();
+      
+      // Detached save
+      _saveDetached(
+        silent: true,
+        capturedNummer: capturedNummer,
+        capturedTitel: capturedTitel,
+        capturedBezeichnung: capturedBezeichnung,
+        capturedAbschnitte: capturedAbschnitte,
+      );
     }
     _gutachtenSub?.cancel();
     _titel.dispose();
@@ -801,7 +840,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     final ctrl = _sektionCtrls[abschnitt.key]!;
     setState(() {
       ctrl.text = text;
-      _abschnitte[abschnitt.key] = ctrl.text;
+      _abschnitte[abschnitt.key] = text;
     });
   }
 
@@ -843,7 +882,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     final ctrl = _sektionCtrls[abschnitt.key]!;
     setState(() {
       ctrl.text = neu;
-      _abschnitte[abschnitt.key] = ctrl.text;
+      _abschnitte[abschnitt.key] = neu;
     });
   }
 
@@ -1249,6 +1288,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     }
     final siegelB64 = await repo.get(SettingsKeys.siegelBase64);
     final sigB64 = await repo.get(SettingsKeys.unterschriftBase64);
+    final stempelB64 = await repo.get(SettingsKeys.stempelBase64);
     final pos = await repo.get(SettingsKeys.siegelPosition);
     final beh = await repo.get(SettingsKeys.siegelBestellBehoerde);
     final nr = await repo.get(SettingsKeys.siegelBestellNr);
@@ -1266,6 +1306,12 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     if (sigB64 != null && sigB64.isNotEmpty) {
       try {
         sigBytes = base64Decode(sigB64);
+      } catch (_) {}
+    }
+    Uint8List? stempelBytes;
+    if (stempelB64 != null && stempelB64.isNotEmpty) {
+      try {
+        stempelBytes = base64Decode(stempelB64);
       } catch (_) {}
     }
     final normenDb = ref.read(appDatabaseProvider);
@@ -1395,6 +1441,7 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       absender: absender,
       siegelBytes: siegelBytes,
       unterschriftBytes: sigBytes,
+      stempelBytes: stempelBytes,
       siegelPosition: pos ?? 'unten_rechts',
       bestellBehoerde: beh,
       bestellNr: nr,
@@ -1449,10 +1496,26 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       };
 
   Future<void> _save({bool silent = false}) async {
+    await _saveDetached(silent: silent);
+  }
+
+  Future<void> _saveDetached({
+    bool silent = false,
+    String? capturedNummer,
+    String? capturedTitel,
+    String? capturedBezeichnung,
+    Map<String, String>? capturedAbschnitte,
+  }) async {
+    if (!silent && mounted) setState(() => _saving = true);
+    
+    final numText = capturedNummer ?? _nummer.text.trim();
+    final titelText = capturedTitel ?? _titel.text.trim();
+    final bezText = capturedBezeichnung ?? _bezeichnung.text.trim();
     if (!silent) setState(() => _saving = true);
 
     // Nummernkreis: wenn neu + leer, Nummer vorschlagen.
-    if (!_isEdit && _nummer.text.trim().isEmpty) {
+    String finalNumText = numText;
+    if (!_isEdit && finalNumText.isEmpty) {
       String? aktenzeichen;
       if (_auftragId != null) {
         final list =
@@ -1467,21 +1530,24 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
             NummernkreisTyp.gutachten,
             aktenzeichen: aktenzeichen,
           );
-      _nummer.text = neu;
+      finalNumText = neu;
+      if (mounted && capturedNummer == null) {
+        _nummer.text = neu;
+      }
     }
 
     // Abschnitte zusammenführen: lokal editierte Controller-Werte gewinnen,
     // unverändert gebliebene Schlüssel behalten den DB-Wert (kann z. B. ein
     // im Popup-Editor geschriebenes Quill-Delta mit Bildern sein).
-    final mergedAbschnitte = await _mergeAbschnitteMitDb();
+    final mergedAbschnitte = await _mergeAbschnitteMitDb(capturedAbschnitte);
     final companion = GutachtenCompanion(
       id: _isEdit ? Value(widget.gutachten!.id) : const Value.absent(),
       nummer:
-          Value(_nummer.text.trim().isEmpty ? null : _nummer.text.trim()),
-      titel: Value(_titel.text.trim().isEmpty ? null : _titel.text.trim()),
-      bezeichnung: Value(_bezeichnung.text.trim().isEmpty
+          Value(finalNumText.isEmpty ? null : finalNumText),
+      titel: Value(titelText.isEmpty ? null : titelText),
+      bezeichnung: Value(bezText.isEmpty
           ? null
-          : _bezeichnung.text.trim()),
+          : bezText),
       datum: Value(_datum),
       vorlage: Value(_vorlage.isEmpty ? 'frei' : _vorlage),
       status: Value(_status),
@@ -1494,10 +1560,10 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       await ref.read(gutachtenRepositoryProvider).upsert(companion);
       // Initialwerte nachziehen, damit nachfolgende Saves nur erneut
       // geänderte Felder als „lokal editiert" erkennen.
-      _initialAbschnitte = {
-        for (final e in _sektionCtrls.entries) e.key: e.value.text,
-      };
       if (mounted) {
+        _initialAbschnitte = {
+          for (final e in _sektionCtrls.entries) e.key: e.value.text,
+        };
         if (!silent) setState(() => _saving = false);
         if (!silent) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1551,18 +1617,11 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     }
     return changed ? jsonEncode(decoded) : value;
   }
-
-  /// Liest aktuellen DB-Stand der Abschnitte und überschreibt nur die
-  /// Schlüssel, die im Dialog tatsächlich angefasst wurden. So bleiben
-  /// im Popup-Editor gespeicherte Quill-Deltas (mit Bildern) erhalten,
-  /// auch wenn parallel der Dialog ein silent _save() ausführt.
-  Future<Map<String, String>> _mergeAbschnitteMitDb() async {
-    final lokal = _currentAbschnitte();
+  Future<Map<String, String>> _mergeAbschnitteMitDb([Map<String, String>? overrides]) async {
+    final lokal = overrides ?? _currentAbschnitte();
     if (!_isEdit) return lokal;
-    final db = ref.read(appDatabaseProvider);
-    final dbGutachten = await (db.select(db.gutachten)
-          ..where((t) => t.id.equals(widget.gutachten!.id)))
-        .getSingleOrNull();
+    final dbGutachten =
+        await (() { final db = ref.read(appDatabaseProvider); return (db.select(db.gutachten)..where((t) => t.id.equals(widget.gutachten!.id))).getSingleOrNull(); })();
     if (dbGutachten == null) return lokal;
     final dbAbschnitte = abschnitteFromJson(dbGutachten.abschnitteJson);
     final merged = <String, String>{...dbAbschnitte};
@@ -1616,6 +1675,13 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
             onPressed: (_auftragId == null || !_isEdit)
                 ? null
                 : () => _fotosZuordnen(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.document_scanner_outlined),
+            tooltip: 'Beweisbeschluss scannen',
+            onPressed: (_auftragId == null || !_isEdit)
+                ? null
+                : () => _beweisbeschlussScannen(),
           ),
           PopupMenuButton<KiModus>(
             enabled: !_saving && !_kiLaeuft,
@@ -1797,11 +1863,6 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     );
   }
 
-  /// Zeigt die dieser Akte bereits zugeordneten Normen als Chips.
-  /// Der „Normen hinzufügen"-Button im Footer öffnet den bestehenden
-  /// Katalog-Picker, der die Auswahl als akten-spezifische Normen-
-  /// Kopien speichert — hier stream-en wir alle Normen der aktuellen
-  /// Akte live ein.
   Widget _buildNormenChips(BuildContext context) {
     if (_auftragId == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
@@ -1882,10 +1943,6 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
         .watch();
   }
 
-  /// Öffnet einen Picker mit allen Fotos der aktuellen Akte und
-  /// ordnet die gewählten dem aktuellen Gutachten zu (setzt deren
-  /// `gutachtenId`). Im Gutachten-Editor erscheinen die Fotos dann als
-  /// Chip-Leiste; im PDF als Lichtbild-Anlage am Ende.
   Future<void> _fotosZuordnen() async {
     if (widget.gutachten == null || _auftragId == null) return;
     await showDialog<void>(
@@ -1896,6 +1953,108 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
         auftragId: _auftragId!,
       ),
     );
+  }
+
+  Future<void> _beweisbeschlussScannen() async {
+    if (_auftragId == null) return;
+    final db = ref.read(appDatabaseProvider);
+    final dokumente = await (db.select(db.dokumente)
+          ..where((t) => t.auftragId.equals(_auftragId!))
+          )
+        .get();
+
+    if (!mounted) return;
+    if (dokumente.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Keine PDF-Dokumente in dieser Akte gefunden.')));
+      return;
+    }
+
+    final doc = await showDialog<DokumenteData>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Beweisbeschluss auswählen'),
+        content: SizedBox(
+          width: 400,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: dokumente.length,
+            itemBuilder: (ctx, i) {
+              final d = dokumente[i];
+              return ListTile(
+                title: Text(d.titel ?? d.pfad ?? 'Unbenannt'),
+                subtitle: Text(d.beschreibung ?? ''),
+                onTap: () => Navigator.of(ctx).pop(d),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    if (doc == null || !mounted) return;
+
+    setState(() => _kiLaeuft = true);
+    try {
+      Uint8List? bytes = doc.daten;
+      if (bytes == null && doc.storagePfad != null) {
+        final storage = ref.read(storageServiceProvider);
+        bytes = await storage.downloadBytes(doc.storagePfad!);
+      }
+      if (bytes == null) throw Exception('Dokument konnte nicht geladen werden.');
+
+      final fragen = await extrahiereBeweisfragen(
+        ref: ref,
+        bytes: bytes,
+        mimeType: doc.mimeType ?? 'application/pdf',
+      );
+
+      if (!mounted) return;
+      if (fragen.isEmpty) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Keine Fragen im Dokument gefunden.')));
+         return;
+      }
+
+      // Formatieren nach Variante 2
+      final buf = StringBuffer();
+      for (var i = 0; i < fragen.length; i++) {
+        final f = fragen[i];
+        final text = f['frage']?.toString() ?? '';
+        final nr = f['nr']?.toString();
+        final prefix = nr != null && nr.isNotEmpty ? 'Beweisfrage $nr' : 'Beweisfrage ${i + 1}';
+        
+        buf.writeln('**$prefix**: "$text"\n');
+        
+        final einschaetzung = f['einschaetzung']?.toString();
+        if (einschaetzung != null && einschaetzung.isNotEmpty) {
+          buf.writeln('*KI-Einschätzung*: $einschaetzung\n');
+        }
+        
+        buf.writeln('*Feststellungen*:');
+        buf.writeln('...\n');
+        buf.writeln('*Schlussfolgerung*:');
+        buf.writeln('...\n\n');
+      }
+
+      final ctrl = _sektionCtrls['s_beweisfragen'];
+      if (ctrl != null) {
+         final alterText = ctrl.text;
+         ctrl.text = alterText.trim().isNotEmpty ? '$alterText\n\n${buf.toString()}' : buf.toString();
+         _planeAutoSave();
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${fragen.length} Fragen erfolgreich extrahiert.')));
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Fehler beim Scannen: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _kiLaeuft = false);
+    }
   }
 
   Stream<List<Foto>> _gutachtenFotosStream() {
@@ -2245,14 +2404,25 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
           ),
           child: Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              titel.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.08 * 10.5,
-                color: AppTheme.slate500,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  titel.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (titel.startsWith('Sachverhalt'))
+                  FilledButton.icon(
+                    icon: const Icon(Icons.document_scanner_outlined, size: 16),
+                    label: const Text('Beweisbeschluss scannen'),
+                    onPressed: _auftragId == null ? null : _beweisbeschlussScannen,
+                  ),
+              ],
             ),
           ),
         ),

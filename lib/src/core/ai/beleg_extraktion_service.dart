@@ -113,8 +113,8 @@ Future<BelegExtraktion> extrahiereBeleg({
   final repo = ref.read(einstellungenRepositoryProvider);
   final modellId = await getKiModell(repo, KiAufgabe.belegErfassung);
 
-  final model = FirebaseAI.vertexAI(location: 'europe-west1').generativeModel(
-    model: modellId,
+  final model = getVertexGenerativeModel(
+    modelId: modellId,
     systemInstruction: Content.system(
       'Du bist Buchhalter-Assistent und extrahierst aus einem '
       'Beleg/Kassenbon/Eingangsrechnung die folgenden Felder als '

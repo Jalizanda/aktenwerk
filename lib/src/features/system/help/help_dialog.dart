@@ -301,13 +301,13 @@ class _ModulesCard extends StatelessWidget {
     ['Angebote',
         '7-stufiger Status mit Farb-Badges, Pipeline-KPIs (Pipeline/Gewonnen/Conversion). „→ in Auftrag umwandeln" + Auftragsbestätigung als PDF.'],
     ['Aufträge',
-        'Alle Akten mit 4 Auftragsarten (Privat/Gericht/Schiedsgutachten/Beweissicherung). Tabs für Objekt, Gericht, Termine & Honorar, Aufgaben & Geräte.'],
+        'Alle Akten mit 5 Auftragsarten (Privat/Gericht/Versicherung/Schiedsgutachten/Beweissicherung). Tabs für Objekt, Gericht & Aktenbände, Versicherung/Schieds, Termine (inkl. Zeitfenster & Umladungs-Historie) & Honorar, Aufgaben & Geräte. Direktdruck „Arbeitsblatt Ortstermin" im Akten-Header.'],
     ['Gutachten',
-        'Zöller-Struktur mit Rich-Text-Editor, Vorlagen (Bauschaden/Beweissicherung/Mängel).'],
+        'Zöller-Struktur mit Rich-Text-Editor, Vorlagen (Bauschaden/Beweissicherung/Mängel) und automatischer Auflösung von {{…}}- und \$Variablen-Platzhaltern.'],
     ['Erläuterungstermine',
         'Ladung erfassen, JVEG-Vergütung live berechnen, Status (geplant/geladen/vorbereitet/durchgeführt/vergütet).'],
     ['Rechnungen',
-        'Privat, JVEG, Gutschrift, Korrektur in einem Modul. Honorar aus Stunden, Auslagen übernehmen, §19-UStG, SEPA-QR automatisch.'],
+        'Privat, JVEG, Gutschrift, Korrektur in einem Modul. 1-Klick JVEG-Komplettliquidation direkt aus der Akte (§ 9 Honorargruppe M1/M2/M3, § 5 Fahrt/Auslagen, § 7/§ 12 Schreibauslagen nach Zeichenzahl, Lichtbilder & Mehrfertigungen sowie Vorschuss-Abzug), §19-UStG, SEPA-QR automatisch.'],
     ['Eingangsrechnungen',
         'Belege mit SKR-Kategorie, Lieferanten-Auto-Fill, Skonto, Zahlungsweise, Mehrfach-Beleg.'],
     ['Lieferanten',
@@ -326,8 +326,8 @@ class _ModulesCard extends StatelessWidget {
         'Fahrtkosten, Schreibauslagen, Lichtbilder, Kopien mit JVEG-Defaults.'],
     ['Kalkulation',
         'Kostenschätzung mit Gewerke-Gruppierung + Ist/Soll-Übersicht (Stunden + Auslagen + Rechnungen).'],
-    ['Fotos',
-        'Multi-Upload mit Raum- und GPS-Feld, Grid-Ansicht, automatische Einbindung in Lichtbildanlage.'],
+    ['Fotos & Fotodoku-PDF',
+        'Multi-Upload mit Raum- und GPS-Feld, Grid-Ansicht, automatische Einbindung in Lichtbildanlage sowie eigenständige „Fotodokumentation (PDF)" mit wählbarem 1er-, 2er-, 4er- oder 6er-Raster pro DIN-A4-Seite.'],
     ['Termine',
         'Ortstermine und Abgabefristen zusammengeführt, 4-Stufen-Eskalations-Farben.'],
     ['Wiedervorlagen',
@@ -339,11 +339,11 @@ class _ModulesCard extends StatelessWidget {
     ['Versand (in der Akte)',
         'Versand-Protokoll (Post / Einschreiben / EGVP / E-Mail / Kurier) mit Empfänger, Anzahl Ausfertigungen und Tracking-Nr. — verknüpft optional mit dem versendeten Akten-Dokument.'],
     ['Gerichtssache (in der Akte)',
-        'Befangenheits-Erklärung gem. §§ 406/407 ZPO, Mehrkostenanzeige gem. § 8a Abs. 4 JVEG und strukturierte Beweisfragen — alle drei mit „Drucken & in Akte ablegen".'],
+        'Befangenheits-Erklärung gem. §§ 406/407 ZPO, Mehrkostenanzeige gem. § 8a Abs. 4 JVEG, strukturierte Beweisfragen (inkl. KI-Scan & Chat) sowie 5 1-Klick Gerichts-Schnellbriefe (§ 407a ZPO, Vorschuss, Aktenanforderung, Fristverlängerung § 411 ZPO, Gutachtenversand & Aktenrückgabe).'],
     ['Kostenvorschuss-Antrag (§ 17 JVEG, Gerichtsakte)',
         'Honorar (Honorargruppe automatisch) + Auslagen schätzen. Druck und Archivierung als PDF in der Akte; Brutto-Betrag wird im Akten-Feld vermerkt.'],
-    ['Beteiligten-Massen-Einladung (Akte)',
-        'Termin + Ort einmal eingeben, Anschreiben für jeden Beteiligten mit passender Briefanrede automatisch anlegen.'],
+    ['Beteiligten-Einladung & Umladung (Akte)',
+        'Je Beteiligtem Anrede, Kanzlei-AZ („Ihr Zeichen"), Vertretung, Versandart und OT-Häkchen pflegen. 1-Klick-Serienbrief für Ortstermin-Einladung und Terminverlegung (Umladung) inkl. Liste aller geladenen Personen und Gerichts-Benachrichtigung.'],
     ['JVEG-Honorargruppen (Einstellungen)',
         'M1, M2, M3 und Sonstige als €/h hinterlegen — Stunden-Editor und Kostenvorschuss-Dialog ziehen den Satz daraus.'],
     ['Mängel-Register (in der Akte)',
@@ -629,6 +629,9 @@ class _MobileCard extends StatelessWidget {
           const Text(
             '• PWA installieren — Im Browser-Menü „Zum Startbildschirm hinzufügen". '
             'Aktenwerk öffnet sich ohne Browserleiste, alle Daten bleiben auf dem Gerät.\n'
+            '• Verträge vor Ort abschließen — Nutze auf dem Dashboard die „Schnellanlage Privatgutachten" '
+            'um Verträge digital unterschreiben zu lassen (inkl. DSGVO/Widerruf) und direkt '
+            'die Akte mit PDF zu generieren.\n'
             '• Ortstermin-Modus — Am Tablet öffnen, Akte wählen, Fotos & Notizen sammeln. '
             'Beim Speichern werden Notizen an den Auftrag gehängt.\n'
             '• Responsive Layout — Sidebar wird bei schmaler Breite automatisch '

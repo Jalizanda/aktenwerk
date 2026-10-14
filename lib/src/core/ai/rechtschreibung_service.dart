@@ -132,8 +132,8 @@ Future<String> kiAnwenden(
   final repo = ref.read(einstellungenRepositoryProvider);
   final modellId = await getKiModell(repo, _modusZuAufgabe(modus));
 
-  final model = FirebaseAI.vertexAI(location: 'europe-west1').generativeModel(
-    model: modellId,
+  final model = getVertexGenerativeModel(
+    modelId: modellId,
     systemInstruction: Content.system(_systemPrompt(modus)),
     generationConfig: GenerationConfig(
       temperature: modus == KiModus.korrektur ? 0.1 : 0.4,

@@ -36,7 +36,11 @@ class StorageService {
     String? contentType,
   }) async {
     final ref = _orgRef(path);
-    if (ref == null) return null;
+    if (ref == null) {
+      throw Exception(
+        'Firebase Storage Upload fehlgeschlagen: Storage ist nicht aktiv (enabled=$enabled, orgId=$_currentOrgId, uid=${_auth.currentUser?.uid}).',
+      );
+    }
     await ref.putData(
       bytes,
       SettableMetadata(contentType: contentType),

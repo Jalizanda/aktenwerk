@@ -20,6 +20,7 @@ import '../../../shared/widgets/file_upload_section.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../kunden/kunden_picker.dart';
 import '../rechnungen/zahlungsziel_vorlagen.dart';
+import 'auftrag_gm_extras.dart';
 import 'auftraege_repository.dart';
 
 /// Öffnet den Stammdaten-Dialog für eine Akte / einen Auftrag.
@@ -30,6 +31,7 @@ Future<int?> showAuftragFormDialog(
   AuftraegeData? auftrag,
 }) {
   return showDialog<int>(
+    barrierDismissible: false,
     context: context,
     useRootNavigator: true,
     builder: (_) => Dialog(
@@ -60,17 +62,21 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   late AuftragStatus _status;
   int? _kundeId;
   String? _aufgabenJson;
+  late AuftragGmExtras _gm;
 
   // Termine
   DateTime? _eingangAm;
   DateTime? _auftragAm;
   DateTime? _ortsterminAm;
+  DateTime? _ortsterminAltAm;
   DateTime? _fristAm;
   DateTime? _abschlussAm;
   DateTime? _akteneingangAm;
   DateTime? _bb1;
   DateTime? _bb2;
   DateTime? _bb3;
+  DateTime? _schadenstag;
+  DateTime? _schiedsvertragVom;
 
   // Geo & Zonen
   double? _objektLat;
@@ -117,6 +123,22 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
   late final _honorargruppe = _tec(widget.auftrag?.honorargruppe);
   String? _zahlungsbedingungKey;
   late final _notiz = _tec(widget.auftrag?.notiz);
+
+  // Gutachten-Manager-Erweiterungen (Versicherung, Schieds, Ortstermin-Umladung, Streitwert)
+  late final TextEditingController _schadensnummer;
+  late final TextEditingController _versicherungsscheinNr;
+  late final TextEditingController _schadensursache;
+  late final TextEditingController _versicherungsnehmer;
+  late final TextEditingController _anspruchsteller;
+  late final TextEditingController _obmann;
+  late final TextEditingController _parteiA;
+  late final TextEditingController _parteiB;
+  late final TextEditingController _ortsterminVon;
+  late final TextEditingController _ortsterminBis;
+  late final TextEditingController _ortsterminAltUhrzeit;
+  late final TextEditingController _ortsterminVerlegtGrund;
+  late final TextEditingController _streitwert;
+  late List<GerichtsaktenBand> _gerichtsaktenBaende;
 
   bool _saving = false;
   UploadedFile? _beweisbeschlussFile;
@@ -183,6 +205,26 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
     _schneelastKnm2 = a?.schneelastKnm2;
     _windlastzone = a?.windlastzone;
     _zonenQuelle = a?.zonenQuelle;
+
+    _gm = AuftragGmExtras.fromExtras(a?.extras);
+    _ortsterminAltAm = _gm.ortsterminAltAm;
+    _schadenstag = _gm.schadenstag;
+    _schiedsvertragVom = _gm.schiedsvertragVom;
+    _schadensnummer = _tec(_gm.schadensnummer);
+    _versicherungsscheinNr = _tec(_gm.versicherungsscheinNr);
+    _schadensursache = _tec(_gm.schadensursache);
+    _versicherungsnehmer = _tec(_gm.versicherungsnehmer);
+    _anspruchsteller = _tec(_gm.anspruchsteller);
+    _obmann = _tec(_gm.obmann);
+    _parteiA = _tec(_gm.parteiA);
+    _parteiB = _tec(_gm.parteiB);
+    _ortsterminVon = _tec(_gm.ortsterminUhrzeitVon);
+    _ortsterminBis = _tec(_gm.ortsterminUhrzeitBis);
+    _ortsterminAltUhrzeit = _tec(_gm.ortsterminAltUhrzeit);
+    _ortsterminVerlegtGrund = _tec(_gm.ortsterminVerlegtGrund);
+    _streitwert = _tec(_money(_gm.streitwert));
+    _gerichtsaktenBaende = [..._gm.gerichtsaktenBaende];
+
     if (a?.beweisbeschlussStorageUrl != null &&
         a!.beweisbeschlussStorageUrl!.isNotEmpty) {
       _beweisbeschlussFile = UploadedFile(
@@ -259,6 +301,19 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       _aufwandSchaetzung,
       _honorargruppe,
       _notiz,
+      _schadensnummer,
+      _versicherungsscheinNr,
+      _schadensursache,
+      _versicherungsnehmer,
+      _anspruchsteller,
+      _obmann,
+      _parteiA,
+      _parteiB,
+      _ortsterminVon,
+      _ortsterminBis,
+      _ortsterminAltUhrzeit,
+      _ortsterminVerlegtGrund,
+      _streitwert,
     ]) {
       c.dispose();
     }
@@ -321,6 +376,12 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_kundeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte einen Auftraggeber / Kunden zuweisen.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
 
     // Nummernkreis: wenn neue Akte und die Nummer im Feld noch der Preview
@@ -337,6 +398,26 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
         _aktenzeichen.text = neu;
       }
     }
+
+    final updatedGm = AuftragGmExtras(
+      schadensnummer: _schadensnummer.text.trim(),
+      versicherungsscheinNr: _versicherungsscheinNr.text.trim(),
+      schadenstag: _schadenstag,
+      schadensursache: _schadensursache.text.trim(),
+      versicherungsnehmer: _versicherungsnehmer.text.trim(),
+      anspruchsteller: _anspruchsteller.text.trim(),
+      schiedsvertragVom: _schiedsvertragVom,
+      obmann: _obmann.text.trim(),
+      parteiA: _parteiA.text.trim(),
+      parteiB: _parteiB.text.trim(),
+      ortsterminUhrzeitVon: _ortsterminVon.text.trim(),
+      ortsterminUhrzeitBis: _ortsterminBis.text.trim(),
+      ortsterminAltAm: _ortsterminAltAm,
+      ortsterminAltUhrzeit: _ortsterminAltUhrzeit.text.trim(),
+      ortsterminVerlegtGrund: _ortsterminVerlegtGrund.text.trim(),
+      streitwert: double.tryParse(_streitwert.text.trim().replaceAll(',', '.')),
+      gerichtsaktenBaende: _gerichtsaktenBaende,
+    );
 
     final companion = AuftraegeCompanion(
       id: _isEdit ? Value(widget.auftrag!.id) : const Value.absent(),
@@ -398,6 +479,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
       beweisbeschlussGroesse: Value(_beweisbeschlussFile?.groesse),
       objektFotoStorageUrl: Value(_objektFoto?.storageUrl),
       objektFotoDateiname: Value(_objektFoto?.dateiname),
+      extras: Value(updatedGm.mergeIntoExtras(widget.auftrag?.extras)),
       updatedAt: Value(DateTime.now()),
     );
     try {
@@ -449,7 +531,7 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
           tabs: const [
             Tab(text: 'Allgemein'),
             Tab(text: 'Objekt'),
-            Tab(text: 'Gericht'),
+            Tab(text: 'Gericht / Aktenbände'),
             Tab(text: 'Termine & Honorar'),
             Tab(text: 'Aufgaben & Geräte'),
           ],
@@ -569,6 +651,83 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               ),
             ),
           ),
+          if (_art == AuftragArt.versicherung) ...[
+            const SizedBox(height: 18),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              'Versicherungs-Angaben (Schadensakte)',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Row3(
+              a: LabeledField(
+                'Schadensnummer',
+                TextFormField(controller: _schadensnummer),
+              ),
+              b: LabeledField(
+                'Versicherungsschein-Nr.',
+                TextFormField(controller: _versicherungsscheinNr),
+              ),
+              c: DateField(
+                label: 'Schadenstag',
+                value: _schadenstag,
+                onChanged: (v) => setState(() => _schadenstag = v),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row3(
+              a: LabeledField(
+                'Versicherungsnehmer',
+                TextFormField(controller: _versicherungsnehmer),
+              ),
+              b: LabeledField(
+                'Anspruchsteller / Geschädigter',
+                TextFormField(controller: _anspruchsteller),
+              ),
+              c: LabeledField(
+                'Schadensursache / Sparte',
+                TextFormField(
+                  controller: _schadensursache,
+                  decoration: const InputDecoration(
+                    hintText: 'z.B. Leitungswasser, Sturm, Brand, Haftpflicht',
+                  ),
+                ),
+              ),
+            ),
+          ],
+          if (_art == AuftragArt.schiedsgutachten) ...[
+            const SizedBox(height: 18),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              'Schiedsgutachten-Angaben',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Row2(
+              left: DateField(
+                label: 'Schiedsgutachtervertrag vom',
+                value: _schiedsvertragVom,
+                onChanged: (v) => setState(() => _schiedsvertragVom = v),
+              ),
+              right: LabeledField(
+                'Obmann / Schiedsstelle (optional)',
+                TextFormField(controller: _obmann),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row2(
+              left: LabeledField(
+                'Schiedspartei A (Auftraggeber 1)',
+                TextFormField(controller: _parteiA),
+              ),
+              right: LabeledField(
+                'Schiedspartei B (Auftraggeber 2)',
+                TextFormField(controller: _parteiB),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           LabeledField(
             'Notizen / Bemerkungen',
@@ -675,16 +834,15 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
 
   // -------------------- Tab 3 --------------------
   Widget _gerichtTab() {
-    // Gerichts-Tab auch für Schiedsgutachten und Beweissicherung aktiv.
-    if (_art == AuftragArt.privat) {
+    if (_art == AuftragArt.privat || _art == AuftragArt.versicherung) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
           child: Text(
-            'Dieser Auftrag ist als «Privatgutachten» markiert — '
+            'Dieser Auftrag ist als «${_art.label}» markiert — '
             'Gerichtsfelder werden ausgeblendet.\n\n'
-            'Ändere auf Reiter «Allgemein» die Art auf «Gerichtsgutachten», '
-            'um diese Felder zu nutzen.',
+            'Spezifische Felder für Versicherungs- bzw. Privatgutachten '
+            'befinden sich auf dem Reiter «Allgemein».',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -726,12 +884,12 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
             ),
           ),
           const SizedBox(height: 12),
-          Row2(
-            left: LabeledField(
+          Row3(
+            a: LabeledField(
               'Gerichtliches Aktenzeichen',
               TextFormField(controller: _gerichtsAz),
             ),
-            right: LabeledField(
+            b: LabeledField(
               'Verfahrensart',
               DropdownButtonFormField<String>(
                 initialValue: _verfahrensarten.contains(_verfahrensart.text)
@@ -745,20 +903,29 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
                 onChanged: (v) => setState(() => _verfahrensart.text = v ?? ''),
               ),
             ),
+            c: LabeledField(
+              'Streitwert / Gegenstandswert (€)',
+              TextFormField(
+                controller: _streitwert,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Text('Streitparteien', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Row2(
             left: LabeledField(
-              'Kläger/in',
+              'Kläger/in (Antragsteller)',
               TextFormField(
                 controller: _klaeger,
                 decoration: const InputDecoration(hintText: 'Name / Firma'),
               ),
             ),
             right: LabeledField(
-              'Beklagte/r',
+              'Beklagte/r (Antragsgegner)',
               TextFormField(
                 controller: _beklagter,
                 decoration: const InputDecoration(hintText: 'Name / Firma'),
@@ -845,6 +1012,44 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
             ),
           ),
           const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                'Gerichtsakten-Bände / Beiakten (Eingang & Rückgabe)',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Band / Beiakte hinzufügen'),
+                onPressed: () {
+                  setState(() {
+                    _gerichtsaktenBaende.add(
+                      GerichtsaktenBand(
+                        bandNr: 'Bd. ${_gerichtsaktenBaende.length + 1}',
+                        eingangAm: _akteneingangAm ?? DateTime.now(),
+                      ),
+                    );
+                  });
+                },
+              ),
+            ],
+          ),
+          if (_gerichtsaktenBaende.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            for (var i = 0; i < _gerichtsaktenBaende.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _GerichtsaktenBandRow(
+                  key: ObjectKey(_gerichtsaktenBaende[i]),
+                  band: _gerichtsaktenBaende[i],
+                  onChanged: () => setState(() {}),
+                  onRemove: () =>
+                      setState(() => _gerichtsaktenBaende.removeAt(i)),
+                ),
+              ),
+          ],
+          const SizedBox(height: 16),
           Text('Richter/in', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Row3(
@@ -886,17 +1091,65 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
             c: DateField(
               label: 'Nächster Ortstermin',
               value: _ortsterminAm,
-              onChanged: (v) => setState(() => _ortsterminAm = v),
+              onChanged: (v) {
+                setState(() {
+                  // Falls bereits ein Ortstermin gesetzt war und sich das Datum ändert,
+                  // alten Termin automatisch für Umladungen merken.
+                  if (_ortsterminAm != null &&
+                      v != null &&
+                      (_ortsterminAm!.year != v.year ||
+                          _ortsterminAm!.month != v.month ||
+                          _ortsterminAm!.day != v.day)) {
+                    _ortsterminAltAm = _ortsterminAm;
+                    if (_ortsterminVon.text.trim().isNotEmpty &&
+                        _ortsterminAltUhrzeit.text.trim().isEmpty) {
+                      _ortsterminAltUhrzeit.text = _ortsterminVon.text.trim();
+                    }
+                  }
+                  _ortsterminAm = v;
+                });
+              },
             ),
           ),
           const SizedBox(height: 12),
-          Row2(
-            left: DateField(
+          Row3(
+            a: LabeledField(
+              'Ortstermin Uhrzeit (von)',
+              TextFormField(
+                controller: _ortsterminVon,
+                decoration: const InputDecoration(hintText: 'z.B. 10:00'),
+              ),
+            ),
+            b: LabeledField(
+              'Ortstermin Uhrzeit (bis)',
+              TextFormField(
+                controller: _ortsterminBis,
+                decoration: const InputDecoration(hintText: 'z.B. 12:00'),
+              ),
+            ),
+            c: DateField(
               label: 'Fertigstellung bis',
               value: _fristAm,
               onChanged: (v) => setState(() => _fristAm = v),
             ),
-            right: DateField(
+          ),
+          const SizedBox(height: 12),
+          Row3(
+            a: DateField(
+              label: 'Vorheriger Ortstermin (für Umladung)',
+              value: _ortsterminAltAm,
+              onChanged: (v) => setState(() => _ortsterminAltAm = v),
+            ),
+            b: LabeledField(
+              'Grund der Terminverlegung / Umladung',
+              TextFormField(
+                controller: _ortsterminVerlegtGrund,
+                decoration: const InputDecoration(
+                  hintText: 'z.B. Terminkollision Prozessbevollmächtigter',
+                ),
+              ),
+            ),
+            c: DateField(
               label: 'Abgeschlossen am',
               value: _abschlussAm,
               onChanged: (v) => setState(() => _abschlussAm = v),
@@ -1362,3 +1615,143 @@ class _GeraeteZuordnungViewState extends ConsumerState<_GeraeteZuordnungView> {
     );
   }
 }
+
+class _GerichtsaktenBandRow extends StatefulWidget {
+  const _GerichtsaktenBandRow({
+    super.key,
+    required this.band,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final GerichtsaktenBand band;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  State<_GerichtsaktenBandRow> createState() => _GerichtsaktenBandRowState();
+}
+
+class _GerichtsaktenBandRowState extends State<_GerichtsaktenBandRow> {
+  late final _bandNr = TextEditingController(text: widget.band.bandNr);
+  late final _bezeichnung = TextEditingController(
+    text: widget.band.bezeichnung,
+  );
+  late final _von = TextEditingController(
+    text: widget.band.seitenVon?.toString() ?? '',
+  );
+  late final _bis = TextEditingController(
+    text: widget.band.seitenBis?.toString() ?? '',
+  );
+
+  @override
+  void dispose() {
+    _bandNr.dispose();
+    _bezeichnung.dispose();
+    _von.dispose();
+    _bis.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: 80,
+            child: LabeledField(
+              'Band',
+              TextFormField(
+                controller: _bandNr,
+                onChanged: (v) {
+                  widget.band.bandNr = v.trim();
+                  widget.onChanged();
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 2,
+            child: LabeledField(
+              'Bezeichnung (z.B. Hauptakte / Beiakte Bauamt)',
+              TextFormField(
+                controller: _bezeichnung,
+                onChanged: (v) {
+                  widget.band.bezeichnung = v.trim();
+                  widget.onChanged();
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: LabeledField(
+              'Bl. von',
+              TextFormField(
+                controller: _von,
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  widget.band.seitenVon = int.tryParse(v.trim());
+                  widget.onChanged();
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: LabeledField(
+              'Bl. bis',
+              TextFormField(
+                controller: _bis,
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  widget.band.seitenBis = int.tryParse(v.trim());
+                  widget.onChanged();
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DateField(
+              label: 'Eingang am',
+              value: widget.band.eingangAm,
+              onChanged: (v) {
+                widget.band.eingangAm = v;
+                widget.onChanged();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DateField(
+              label: 'Rückgabe am',
+              value: widget.band.rueckgabeAm,
+              onChanged: (v) {
+                widget.band.rueckgabeAm = v;
+                widget.onChanged();
+              },
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'Band entfernen',
+            icon: const Icon(Icons.delete_outline, size: 18),
+            onPressed: widget.onRemove,
+          ),
+        ],
+      ),
+    );
+  }
+}
+

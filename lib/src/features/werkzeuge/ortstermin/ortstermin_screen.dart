@@ -78,23 +78,32 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   /// Journal-Zeile), geschlüsselt auf den Entry-Zeitstempel.
   final Set<DateTime> _transkribiereLaeuft = {};
 
+  /// Flag ob der Standort für diese Sitzung schon automatisch/manuell geladen wurde
+  bool _standortWurdeGeladen = false;
+
   /// Spinner-Flag für den „Hier bin ich"-Button.
   bool _geoSucheLaeuft = false;
 
   /// Sekunden-Ticker damit die Timer-Anzeige live aktualisiert wird.
   Timer? _elapsedTicker;
 
+  /// Ruft ggf. den Standort automatisch ab (einmalig).
+  void _maybeAutoLocation() {
+    if (!_standortWurdeGeladen && !_geoSucheLaeuft) {
+      _standortWurdeGeladen = true;
+      _akteUeberGpsFinden(silent: true);
+    }
+  }
+
   /// Holt die aktuelle GPS-Position.
-  /// - Ist bereits eine Akte ausgewählt: speichert die Position auf dieser Akte
-  ///   (Geo-Tagging), damit sie bei künftigen Besuchen automatisch erkannt wird.
-  /// - Sonst: sucht die nächstgelegene Akte (nur Akten mit objektLat/Lon;
-  ///   Radius bis 5 km). Auf größerer Distanz erscheint ein Dialog mit Top-3.
-  Future<void> _akteUeberGpsFinden() async {
+  /// - [silent]: wenn true, werden keine Snackbars und keine Dialoge angezeigt.
+  Future<void> _akteUeberGpsFinden({bool silent = false}) async {
+    _standortWurdeGeladen = true;
     setState(() => _geoSucheLaeuft = true);
     try {
       final pos = await aktuellePosition();
       if (pos == null) {
-        if (mounted) {
+        if (mounted && !silent) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
                 'Standort nicht verfügbar — bitte Berechtigung prüfen.'),
@@ -145,83 +154,87 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
             setState(() => _auftragId = naechste.$1.id);
             msg += 'Akte „${naechste.$1.aktenzeichen ?? naechste.$1.id}" gewählt.';
           } else {
-            // Auswahl-Dialog mit Top-3.
-            if (!mounted) return;
-            final picked = await showDialog<int>(
-              context: context,
-              useRootNavigator: true,
-              builder: (_) => SimpleDialog(
-                title: const Text('Akte in der Nähe wählen'),
-                children: [
-                  for (final (a, km) in kandidaten.take(3))
-                    SimpleDialogOption(
-                      onPressed: () =>
-                          Navigator.of(context, rootNavigator: true).pop(a.id),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined,
-                              size: 18, color: AwTokens.orange),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  a.aktenzeichen ?? '(o. A.)',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AwTokens.orange,
+            if (silent) {
+              msg += 'Akte in der Nähe (Distanz > 0.3km) ignoriert (Auto-Modus).';
+            } else {
+              // Auswahl-Dialog mit Top-3.
+              if (!mounted) return;
+              final picked = await showDialog<int>(
+                context: context,
+                useRootNavigator: true,
+                builder: (_) => SimpleDialog(
+                  title: const Text('Akte in der Nähe wählen'),
+                  children: [
+                    for (final (a, km) in kandidaten.take(3))
+                      SimpleDialogOption(
+                        onPressed: () =>
+                            Navigator.of(context, rootNavigator: true).pop(a.id),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 18, color: AwTokens.orange),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    a.aktenzeichen ?? '(o. A.)',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AwTokens.orange,
+                                    ),
                                   ),
-                                ),
-                                if ((a.bezeichnung ?? '').isNotEmpty)
-                                  Text(a.bezeichnung!,
-                                      style: const TextStyle(fontSize: 12)),
-                                Text(
-                                  [
-                                    a.objektStrasse,
-                                    [a.objektPlz, a.objektOrt]
+                                  if ((a.bezeichnung ?? '').isNotEmpty)
+                                    Text(a.bezeichnung!,
+                                        style: const TextStyle(fontSize: 12)),
+                                  Text(
+                                    [
+                                      a.objektStrasse,
+                                      [a.objektPlz, a.objektOrt]
+                                          .whereType<String>()
+                                          .where((s) => s.isNotEmpty)
+                                          .join(' '),
+                                    ]
                                         .whereType<String>()
                                         .where((s) => s.isNotEmpty)
-                                        .join(' '),
-                                  ]
-                                      .whereType<String>()
-                                      .where((s) => s.isNotEmpty)
-                                      .join(', '),
-                                  style: const TextStyle(
-                                      fontSize: 11, color: AwTokens.mute),
-                                ),
-                              ],
+                                        .join(', '),
+                                    style: const TextStyle(
+                                        fontSize: 11, color: AwTokens.mute),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            km < 1
-                                ? '${(km * 1000).round()} m'
-                                : '${km.toStringAsFixed(1)} km',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AwTokens.mute,
+                            const SizedBox(width: 12),
+                            Text(
+                              km < 1
+                                  ? '${(km * 1000).round()} m'
+                                  : '${km.toStringAsFixed(1)} km',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AwTokens.mute,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            );
-            if (picked != null) {
-              setState(() => _auftragId = picked);
-              msg += 'Akte gewählt.';
-            } else {
-              msg += 'Keine Akte verknüpft.';
+                  ],
+                ),
+              );
+              if (picked != null) {
+                setState(() => _auftragId = picked);
+                msg += 'Akte gewählt.';
+              } else {
+                msg += 'Keine Akte verknüpft.';
+              }
             }
           }
         }
       }
 
-      if (mounted) {
+      if (mounted && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.trim())));
       }
     } finally {
@@ -256,6 +269,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   }
 
   Future<void> _fotoHinzufuegen() async {
+    _maybeAutoLocation();
     // Quelle wählen (Kamera/Galerie) — auf dem Web zeigt der ImagePicker
     // direkt den Datei-Dialog; auf Mobile/iPad bekommt man Kamera & Galerie.
     final quelle = await _zeigeFotoQuelleDialog();
@@ -409,6 +423,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
 
   /// Notiz sofort 1:1 ins Journal — kein KI-Durchlauf.
   void _notizSpeichernDirekt() {
+    _maybeAutoLocation();
     final text = _notizController.text.trim();
     if (text.isEmpty) return;
     setState(() {
@@ -419,6 +434,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
 
   /// Notiz mit KI-Rechtschreibkorrektur ins Journal.
   Future<void> _notizSpeichern() async {
+    _maybeAutoLocation();
     final text = _notizController.text.trim();
     if (text.isEmpty) return;
 
@@ -464,6 +480,7 @@ class _OrtsterminScreenState extends ConsumerState<OrtsterminScreen> {
   }
 
   Future<void> _audioHinzufuegen() async {
+    _maybeAutoLocation();
     Uint8List? audioBytes;
     String audioMime = 'audio/webm';
 

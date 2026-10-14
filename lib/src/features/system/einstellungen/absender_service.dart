@@ -28,6 +28,20 @@ Future<BenutzerData> absenderFromSettings(WidgetRef ref) async {
     logoDataUri = 'data:$logoMime;base64,$logoBase64';
   }
 
+  String? unterschriftDataUri;
+  final unterschriftBase64 = v(SettingsKeys.unterschriftBase64);
+  final unterschriftMime = v(SettingsKeys.unterschriftMime) ?? 'image/png';
+  if (unterschriftBase64 != null && unterschriftBase64.isNotEmpty) {
+    unterschriftDataUri = 'data:$unterschriftMime;base64,$unterschriftBase64';
+  }
+
+  String? stempelDataUri;
+  final stempelBase64 = v(SettingsKeys.stempelBase64);
+  final stempelMime = v(SettingsKeys.stempelMime) ?? 'image/png';
+  if (stempelBase64 != null && stempelBase64.isNotEmpty) {
+    stempelDataUri = 'data:$stempelMime;base64,$stempelBase64';
+  }
+
   final nameFull = v(SettingsKeys.firmaName) ?? '';
   final parts = nameFull.split(RegExp(r'\s+'));
   final vorname =
@@ -90,6 +104,8 @@ Future<BenutzerData> absenderFromSettings(WidgetRef ref) async {
     bestellungsText:
         Value(bestellung.isNotEmpty ? bestellung : base.bestellungsText),
     logoPfad: Value(logoDataUri ?? base.logoPfad),
+    unterschriftPfad: Value(unterschriftDataUri ?? base.unterschriftPfad),
+    stempelPfad: Value(stempelDataUri ?? base.stempelPfad),
     standardStundensatz: Value(
         double.tryParse(
                 (v(SettingsKeys.standardStundensatz) ?? '').replaceAll(',', '.')) ??

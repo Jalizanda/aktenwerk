@@ -37,8 +37,8 @@ Future<AudioTranskript> transkribiereAudio(
   final repo = ref.read(einstellungenRepositoryProvider);
   final modellId = await getKiModell(repo, KiAufgabe.audioTranskript);
 
-  final model = FirebaseAI.vertexAI(location: 'europe-west1').generativeModel(
-    model: modellId,
+  final model = getVertexGenerativeModel(
+    modelId: modellId,
     systemInstruction: Content.system(
       'Du bist Transkriptions-Assistent für einen deutschen '
       'Bausachverständigen. Er nimmt vor Ort Notizen per Diktat auf.\n\n'

@@ -16,6 +16,8 @@ import '../../../shared/positionen/position_model.dart';
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
 
+import '../../akten/export/akten_export_service.dart';
+
 Future<void> showOposZahlungDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -80,12 +82,11 @@ class _OposZahlungDialogState extends ConsumerState<_OposZahlungDialog> {
         : (double.tryParse(_betrag.text.replaceAll(',', '.')) ?? 0);
     final skontoProz =
         double.tryParse(_skonto.text.replaceAll(',', '.')) ?? 0;
-    // Skonto wird vom Brutto-Betrag der Rechnung abgezogen (vereinfachte
-    // Variante: neue bezahlt = bestehendes bezahlt + zahlBetrag; Differenz
-    // zur Skonto-Reduktion als "anerkannter Abzug" in der Notiz).
+    // Skonto wird als anerkannter Abzug gewertet, aber NICHT auf den
+    // echten Cashflow (`bezahlt`) aufaddiert.
     final skontoAbzug = skontoProz > 0 ? r.brutto * skontoProz / 100 : 0;
-    final neuerBezahlt = r.bezahlt + zahlBetrag + skontoAbzug;
-    final vollBezahlt = neuerBezahlt >= r.brutto - 0.005;
+    final neuerBezahlt = r.bezahlt + zahlBetrag;
+    final vollBezahlt = (neuerBezahlt + skontoAbzug) >= r.brutto - 0.005;
     final db = ref.read(appDatabaseProvider);
     final bestehendeNotiz = (r.notiz ?? '').trim();
     final zahlNotiz = <String>[
@@ -107,13 +108,33 @@ class _OposZahlungDialogState extends ConsumerState<_OposZahlungDialog> {
     );
 
     if (mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(vollBezahlt
-                ? 'Rechnung vollständig bezahlt gesetzt.'
-                : 'Teilzahlung erfasst: ${_money.format(zahlBetrag)}')),
-      );
+      if (vollBezahlt && r.auftragId != null) {
+        final doExport = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('10-Jahres-Aufbewahrung?'),
+            content: const Text('Die Rechnung wurde vollständig bezahlt. Möchtest du die gesamte Akte jetzt für dein Archiv als ZIP-Datei herunterladen?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Später')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Jetzt exportieren')),
+            ],
+          ),
+        );
+        if (doExport == true && mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export wird erstellt...')));
+           await ref.read(aktenExportServiceProvider).exportAkte(r.auftragId!);
+        }
+      }
+      
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(vollBezahlt
+                  ? 'Rechnung vollständig bezahlt gesetzt.'
+                  : 'Teilzahlung erfasst: ${_money.format(zahlBetrag)}')),
+        );
+      }
     }
   }
 

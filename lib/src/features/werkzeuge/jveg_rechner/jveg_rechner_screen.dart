@@ -21,9 +21,9 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
   // M1–M3 sind die üblichen Gruppen für Bau-Gutachten; darüber hinaus bis M12
   // als Vorgriff auf künftige Sachgebiete.
   static const Map<int, double> _honorarJeStunde = {
-    1: 90, // M1
-    2: 110, // M2
-    3: 130, // M3
+    1: 100, // M1
+    2: 114, // M2
+    3: 135, // M3
     4: 100,
     5: 105,
     6: 115,
@@ -90,11 +90,10 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
     final fahrt = km * _satzKm;
 
     // § 7 Abs. 1 JVEG: Schreibauslagen
-    //  - Erstexemplar: 1,80 € pro 1000 Anschläge (oder angefangener 1000er)
-    //  - Je weitere Ausfertigung: 0,50 € pro 1000 Anschläge
+    //  - 0,90 € pro 1000 Anschläge (oder angefangener 1000er)
     final blocks = (anschlaege / 1000).ceil();
-    final schreibErst = blocks * 1.80;
-    final schreibWeitere = (ausfertigungen - 1) * blocks * 0.50;
+    final schreibErst = blocks * 0.90;
+    final schreibWeitere = (ausfertigungen - 1) * blocks * 0.50; // Annahme: Kopienauslagen für weitere
     final schreibauslagen = schreibErst + schreibWeitere;
 
     // § 7 Abs. 2 JVEG: Lichtbilder
@@ -314,7 +313,7 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '1,80 € je 1000 Anschläge (Erstausfertigung) · '
+                          '0,90 € je 1000 Anschläge (Erstausfertigung) · '
                           '0,50 € je 1000 Anschläge (weitere)',
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),

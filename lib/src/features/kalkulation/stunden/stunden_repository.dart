@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
@@ -121,5 +122,48 @@ class TimerState {
   }
 }
 
+class TimerNotifier extends StateNotifier<TimerState> {
+  TimerNotifier() : super(const TimerState()) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final startMillis = prefs.getInt('timer_started_at');
+    final aid = prefs.getInt('timer_auftrag_id');
+    final t = prefs.getString('timer_taetigkeit');
+    if (startMillis != null) {
+      state = TimerState(
+        startedAt: DateTime.fromMillisecondsSinceEpoch(startMillis),
+        auftragId: aid,
+        taetigkeit: t,
+      );
+    }
+  }
+
+  void update(TimerState Function(TimerState) cb) async {
+    final next = cb(state);
+    state = next;
+    final prefs = await SharedPreferences.getInstance();
+    if (next.startedAt == null) {
+      await prefs.remove('timer_started_at');
+      await prefs.remove('timer_auftrag_id');
+      await prefs.remove('timer_taetigkeit');
+    } else {
+      await prefs.setInt('timer_started_at', next.startedAt!.millisecondsSinceEpoch);
+      if (next.auftragId != null) {
+        await prefs.setInt('timer_auftrag_id', next.auftragId!);
+      } else {
+        await prefs.remove('timer_auftrag_id');
+      }
+      if (next.taetigkeit != null) {
+        await prefs.setString('timer_taetigkeit', next.taetigkeit!);
+      } else {
+        await prefs.remove('timer_taetigkeit');
+      }
+    }
+  }
+}
+
 final stundenTimerProvider =
-    StateProvider<TimerState>((ref) => const TimerState());
+    StateNotifierProvider<TimerNotifier, TimerState>((ref) => TimerNotifier());

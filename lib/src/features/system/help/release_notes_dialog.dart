@@ -18,6 +18,86 @@ class _ReleaseNotesDialog extends StatelessWidget {
 
   static const _releases = <_Release>[
     _Release(
+      version: '0.20.0',
+      datum: '2026-10-14',
+      titel:
+          'Enterprise-Praxispaket: 1-Klick-JVEG-Liquidation, Ortstermin-Arbeitsblatt, Serienbrief-Umladung, Express-Fotodoku & Gerichts-Schnellbriefe',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Akten-Stammdaten & Versicherungsgutachten: Neuer Auftragstyp '
+            '„Versicherungsgutachten" mit Schadensnummer, Police-Nr., '
+            'Schadenstag, Schadensursache, Versicherungsnehmer und '
+            'Anspruchsteller. Schiedsgutachten-Felder (Schiedsvertrag vom, '
+            'Obmann, Partei A/B), Streitwert, Ortstermin-Zeitfenster '
+            '(von–bis) sowie Verwaltung mehrerer Gerichts-/Beiakten-Bände '
+            '(Band-Nr., Blatt von–bis, Eingangs- und Rückgabedatum).'),
+        _Change(_ChangeType.feature,
+            'Beteiligte & 1-Klick Ortstermin-Einladung / Umladung: '
+            'Jeder Beteiligte führt nun Anrede, individuelle Briefanrede, '
+            'eigenes Kanzlei-/Schadens-AZ („Ihr Zeichen"), Vertretungs-'
+            'vermerk, Versandart (Brief, Einwurf-Einschreiben, '
+            'Einschreiben/Rückschein, E-Mail, beA/EGVP) und „Zum Ortstermin '
+            'laden"-Häkchen. Serienbrief-Einladung und Terminverlegung '
+            '(Umladung mit Alt-Termin & Verlegungsgrund) erzeugen '
+            'automatisch alle Anschreiben inkl. Liste der geladenen Personen '
+            'und optionaler Gerichts-/Auftraggeber-Nachricht.'),
+        _Change(_ChangeType.feature,
+            'Gutachterarbeitsblatt (Handblatt für den Ortstermin als PDF): '
+            'Direkt im Akten-Header über „Arbeitsblatt Ortstermin" druckbar — '
+            'mit Akten-/Objekt-/Gerichts-/Versicherungsdaten, Witterungs- '
+            'und Temperaturfeldern, Beteiligten-Anwesenheitsliste zum '
+            'Abhaken vor Ort sowie allen Beweisfragen mit linierten '
+            'Notizkästen und Vor-Ort-Checkliste.'),
+        _Change(_ChangeType.feature,
+            '1-Klick JVEG-Komplettliquidation direkt aus der Akte: '
+            'Kombiniert automatisch Zeitaufwand (§ 9 JVEG nach Honorargruppe '
+            'M1/M2/M3 mit Halbstunden-Rundung), Fahrtkosten & Auslagen '
+            '(§ 5 JVEG), Schreibauslagen (§ 12 Abs. 1 Nr. 3 JVEG nach '
+            'Zeichenanzahl des Gutachtens), Kopierpauschalen und '
+            'Lichtbilder inkl. Mehrfertigungen (§ 12 Abs. 1 Nr. 2 JVEG: '
+            '2,00 € Erstausfertigung / 0,50 € je Foto der Mehrfertigungen) '
+            'sowie Vorschuss-Verrechnungshinweis.'),
+        _Change(_ChangeType.feature,
+            'Express-Fotodokumentation als eigenständige PDF-Anlage: '
+            'Im Reiter „Fotos" der Akte mit wählbarem Raster (1, 2, 4 oder '
+            '6 Aufnahmen pro DIN-A4-Seite), fortlaufender Nummerierung '
+            '(Abb. 1, Abb. 2 …), Raum/Bauteil, Aufnahmedatum und '
+            'Beschreibung — auf Wunsch mit Direkt-Ablage in den Akten-'
+            'Dokumenten.'),
+        _Change(_ChangeType.feature,
+            'Zentrale Platzhalter-Engine ({{…}} & \$Variablen) + 1-Klick '
+            'Gerichts-Schnellbriefe: Über 35 Variablen (u.a. \$Sache, '
+            '\$GerichtsAZ, \$IhrZeichen, \$Ortstermin, \$OrtsterminUhrzeit, '
+            '\$Streitwert, \$Vorschuss, \$Schadensnummer, \$Beweisfragen, '
+            '\$GeladeneBeteiligte, \$Aktenbaende) mit interaktivem '
+            'Platzhalter-Picker im Anschreiben-Editor sowie 5 neuen '
+            '1-Klick-Gerichtsschriftsätzen (§ 407a ZPO-Bestätigung, '
+            'Vorschussanforderung, Aktenanforderung, Fristverlängerung '
+            '§ 411 ZPO, Gutachtenversand & Aktenrückgabe).'),
+      ],
+    ),
+    _Release(
+      version: '0.19.0',
+      datum: '2026-05-30',
+      titel:
+          'Neue KI-Beweisfragen-Diskussion & mobile Verträge für Privatgutachten',
+      changes: [
+        _Change(_ChangeType.feature,
+            'Privatgutachten: Neue Schnellanlage-Funktion auf dem Dashboard '
+            'für mobile Verträge (z.B. auf dem iPad vor Ort) inkl. '
+            'Widerrufsverzicht, DSGVO-Hinweis und digitalen Unterschriften '
+            'per Touchscreen. Generiert automatisch ein signiertes PDF '
+            'und legt die Akte an.'),
+        _Change(_ChangeType.feature,
+            'KI-Beweisfragen: Der Dokumenten-Scanner für Beweisbeschlüsse '
+            '(Gerichtsakte) bewertet nun direkt, ob die Fragen zulässig '
+            'oder missverständlich sind (Fachgebiet ist in Einstellungen '
+            'hinterlegbar). Über „Mit KI diskutieren" lässt sich ein '
+            'dedizierter Chat öffnen, um Rückfragen an das Gericht zu '
+            'formulieren.'),
+      ],
+    ),
+    _Release(
       version: '0.18.1',
       datum: '2026-05-02',
       titel:

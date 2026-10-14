@@ -60,8 +60,8 @@ class AnschreibenChatSession {
     // Reasoning-intensive Aufgabe, Flash reicht.
     final modellId = await getKiModell(repo, KiAufgabe.umformulieren);
 
-    final model = FirebaseAI.vertexAI(location: 'europe-west1').generativeModel(
-      model: modellId,
+    final model = getVertexGenerativeModel(
+      modelId: modellId,
       systemInstruction: Content.system(_systemPrompt()),
       generationConfig: GenerationConfig(
         temperature: 0.4,

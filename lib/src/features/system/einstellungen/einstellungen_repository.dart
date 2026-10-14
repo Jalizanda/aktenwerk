@@ -13,6 +13,7 @@ class SettingsKeys {
   SettingsKeys._();
 
   // ---------- Sachverständigen-Stammdaten ----------
+  static const svSachgebiet = 'firma.sachgebiet';
   static const firmaName = 'firma.name';
   static const firmaTitel = 'firma.titel';
   static const firmaAnschrift = 'firma.anschrift';
@@ -23,6 +24,10 @@ class SettingsKeys {
   static const firmaLogoMime = 'firma.logo_mime';
   static const firmaLogo2Base64 = 'firma.logo2_base64';
   static const firmaLogo2Mime = 'firma.logo2_mime';
+  static const firmaUnterschriftBase64 = 'firma.unterschrift_base64';
+  static const firmaUnterschriftMime = 'firma.unterschrift_mime';
+  static const firmaStempelBase64 = 'firma.stempel_base64';
+  static const firmaStempelMime = 'firma.stempel_mime';
   static const firmaBestellung1 = 'firma.bestellung1';
   static const firmaBestellung2 = 'firma.bestellung2';
 
@@ -39,6 +44,7 @@ class SettingsKeys {
 
   // ---------- Honorar ----------
   static const standardStundensatz = 'standard.stundensatz';
+  static const stundensatzJvegGruppe = 'standard.stundensatz_jveg_gruppe';
   static const stundensatzJveg = 'standard.stundensatz_jveg';
   static const standardUstSatz = 'standard.ust_satz';
   static const standardZahlungszielTage = 'standard.zahlungsziel_tage';
@@ -130,6 +136,8 @@ class SettingsKeys {
   static const siegelGueltigBis = 'siegel.gueltig_bis'; // ISO-Datum
   static const unterschriftBase64 = 'unterschrift.base64';
   static const unterschriftMime = 'unterschrift.mime';
+  static const stempelBase64 = 'stempel.base64';
+  static const stempelMime = 'stempel.mime';
 
   /// Interner Kostensatz pro Stunde (für Deckungsbeitrag).
   static const internerKostensatz = 'kalkulation.interner_kostensatz';
@@ -145,7 +153,7 @@ class SettingsKeys {
   static const theme = 'ui.theme'; // 'system' | 'light' | 'dark'
 
   // ---------- KI-Modell-Zuordnung pro Feature ----------
-  /// Werte: 'gemini-2.5-flash' | 'gemini-2.5-flash-lite' | 'gemini-2.5-pro'
+  /// Werte: 'gemini-3.5-flash' | 'gemini-3.1-pro-preview'
   static const kiModellKorrektur = 'ki.modell.korrektur';
   static const kiModellUmformulieren = 'ki.modell.umformulieren';
   static const kiModellJuristisch = 'ki.modell.juristisch';
