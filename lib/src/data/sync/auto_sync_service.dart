@@ -65,10 +65,12 @@ class AutoSyncService {
   static const intervallDefault = 3;
 
   Timer? _timer;
+  Timer? _initialTimer;
   StreamSubscription<dynamic>? _onlineSub;
   StreamSubscription<dynamic>? _offlineSub;
   StreamSubscription<dynamic>? _focusSub;
   bool _laeuft = false;
+  bool _disposed = false;
 
   /// Aktueller Status — von UI-Komponenten beobachtbar.
   final status = ValueNotifier<AutoSyncStatus>(
@@ -76,10 +78,12 @@ class AutoSyncService {
 
   Future<void> start() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_keyEnabled) == false) return;
+    if (_disposed || prefs.getBool(_keyEnabled) == false) return;
 
-    // 1) Initial: nach 3 s ersten Sync
-    Future<void>.delayed(const Duration(seconds: 3), _trigger);
+    // 1) Initial: nach 3 s ersten Sync (abbrechbar, falls der Provider
+    //    vorher entsorgt wird).
+    _initialTimer?.cancel();
+    _initialTimer = Timer(const Duration(seconds: 3), _trigger);
 
     // 2) Periodisch — Intervall aus Einstellungen
     final minuten = prefs.getInt(_keyIntervallMinuten) ?? intervallDefault;
@@ -89,6 +93,9 @@ class AutoSyncService {
 
     // 3) Browser-Events (Web-only; auf Mobile-Platforms leere Streams)
     if (kIsWeb) {
+      await _focusSub?.cancel();
+      await _onlineSub?.cancel();
+      await _offlineSub?.cancel();
       _focusSub = web.windowFocusStream.listen((_) => _trigger());
       _onlineSub = web.windowOnlineStream.listen((_) => _trigger());
       _offlineSub = web.windowOfflineStream.listen((_) {
@@ -99,10 +106,17 @@ class AutoSyncService {
   }
 
   Future<void> stop() async {
+    _initialTimer?.cancel();
     _timer?.cancel();
     await _focusSub?.cancel();
     await _onlineSub?.cancel();
     await _offlineSub?.cancel();
+  }
+
+  /// Endgültiges Abbauen (vom Provider aufgerufen).
+  Future<void> dispose() async {
+    _disposed = true;
+    await stop();
   }
 
   /// Manueller Anstoß (z. B. wenn der Nutzer auf das Wolken-Icon klickt).
@@ -111,7 +125,7 @@ class AutoSyncService {
   }
 
   Future<void> _trigger() async {
-    if (_laeuft) return;
+    if (_laeuft || _disposed) return;
     final sync = _ref.read(syncServiceProvider);
     if (!sync.enabled) return;
 
@@ -191,6 +205,6 @@ class AutoSyncService {
 
 final autoSyncServiceProvider = Provider<AutoSyncService>((ref) {
   final service = AutoSyncService(ref);
-  ref.onDispose(() => service.stop());
+  ref.onDispose(() => service.dispose());
   return service;
 });
