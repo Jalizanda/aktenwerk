@@ -94,12 +94,14 @@ class OrgService {
   // --------------------- Memberships ---------------------
 
   /// Beobachtet alle Orgs, in denen der aktuelle User Mitglied ist.
-  Stream<List<OrgSummary>> watchMyOrgs() {
-    final uid = _uid;
-    if (!enabled || uid == null) return const Stream.empty();
+  Stream<List<OrgSummary>> watchMyOrgs({String? uid}) {
+    final effectiveUid = uid ?? _uid;
+    if (!enabled || effectiveUid == null) {
+      return Stream.value(const <OrgSummary>[]);
+    }
     return _db
         .collection('users')
-        .doc(uid)
+        .doc(effectiveUid)
         .collection('memberships')
         .snapshots()
         .asyncMap((snap) async {
@@ -107,17 +109,22 @@ class OrgService {
       for (final doc in snap.docs) {
         final orgId = doc.id;
         final role = OrgRoleX.fromDb(doc.data()['role']?.toString());
-        final orgDoc = await _db.collection('organizations').doc(orgId).get();
-        if (!orgDoc.exists) continue;
-        final o = orgDoc.data() ?? {};
-        out.add(OrgSummary(
-          id: orgId,
-          name: o['name']?.toString() ?? 'Organisation',
-          beschreibung: o['beschreibung']?.toString(),
-          role: role,
-          createdAt: (o['createdAt'] as Timestamp?)?.toDate(),
-          approved: o['approved'] as bool? ?? false,
-        ));
+        try {
+          final orgDoc = await _db.collection('organizations').doc(orgId).get();
+          if (!orgDoc.exists) continue;
+          final o = orgDoc.data() ?? {};
+          out.add(OrgSummary(
+            id: orgId,
+            name: o['name']?.toString() ?? 'Organisation',
+            beschreibung: o['beschreibung']?.toString(),
+            role: role,
+            createdAt: (o['createdAt'] as Timestamp?)?.toDate(),
+            approved: o['approved'] as bool? ?? false,
+          ));
+        } catch (_) {
+          // Ignoriere Fehler einzelner Orgs (z. B. gelöscht oder keine Leseberechtigung)
+          continue;
+        }
       }
       out.sort((a, b) => a.name.compareTo(b.name));
       return out;
@@ -399,16 +406,35 @@ final orgServiceProvider = Provider<OrgService>((ref) {
 
 /// Alle Orgs, in denen der aktuelle User Mitglied ist.
 final myOrgsProvider = StreamProvider<List<OrgSummary>>((ref) {
-  ref.watch(authStateProvider);
-  return ref.watch(orgServiceProvider).watchMyOrgs();
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) {
+    return Stream.value(const <OrgSummary>[]);
+  }
+  return ref.watch(orgServiceProvider).watchMyOrgs(uid: user.uid);
 });
 
 /// Aktive Organisation. Wird persistent in SharedPreferences gehalten.
+/// Falls auf einer neuen Subdomain (z. B. `norm.aktenwerk.app`) noch kein
+/// lokaler Wert gespeichert ist, wird automatisch der Standard-Mandant
+/// (bevorzugt Nicht-Demo, z. B. „Bauelemente-Experte") ausgewählt.
 class CurrentOrgNotifier extends AsyncNotifier<String?> {
   @override
   Future<String?> build() async {
     ref.watch(authStateProvider);
-    return ref.read(orgServiceProvider).getCurrentOrgId();
+    final saved = await ref.read(orgServiceProvider).getCurrentOrgId();
+    final orgs = ref.watch(myOrgsProvider).valueOrNull;
+    if (orgs != null && orgs.isNotEmpty) {
+      final hasSaved = saved != null && orgs.any((o) => o.id == saved);
+      if (!hasSaved) {
+        final bevorzugteOrg = orgs.firstWhere(
+          (o) => o.id != 'demo',
+          orElse: () => orgs.first,
+        );
+        await ref.read(orgServiceProvider).setCurrentOrgId(bevorzugteOrg.id);
+        return bevorzugteOrg.id;
+      }
+    }
+    return saved;
   }
 
   Future<void> set(String? id) async {

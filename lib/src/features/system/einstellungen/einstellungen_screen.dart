@@ -16,10 +16,12 @@ import 'baupreisindex_section.dart';
 import 'demo_seed_section.dart';
 import 'google_mail_section.dart';
 import 'einstellungen_repository.dart';
+import '../../../core/jveg/jveg_tabelle.dart';
 import 'google_calendar_section.dart';
 import 'ki_modelle_section.dart';
 import 'ki_usage_section.dart';
 import 'stammdaten_seed.dart';
+import 'word_gerichte_import_section.dart';
 import 'zahlungsziele_section.dart';
 import '../../werkzeuge/jveg_rechner/jveg_rechner_screen.dart';
 
@@ -106,9 +108,9 @@ class _EinstellungenFormState
       _tec(SettingsKeys.standardZahlungszielTage, '14');
 
   // ---------- JVEG-Honorargruppen (Stundensätze gem. JVEG § 9) ----------
-  late final _gruppeM1 = _tec(SettingsKeys.honorargruppeM1Satz, '70');
-  late final _gruppeM2 = _tec(SettingsKeys.honorargruppeM2Satz, '95');
-  late final _gruppeM3 = _tec(SettingsKeys.honorargruppeM3Satz, '130');
+  late final _gruppeM1 = _tec(SettingsKeys.honorargruppeM1Satz, '87');
+  late final _gruppeM2 = _tec(SettingsKeys.honorargruppeM2Satz, '98');
+  late final _gruppeM3 = _tec(SettingsKeys.honorargruppeM3Satz, '131');
   late final _gruppeSonstiges =
       _tec(SettingsKeys.honorargruppeSonstigesSatz, '95');
 
@@ -222,7 +224,10 @@ class _EinstellungenFormState
     final size = widget.values[SettingsKeys.gutachtenFontSize];
     _gutachtenFontSize = (size == null || size.isEmpty) ? '11' : size;
     final jvegGrp = widget.values[SettingsKeys.stundensatzJvegGruppe];
-    _stdJvegGruppe = jvegGrp ?? '2';
+    // Altwerte '1'..'4' (frühere M-Auswahl) auf Sachgebiet 4.3 umstellen.
+    _stdJvegGruppe = (jvegGrp != null && jvegGesetzlicherSatz(jvegGrp) != null)
+        ? jvegGrp
+        : 'SG 4.3';
     _kleinunternehmer =
         widget.values[SettingsKeys.steuerKleinunternehmer] ?? 'nein';
     _nkAkteReset =
@@ -988,18 +993,27 @@ class _EinstellungenFormState
                           ),
                         ),
                         right: _L(
-                          'Standard JVEG-Gruppe',
+                          'Standard-Sachgebiet (JVEG)',
                           _InfoField(
-                            hint: 'M1=100€, M2=114€, M3=135€',
+                            hint: 'Wird bei neuen Gerichtsakten vorbelegt (Anlage 1 JVEG, Stand 06/2025)',
                             child: DropdownButtonFormField<String>(
-                              value: _stdJvegGruppe,
-                              items: const [
-                                DropdownMenuItem(value: '1', child: Text('M1 (z.B. 100 €)')),
-                                DropdownMenuItem(value: '2', child: Text('M2 (z.B. 114 €)')),
-                                DropdownMenuItem(value: '3', child: Text('M3 (z.B. 135 €)')),
-                                DropdownMenuItem(value: '4', child: Text('M4')),
+                              initialValue: _stdJvegGruppe,
+                              isExpanded: true,
+                              items: [
+                                for (final sg in jvegSachgebiete)
+                                  DropdownMenuItem(
+                                    value: sg.code,
+                                    child: Text(
+                                        '${sg.nr} ${sg.bezeichnung} (${sg.satz.toStringAsFixed(0)} €)',
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                for (final e in jvegMedizinischeGruppen.entries)
+                                  DropdownMenuItem(
+                                    value: e.key,
+                                    child: Text('${e.key} medizinisch (${e.value.toStringAsFixed(0)} €)'),
+                                  ),
                               ],
-                              onChanged: (v) => setState(() => _stdJvegGruppe = v ?? '2'),
+                              onChanged: (v) => setState(() => _stdJvegGruppe = v ?? 'SG 4.3'),
                             ),
                           ),
                         ),
@@ -1028,11 +1042,11 @@ class _EinstellungenFormState
                   _Section(
                     'JVEG-Honorargruppen (§ 9 JVEG)',
                     subtitle:
-                        'Stundensätze pro Honorargruppe. Wird automatisch in Stunden, Kostenvorschuss und JVEG-Rechnungen angewendet, sobald die Akte einer Gruppe zugeordnet ist.',
+                        'Bausachverständige rechnen nach Sachgebiet ab (Anlage 1 Teil 1 JVEG, z. B. 4.3 Bauwesen – Schadensfeststellung: 114 €/h); diese Sätze sind fest hinterlegt. Die Gruppen M1–M3 gelten nur für medizinische/psychologische Gutachten (Anlage 1 Teil 2). Hier eingetragene Werte überschreiben die gesetzlichen M-Sätze.',
                     children: [
                       _Row3(
                         a: _L(
-                          'M1 — einfache Gutachten (€/h)',
+                          'M1 — medizinisch, einfach (€/h)',
                           TextField(
                             controller: _gruppeM1,
                             keyboardType:
@@ -1041,7 +1055,7 @@ class _EinstellungenFormState
                           ),
                         ),
                         b: _L(
-                          'M2 — Standard (€/h)',
+                          'M2 — medizinisch, mittel (€/h)',
                           TextField(
                             controller: _gruppeM2,
                             keyboardType:
@@ -1050,7 +1064,7 @@ class _EinstellungenFormState
                           ),
                         ),
                         c: _L(
-                          'M3 — komplex (€/h)',
+                          'M3 — medizinisch, schwierig (€/h)',
                           TextField(
                             controller: _gruppeM3,
                             keyboardType:
@@ -1566,6 +1580,12 @@ class _EinstellungenFormState
                     subtitle:
                         'Vollständige JSON-Sicherung aller lokalen Daten herunterladen und wieder einspielen.',
                     children: const [BackupSection()],
+                  ),
+                  _Section(
+                    'Word-Vorlagen, Gerichte & Datenübernahme',
+                    subtitle:
+                        'Briefkopf für Word-Dokumente, Gerichtsverzeichnis ergänzen, Akten aus dem Gutachten-Manager übernehmen.',
+                    children: const [WordGerichteImportSection()],
                   ),
                   _Section('Datensicherung',
                       children: const [DemoSeedSection()]),

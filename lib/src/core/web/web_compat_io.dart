@@ -1,5 +1,27 @@
 /// IO-Stub (iOS, Android, macOS, Linux, Windows). Alle Methoden sind
 /// No-Ops oder geben „nicht unterstützt" zurück.
+import 'dart:typed_data';
+
+/// Repräsentiert eine per Browser-Drag-&-Drop abgelegte Datei.
+class DroppedWebFile {
+  const DroppedWebFile({
+    required this.name,
+    required this.bytes,
+    required this.mimeType,
+  });
+  final String name;
+  final Uint8List bytes;
+  final String mimeType;
+}
+
+/// Registriert einen Browser-weiten Drag-&-Drop-Listener für Dateien.
+/// Auf nativen Plattformen ein No-Op.
+void Function() registerFileDropListener({
+  void Function(bool isDragging)? onDragStateChanged,
+  required void Function(List<DroppedWebFile> files) onFilesDropped,
+}) {
+  return () {};
+}
 
 /// Öffnet [url] in einem neuen Browser-Fenster (Web-only).
 /// Auf nativen Plattformen ein No-Op — Aufrufer sollte vorher

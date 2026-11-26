@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/web/datei_export.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/sync/auth_service.dart';
 import '../../../data/sync/storage_service.dart';
@@ -596,8 +597,21 @@ class _FotoUploadDialogState extends ConsumerState<_FotoUploadDialog> {
     final cloudReady = storage.enabled && auth.currentUser != null;
 
     final db = ref.read(appDatabaseProvider);
-    for (final f in result.files) {
-      if (f.bytes == null) continue;
+    final heicFehlgeschlagen = <String>[];
+    for (final roh in result.files) {
+      if (roh.bytes == null) continue;
+      // iPhone-Fotos (HEIC/HEIF) werden vor dem Speichern in JPEG umgewandelt,
+      // damit sie in PDF-Fotodokumentation, Word und allen Browsern funktionieren.
+      var f = roh;
+      if (istHeic(roh.name, roh.bytes!)) {
+        final jpeg = await heicZuJpeg(roh.bytes!);
+        if (jpeg == null) {
+          heicFehlgeschlagen.add(roh.name);
+          continue;
+        }
+        final basis = roh.name.replaceAll(RegExp(r'\.(heic|heif)$', caseSensitive: false), '');
+        f = PlatformFile(name: '$basis.jpg', size: jpeg.length, bytes: jpeg);
+      }
       final mime = _mimeFor(f.name);
       String? storageUrl;
       String? storagePfad;
@@ -642,7 +656,13 @@ class _FotoUploadDialogState extends ConsumerState<_FotoUploadDialog> {
     if (mounted) {
       setState(() => _uploading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$_hochgeladen Foto(s) gespeichert.')));
+          duration: Duration(seconds: heicFehlgeschlagen.isEmpty ? 4 : 10),
+          content: Text(heicFehlgeschlagen.isEmpty
+              ? '$_hochgeladen Foto(s) gespeichert.'
+              : '$_hochgeladen Foto(s) gespeichert. ${heicFehlgeschlagen.length} HEIC-Foto(s) '
+                  'konnten in diesem Browser nicht umgewandelt werden (${heicFehlgeschlagen.join(', ')}). '
+                  'Bitte in Safari oder in der Mac-App hochladen bzw. auf dem iPhone '
+                  '„Einstellungen › Kamera › Formate › Maximale Kompatibilität“ wählen.')));
       Navigator.of(context, rootNavigator: true).pop();
     }
   }

@@ -5,6 +5,42 @@ Alle signifikanten Änderungen an diesem Projekt ("Aktenwerk") werden in dieser 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
 und dieses Projekt hält sich an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.22.0] - 2026-11-26
+### Hinzugefügt
+- **KI-Akten- & Gutachten-Wizard** (`ki_gutachten_wizard_dialog.dart`, `gutachten_wizard_ki_service.dart`): Fotos/Unterlagen hochladen → KI extrahiert Stammdaten, Beteiligte, Normen, Beweisfragen, Foto-Befunde und befüllt alle Gutachten-Abschnitte schrittweise.
+- **WYSIWYG-Gutachten-Editor** (`gutachten_wysiwyg_embeds.dart`, `formel_editor_dialog.dart`): Tabellen, Formel-/Nachweisblöcke und Seitenumbrüche visuell in Inline-Feldern und Vollbild-Editor.
+- **Automatische Verzeichnisse** (`gutachten_verzeichnisse_generator.dart`): Abkürzungs-, Anlagen-, Formel-, Normen- und Quellenverzeichnis aus dem Datensatz.
+- PDF-Layout: optionale seitliche Trennlinie, ein-/doppelseitig mit alternierenden Rändern; temporäre Quellen-Markierung im verlinkten PDF (`web/quelle.html`).
+- **Normen-Portal `norm.aktenwerk.app`** (`/norm-portal`): eigenständige Bibliothek mit Suche, eingebettetem KI-Chat über alle Normen (filtert die Tabelle auf zitierte Normen), Mandanten-Auswahl und Sofort-Sync.
+- **KI-Aktualitätsprüfung** (`normen_aktualitaet_ki_service.dart`): global oder je Norm; historische Normen bleiben im Pool mit Gültigkeitszeitraum (von – bis) und Nachfolgenorm.
+- Normen-Detail: echter KI-Chat und KI-Zusammenfassung über Vertex-AI-RAG mit Quellen-Chips (statt Platzhalter).
+- PDF-Massen-Upload: Drag & Drop direkt auf den Dialog.
+
+### Behoben
+- Graues ErrorWidget im Inline-Editor (`Spacer` innerhalb `Wrap`).
+- Standard-Mandant wird auf neuen Subdomains automatisch gesetzt.
+- KI-Aktualitätscheck lief in „Firebase AI Logic genai config not found" – läuft jetzt über `normChatHttp` (Modus `direct_json`).
+
+## [0.21.0] - 2026-10-18
+### Behoben
+- **JVEG 2025 (KostBRÄG 2025):** Sachgebiete nach Anlage 1 Teil 1 (68 Einträge, `core/jveg/jveg_tabelle.dart`) statt M1–M3 für Bausachverständige; M1–M3 auf 87/98/131 € aktualisiert. Rundung der letzten begonnenen Stunde nach § 8 Abs. 2 S. 2 JVEG auf die Gesamtzeit statt je Tätigkeit. Lichtbilder im JVEG-Rechner nach § 12 korrigiert.
+- macOS-Entitlements: `network.client`, `files.user-selected.read-write`, `files.downloads.read-write`.
+- ICS-Export: Semikolon korrekt maskiert.
+
+### Hinzugefügt
+- Word-Vorlagen-Engine (`shared/docx/`): $-/«»-/PH-/{{…}}-Platzhalter, MERGEFIELD-Normalisierung, «TableStart/TableEnd», #-Absätze, Serienbrief mit Abschnittsseitenzählung, Briefkopf-Übernahme.
+- Akte › Mehr: Word-Dokument aus Vorlage, Leistungsnachweis, Kostennachweis, Aktendeckel (PDF), Ortstermin als .ics, Zusatzfelder.
+- Positionen-Editor: Zu-/Abschlag in Prozent je USt-Satz.
+- Gerichts-Schnellbriefe: Sachstandsmitteilung, Terminabstimmung Ortstermin, Anforderung Urteils-/Vergleichsabschrift; Platzhalter `$Verteiler`, `{{zf.Name}}`.
+- Einstellungen: Briefkopf-Upload, Gerichte-Import (CSV/JSON), GutachtenManager-Import (CSV) + `tool/gm_export.sh`.
+- HEIC→JPEG-Umwandlung beim Foto-Upload (macOS via `sips`, Web via Browser-Decoder).
+- Gerichtsverzeichnis (`assets/data/gerichte.json`) von 158 auf 1.038 Einträge erweitert (DE 879, AT 159) inkl. Fax und Postfach; Abgleich der bisherigen Anschriften mit den GutachtenManager-Stammdaten (`tool/gerichte_zusammenfuehren.py`), LG Berlin I/II nach Teilung 2024. Fax wird bei Gerichtsauswahl im Auftraggeber übernommen.
+
+## [Unreleased] - 2026-10-14
+### Hinzugefügt
+- feat(v0.20.0): Enterprise-Praxispaket (Versicherung/Schieds/Aktenbaende, Beteiligte-Umladung, Arbeitsblatt-PDF, 1-Klick-JVEG-Liquidation, Express-Fotodoku, Platzhalter-Engine & Gerichts-Schnellbriefe)
+
+
 ## [0.20.0] - 2026-10-14
 ### Hinzugefügt
 - **Akten-Stammdaten & Versicherungsgutachten (`AuftragGmExtras`):** Neuer Auftragstyp *Versicherungsgutachten* mit Schadensnummer, Versicherungsschein-Nr. (Police), Schadenstag, Schadensursache, Versicherungsnehmer und Anspruchsteller. Erweiterte Schiedsgutachten-Felder (*Schiedsvertrag vom*, *Obmann*, *Partei A / Partei B*), *Streitwert*, Ortstermin-Zeitfenster (*Uhrzeit von–bis*), Verlegungshistorie (*Ortstermin alt* & *Verlegungsgrund*) sowie Verwaltung mehrerer **Gerichts-/Beiakten-Bände** (`GerichtsaktenBand`: Band-Nr., Bezeichnung, Blatt von–bis, Eingangs- und Rückgabedatum).

@@ -469,6 +469,65 @@ class _FaqCard extends StatelessWidget {
 
   static const _qas = <List<String>>[
     [
+      'Wie erstelle ich ein Word-Dokument aus meiner eigenen Vorlage?',
+      'Akte öffnen → oben „Mehr“ → „Word-Dokument aus Vorlage …“. Eine '
+          '.docx-Vorlage wählen (z. B. deine bisherigen GutachtenManager-'
+          'Vorlagen). Aktenwerk ersetzt \$Platzhalter (z. B. \$GerichtsAZ, '
+          '\$Aktenzeichen, \$Adresse, \$Anrede, \$Ad1Name, \$Verteiler), '
+          '«Seriendruckfelder», {{…}}-Tokens und #Beweisfragen. Enthält die '
+          'Vorlage Serienbrief-Felder («An», «Name» …), entsteht je Empfänger '
+          'ein Brief. Optional wird der in den Einstellungen hinterlegte '
+          'Briefkopf übernommen. Das Dokument landet in den Akten-Dokumenten '
+          'und wird zum Öffnen/Speichern angeboten. Felder (Seitenzahlen) '
+          'aktualisiert Word beim Öffnen – ggf. die Rückfrage mit „Ja“ bestätigen.',
+    ],
+    [
+      'Welcher JVEG-Stundensatz gilt für mich als Bausachverständiger?',
+      'Seit 01.06.2025 (KostBRÄG 2025) richtet sich der Satz nach dem '
+          'Sachgebiet der Anlage 1 Teil 1 JVEG, z. B. 4.1 Rohbau 114 €, '
+          '4.2 Dach/Klempner 104 €, 4.6 Haustechnik 109 €. M1–M3 gelten nur '
+          'für medizinische/psychologische Gutachten. Das Sachgebiet wählst '
+          'du je Akte im Auftrag; den Standard in Einstellungen → Honorar. '
+          'Die letzte begonnene Stunde wird einmal auf die Gesamtzeit '
+          'gerundet (§ 8 Abs. 2 S. 2 JVEG).',
+    ],
+    [
+      'Wie drucke ich Leistungsnachweis, Kostennachweis oder Aktendeckel?',
+      'Akte öffnen → „Mehr“. Dort gibt es Leistungsnachweis (Zeiten), '
+          'Kostennachweis (Auslagen), Aktendeckel, den Ortstermin als '
+          'Kalenderdatei (.ics) und die Zusatzfelder der Akte.',
+    ],
+    [
+      'Wie übernehme ich meine Daten aus dem GutachtenManager?',
+      'Auf dem Mac: „brew install mdbtools“, dann im Aktenwerk-Ordner '
+          '„./tool/gm_export.sh /Pfad/GutachterDBV80.mdb“ ausführen. Es '
+          'entstehen CSV-Dateien auf dem Schreibtisch (Ordner GM-Export). In '
+          'Aktenwerk: Einstellungen → „Word-Vorlagen, Gerichte & '
+          'Datenübernahme“ → „CSV-Dateien auswählen und übernehmen“ und alle '
+          'CSV-Dateien markieren. Übernommen werden Auftraggeber, Akten, '
+          'Beteiligte, Zeiten und Auslagen – Rechnungen und Dokumente nicht. '
+          'Vorher ein Backup ziehen.',
+    ],
+    [
+      'Welche Gerichte sind hinterlegt und wie ergänze ich weitere?',
+      'Hinterlegt sind rund 1.040 Gerichte und Staatsanwaltschaften in '
+          'Deutschland und Österreich (alle AG/LG/OLG inkl. Zweigstellen, '
+          'Bundesgerichte, österreichische Bezirks- und Landesgerichte) mit '
+          'Anschrift, Telefon und Fax. Suche nach Name, Ort, PLZ, Typ oder '
+          '„AT“. Fehlt ein Gericht oder hat sich eine Anschrift geändert: '
+          'Einstellungen → „Word-Vorlagen, Gerichte & Datenübernahme“ → '
+          '„Gerichte importieren (CSV/JSON)“. CSV mit Kopfzeile (Spalten: '
+          'name;strasse;plz;ort;telefon;fax;email;land) oder JSON. Die Gerichte stehen danach in '
+          'der Gerichtsauswahl der Akte zur Verfügung.',
+    ],
+    [
+      'Wie gebe ich einen Rabatt oder Zuschlag auf eine Rechnung?',
+      'Im Positionen-Editor auf „Zu-/Abschlag“ klicken, Rabatt oder '
+          'Zuschlag und Prozentsatz wählen. Es wird je USt-Satz eine Zeile '
+          'mit dem berechneten Betrag eingefügt. Spätere Positionen werden '
+          'nicht automatisch nachberechnet – Zeile dann löschen und neu einfügen.',
+    ],
+    [
       'Wo landen meine Daten?',
       'Alle Einträge werden lokal in deinem Browser gespeichert (IndexedDB). '
           'Pro Mandant eine eigene lokale Datenbank — Demo- und Produktiv-Daten '

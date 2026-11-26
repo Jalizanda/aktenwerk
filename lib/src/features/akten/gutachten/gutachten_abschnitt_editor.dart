@@ -20,6 +20,7 @@ import '../../system/einstellungen/einstellungen_repository.dart';
 import '../akte/normen_picker_dialog.dart';
 import '../lv/lv_insert_dialog.dart';
 import 'gutachten_repository.dart';
+import 'gutachten_wysiwyg_embeds.dart';
 import 'quill_image_embed.dart';
 
 /// Standalone-Screen: Vollbild-Editor für einen einzelnen Gutachten-
@@ -138,26 +139,14 @@ class _GutachtenAbschnittEditorScreenState
     }
   }
 
-  /// Akzeptiert einen vorhandenen Plain-Text-Inhalt oder ein
-  /// Quill-Delta-JSON-String und initialisiert den Quill-Controller.
+  /// Akzeptiert einen vorhandenen Plain-Text-Inhalt (inkl. Markdown-Tabellen,
+  /// Formelblöcken und Seitenumbrüchen) oder ein Quill-Delta-JSON-String und
+  /// initialisiert den Quill-Controller im echten WYSIWYG-Modus.
   quill.QuillController _buildController(String raw) {
-    final t = raw.trim();
-    if (t.isEmpty) return quill.QuillController.basic();
-    if (t.startsWith('[') || t.startsWith('{')) {
-      try {
-        final decoded = jsonDecode(t);
-        if (decoded is List) {
-          return quill.QuillController(
-            document: quill.Document.fromJson(decoded),
-            selection: const TextSelection.collapsed(offset: 0),
-          );
-        }
-      } catch (_) {}
-    }
-    // Plain-Text → Quill-Document mit nur Text.
+    final doc = parseGutachtenSectionToQuillDocument(raw);
     return quill.QuillController(
-      document: quill.Document()..insert(0, t),
-      selection: TextSelection.collapsed(offset: t.length),
+      document: doc,
+      selection: const TextSelection.collapsed(offset: 0),
     );
   }
 
@@ -204,17 +193,14 @@ class _GutachtenAbschnittEditorScreenState
     }
   }
 
-  /// Schreibt den aktuellen Quill-Delta-State in die DB. Gemeinsam genutzt
+  /// Schreibt den aktuellen Quill-State in die DB. Gemeinsam genutzt
   /// von Auto-Save, manuellem Speichern und dem dispose()-Flush.
   Future<void> _persistAbschnitt() async {
     if (_quill == null || _gutachten == null) return;
     final db = ref.read(appDatabaseProvider);
     final inhalte = abschnitteFromJson(_gutachten!.abschnitteJson);
-    // Wir speichern Quill-Delta-JSON, damit Formatierungen + Embeds
-    // erhalten bleiben. Plain-Text wird aus dem Delta abgeleitet, wenn
-    // gebraucht.
-    final delta = _quill!.document.toDelta().toJson();
-    inhalte[widget.abschnittKey] = jsonEncode(delta);
+    inhalte[widget.abschnittKey] =
+        serializeQuillDocumentForStorage(_quill!.document);
     await (db.update(db.gutachten)
           ..where((t) => t.id.equals(_gutachten!.id)))
         .write(GutachtenCompanion(
@@ -440,6 +426,28 @@ class _GutachtenAbschnittEditorScreenState
     _insertPlain(block.toString().trim());
   }
 
+  Future<void> _einfuegenTabelle() async {
+    if (_quill == null) return;
+    final table = await showTabellenEditorDialog(context);
+    if (!mounted || table == null) return;
+    insertAwCustomEmbed(_quill!, 'aw_table', table.toJsonString());
+    setState(() {});
+  }
+
+  Future<void> _einfuegenFormel() async {
+    if (_quill == null) return;
+    final formel = await showFormelBlockEditorDialog(context);
+    if (!mounted || formel == null) return;
+    insertAwCustomEmbed(_quill!, 'aw_formula', formel.toJsonString());
+    setState(() {});
+  }
+
+  void _einfuegenSeitenumbruch() {
+    if (_quill == null) return;
+    insertAwCustomEmbed(_quill!, 'aw_pagebreak', '1');
+    setState(() {});
+  }
+
   Future<void> _einfuegenDokument() async {
     if (_gutachten == null) return;
     final db = ref.read(appDatabaseProvider);
@@ -649,6 +657,18 @@ class _GutachtenAbschnittEditorScreenState
                     icon: const Icon(Icons.menu_book_outlined, size: 16),
                     label: const Text('Norm')),
                 OutlinedButton.icon(
+                    onPressed: _einfuegenTabelle,
+                    icon: const Icon(Icons.table_chart_outlined, size: 16),
+                    label: const Text('+ Tabelle')),
+                OutlinedButton.icon(
+                    onPressed: _einfuegenFormel,
+                    icon: const Icon(Icons.functions, size: 16),
+                    label: const Text('+ Formel / Nachweis')),
+                OutlinedButton.icon(
+                    onPressed: _einfuegenSeitenumbruch,
+                    icon: const Icon(Icons.content_cut, size: 16),
+                    label: const Text('+ Seitenumbruch')),
+                OutlinedButton.icon(
                     onPressed: _einfuegenDokument,
                     icon: const Icon(Icons.attach_file, size: 16),
                     label: const Text('Anlage')),
@@ -711,8 +731,8 @@ class _GutachtenAbschnittEditorScreenState
                 showSearchButton: false,
                 showDividers: true,
                 showClearFormat: true,
-                showSubscript: false,
-                showSuperscript: false,
+                showSubscript: true,
+                showSuperscript: true,
                 showStrikeThrough: false,
                 showIndent: true,
               ),

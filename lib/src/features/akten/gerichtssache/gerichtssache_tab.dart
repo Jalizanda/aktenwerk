@@ -946,6 +946,58 @@ class _GerichtsSchnellbriefeCard extends ConsumerWidget {
                   'Aufgrund des Umfangs der erforderlichen Untersuchungen und der Terminabstimmung mit den Beteiligten bitte ich höflich, die Frist zur Einreichung des schriftlichen Gutachtens angemessen zu verlängern.',
             ),
           ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.info_outline, size: 16),
+            label: const Text('Sachstandsmitteilung'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate: r'Sachstandsmitteilung — Az.: $GerichtsAZ ($Sache)',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'zum Stand der Begutachtung in dem oben genannten Verfahren teile ich Folgendes mit:\n\n'
+                  '${auftrag.ortsterminAm != null ? "Der Ortstermin hat am {{ortstermin}} stattgefunden bzw. ist für diesen Tag anberaumt.\n" : "Der Ortstermin wird derzeit mit den Beteiligten abgestimmt.\n"}'
+                  'Die Ausarbeitung des schriftlichen Gutachtens ist in Bearbeitung'
+                  '${auftrag.fristAm != null ? " und wird voraussichtlich innerhalb der gesetzten Frist bis zum {{frist}} vorgelegt" : ""}.\n\n'
+                  'Sollten sich Verzögerungen ergeben, werde ich das Gericht unaufgefordert unterrichten.',
+            ),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.event_available_outlined, size: 16),
+            label: const Text('Terminabstimmung Ortstermin'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate: r'Abstimmung des Ortstermins — Az.: $GerichtsAZ ($Sache)',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'zur Durchführung des Ortstermins in dem oben genannten Verfahren schlage ich folgende Termine vor:\n\n'
+                  '• ____________, ____ Uhr\n'
+                  '• ____________, ____ Uhr\n'
+                  '• ____________, ____ Uhr\n\n'
+                  'Ich bitte die Beteiligten, mir bis zum ____________ mitzuteilen, welche Termine wahrgenommen werden können. '
+                  'Nach Eingang der Rückmeldungen erfolgt die förmliche Ladung.',
+            ),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.gavel_outlined, size: 16),
+            label: const Text('Anforderung Urteils-/Vergleichsabschrift'),
+            onPressed: () => _erzeugeUndOeffne(
+              context,
+              ref,
+              betreffTemplate:
+                  r'Bitte um Übersendung einer Urteils- bzw. Vergleichsabschrift — Az.: $GerichtsAZ',
+              bodyTemplate:
+                  'In Sachen: {{sache}}\n'
+                  'Geschäftszeichen: {{gerichts_az}}\n\n'
+                  'in dem oben genannten Verfahren war ich als gerichtlich bestellter Sachverständiger tätig. '
+                  'Zur Vervollständigung meiner Unterlagen und zur Qualitätssicherung bitte ich höflich um Übersendung '
+                  'einer Abschrift des Urteils bzw. des geschlossenen Vergleichs, soweit dem keine Gründe entgegenstehen.\n\n'
+                  'Für Ihre Bemühungen bedanke ich mich im Voraus.',
+            ),
+          ),
           FilledButton.tonalIcon(
             icon: const Icon(Icons.send_and_archive_outlined, size: 16),
             label: Text(

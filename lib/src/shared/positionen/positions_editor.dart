@@ -124,6 +124,55 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
     }
   }
 
+  /// Rabatt bzw. Zuschlag in Prozent auf die bisherige Netto-Summe.
+  /// Pro USt-Satz wird eine eigene Zeile erzeugt, damit die Steuer korrekt
+  /// bleibt (z. B. 19 % Honorar und 0 % durchlaufende Posten).
+  Future<void> _addZuAbschlag() async {
+    final ergebnis = await showDialog<(bool, double, String)>(
+      context: context,
+      useRootNavigator: true,
+      builder: (_) => const _ZuAbschlagDialog(),
+    );
+    if (ergebnis == null) return;
+    final (istRabatt, prozent, text) = ergebnis;
+    if (prozent <= 0) return;
+    final basis = <double, double>{};
+    for (final p in _items) {
+      if (p.optional || p.istTextbaustein) continue;
+      basis.update(p.ustSatz, (v) => v + p.nettoBetrag,
+          ifAbsent: () => p.nettoBetrag);
+    }
+    basis.removeWhere((_, v) => v.abs() < 0.005);
+    if (basis.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Es gibt noch keine Positionen mit Betrag.')));
+      return;
+    }
+    final fmt = NumberFormat('#,##0.##', 'de_DE');
+    final geld = NumberFormat.currency(locale: 'de_DE', symbol: '€');
+    final neu = <Position>[];
+    for (final e in basis.entries) {
+      final betrag = ((e.value * prozent / 100) * 100).roundToDouble() / 100;
+      final mehrereSaetze = basis.length > 1;
+      neu.add(Position(
+        bezeichnung: '$text ${fmt.format(prozent)} %'
+            '${mehrereSaetze ? ' (USt ${fmt.format(e.key)} %)' : ''}',
+        langtext: '${fmt.format(prozent)} % von ${geld.format(e.value)}',
+        menge: 1,
+        einheit: 'psch',
+        einzelpreis: istRabatt ? -betrag : betrag,
+        ustSatz: e.key,
+      ));
+    }
+    setState(() {
+      for (final p in neu) {
+        _items.add(p);
+        _ids.add(_issueId());
+      }
+    });
+    _emit();
+  }
+
   void _remove(int i) {
     setState(() {
       _items.removeAt(i);
@@ -185,6 +234,12 @@ class _PositionsEditorState extends ConsumerState<PositionsEditor> {
               onPressed: _addAusArtikel,
               icon: const Icon(Icons.inventory_2_outlined, size: 16),
               label: const Text('Artikel einfügen'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              onPressed: _addZuAbschlag,
+              icon: const Icon(Icons.percent, size: 16),
+              label: const Text('Zu-/Abschlag'),
             ),
             const SizedBox(width: 6),
             FilledButton.icon(
@@ -1227,6 +1282,93 @@ class _LangtextEditorDialogState extends State<_LangtextEditorDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// Dialog für Rabatt / Allgemeinkostenzuschlag in Prozent.
+class _ZuAbschlagDialog extends StatefulWidget {
+  const _ZuAbschlagDialog();
+
+  @override
+  State<_ZuAbschlagDialog> createState() => _ZuAbschlagDialogState();
+}
+
+class _ZuAbschlagDialogState extends State<_ZuAbschlagDialog> {
+  bool _rabatt = true;
+  final _prozent = TextEditingController(text: '3');
+  final _text = TextEditingController(text: 'Nachlass');
+
+  @override
+  void dispose() {
+    _prozent.dispose();
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Zu-/Abschlag in Prozent'),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: true, label: Text('Rabatt / Nachlass')),
+                ButtonSegment(value: false, label: Text('Zuschlag')),
+              ],
+              selected: {_rabatt},
+              onSelectionChanged: (v) => setState(() {
+                _rabatt = v.first;
+                _text.text = _rabatt ? 'Nachlass' : 'Allgemeinkostenzuschlag';
+              }),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _prozent,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Prozent', suffixText: '%'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _text,
+              decoration: const InputDecoration(labelText: 'Bezeichnung'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Berechnet auf die Netto-Summe aller bisherigen Positionen '
+              '(ohne Optional- und Textzeilen), getrennt nach USt-Satz.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Abbrechen')),
+        FilledButton(
+          onPressed: () {
+            final p = double.tryParse(
+                    _prozent.text.trim().replaceAll('.', '').replaceAll(',', '.')) ??
+                0;
+            Navigator.of(context).pop((
+              _rabatt,
+              p,
+              _text.text.trim().isEmpty
+                  ? (_rabatt ? 'Nachlass' : 'Zuschlag')
+                  : _text.text.trim(),
+            ));
+          },
+          child: const Text('Einfügen'),
+        ),
+      ],
     );
   }
 }

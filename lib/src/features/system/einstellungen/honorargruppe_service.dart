@@ -1,36 +1,54 @@
+import '../../../core/jveg/jveg_tabelle.dart';
 import 'einstellungen_repository.dart';
 
-/// Liefert den hinterlegten JVEG-Stundensatz pro Honorargruppe.
+/// Liefert den JVEG-Stundensatz zu einer Honorargruppe bzw. einem Sachgebiet.
 ///
-/// Wird sowohl im Kostenvorschuss-Dialog als auch im Stunden-Editor
-/// genutzt, damit der Satz nicht händisch eingetragen werden muss.
+/// Unterstützte Codes:
+/// * `SG 4.3` (Sachgebiet nach Anlage 1 Teil 1 JVEG – für Bausachverständige)
+/// * `M1`, `M2`, `M3` (medizinische/psychologische Gutachten, Anlage 1 Teil 2)
+/// * alles andere → Satz „Sonstige“ aus den Einstellungen
+///
+/// Reihenfolge: individueller Satz aus den Einstellungen (falls gepflegt) →
+/// gesetzlicher Satz aus [jvegSachgebiete]/[jvegMedizinischeGruppen] →
+/// Standard-Stundensatz.
+///
+/// Wird im Kostenvorschuss-Dialog, im Stunden-Editor, bei Erläuterungsterminen
+/// und in der JVEG-Liquidation genutzt, damit überall derselbe Satz gilt.
 Future<double> stundensatzFuerHonorargruppe(
   EinstellungenRepository repo,
   String? gruppe,
 ) async {
-  String? key;
-  switch ((gruppe ?? '').toUpperCase()) {
+  final code = (gruppe ?? '').trim();
+  final upper = code.toUpperCase();
+
+  String? overrideKey;
+  switch (upper) {
     case 'M1':
-      key = SettingsKeys.honorargruppeM1Satz;
+      overrideKey = SettingsKeys.honorargruppeM1Satz;
       break;
     case 'M2':
-      key = SettingsKeys.honorargruppeM2Satz;
+      overrideKey = SettingsKeys.honorargruppeM2Satz;
       break;
     case 'M3':
-      key = SettingsKeys.honorargruppeM3Satz;
+      overrideKey = SettingsKeys.honorargruppeM3Satz;
       break;
     default:
-      key = SettingsKeys.honorargruppeSonstigesSatz;
+      final sg = jvegSachgebietFuer(code);
+      overrideKey = sg != null
+          ? 'honorar.sg.${sg.nr}'
+          : SettingsKeys.honorargruppeSonstigesSatz;
   }
-  final raw = await repo.get(key);
-  final parsed =
-      double.tryParse((raw ?? '').replaceAll(',', '.').trim());
+  final raw = await repo.get(overrideKey);
+  final parsed = double.tryParse((raw ?? '').replaceAll(',', '.').trim());
   if (parsed != null && parsed > 0) return parsed;
-  // Fallback: JVEG 2021 Default-Sätze.
-  return switch ((gruppe ?? '').toUpperCase()) {
-    'M1' => 70,
-    'M2' => 95,
-    'M3' => 130,
-    _ => 95,
-  };
+
+  final gesetzlich = jvegGesetzlicherSatz(code);
+  if (gesetzlich != null) return gesetzlich;
+
+  final standard = await repo.getDouble(SettingsKeys.standardStundensatz);
+  return (standard != null && standard > 0) ? standard : 114;
 }
+
+/// Synchrone Variante ohne Einstellungs-Overrides (für Anzeigen/Dropdowns).
+double? gesetzlicherSatzFuerHonorargruppe(String? gruppe) =>
+    jvegGesetzlicherSatz(gruppe);

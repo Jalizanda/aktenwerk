@@ -1,7 +1,7 @@
 name: aktenwerk
 description: "Aktenwerk – Bausachverständigen-Verwaltung (Akten, Gutachten, Rechnungen, Angebote)"
 publish_to: 'none'
-version: 0.20.0+20
+version: 0.22.0+22
 
 environment:
   sdk: ^3.11.5

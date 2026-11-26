@@ -50,31 +50,6 @@ const kiModelle = <KiModellInfo>[
     preisOutput: 12.00,
     location: 'global',
   ),
-  // ---------- Gemini 2.5 (Vorgänger-Generation — Abschaltung 16. Oktober 2026) ----------
-  KiModellInfo(
-    id: 'gemini-2.5-flash',
-    label: 'Gemini 2.5 Flash (Legacy)',
-    beschreibung: 'Vorgängermodell — wird am 16. Oktober 2026 von Google eingestellt.',
-    preisInput: 0.30,
-    preisOutput: 2.50,
-    location: 'europe-west1',
-  ),
-  KiModellInfo(
-    id: 'gemini-2.5-pro',
-    label: 'Gemini 2.5 Pro (Legacy)',
-    beschreibung: 'Vorgängermodell — wird am 16. Oktober 2026 von Google eingestellt.',
-    preisInput: 1.25,
-    preisOutput: 10.00,
-    location: 'europe-west1',
-  ),
-  KiModellInfo(
-    id: 'gemini-2.5-flash-lite',
-    label: 'Gemini 2.5 Flash-Lite (Legacy)',
-    beschreibung: 'Vorgängermodell — wird am 16. Oktober 2026 von Google eingestellt.',
-    preisInput: 0.10,
-    preisOutput: 0.40,
-    location: 'europe-west1',
-  ),
 ];
 
 const kiModellFallback = 'gemini-3.5-flash';
@@ -158,10 +133,16 @@ Future<String> getKiModell(
   KiAufgabe aufgabe,
 ) async {
   final gespeicherteId = await repo.getOr(aufgabe.settingsKey, aufgabe.defaultModell);
-  // Falls noch ein alter Name gespeichert ist (z.B. 'gemini-3-flash' oder 'gemini-3-pro'),
+  // Falls noch ein alter Name gespeichert ist (z.B. 'gemini-2.5-*' oder 'gemini-3-*'),
   // mappen wir automatisch auf die aktuellen gültigen Modell-IDs.
-  if (gespeicherteId == 'gemini-3-flash') return 'gemini-3.5-flash';
-  if (gespeicherteId == 'gemini-3-pro') return 'gemini-3.1-pro-preview';
+  if (gespeicherteId == 'gemini-3-pro' || gespeicherteId == 'gemini-2.5-pro') {
+    return 'gemini-3.1-pro-preview';
+  }
+  if (gespeicherteId == 'gemini-3-flash' ||
+      gespeicherteId.startsWith('gemini-2.') ||
+      !kiModelle.any((m) => m.id == gespeicherteId)) {
+    return 'gemini-3.5-flash';
+  }
   return gespeicherteId;
 }
 

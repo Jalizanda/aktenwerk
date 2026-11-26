@@ -229,11 +229,13 @@ class NormChatHistoryRepository {
         'quellen': n.quellen
             .map((q) => {
                   'chunkId': q.chunkId,
+                  if (q.pdfKey != null) 'pdfKey': q.pdfKey,
                   'normId': q.normId,
                   'nummer': q.nummer,
                   'titel': q.titel,
                   'page': q.page,
                   'snippet': q.snippet,
+                  if (q.storageUrl != null) 'storageUrl': q.storageUrl,
                 })
             .toList(),
         'anhaenge': n.anhaenge.map((a) => a.toMap()).toList(),
@@ -246,6 +248,7 @@ class NormChatHistoryRepository {
             .whereType<Map>()
             .map((q) => NormChatQuelle(
                   chunkId: q['chunkId']?.toString() ?? '',
+                  pdfKey: q['pdfKey']?.toString(),
                   normId: (q['normId'] is num)
                       ? (q['normId'] as num).toInt()
                       : null,
@@ -253,6 +256,7 @@ class NormChatHistoryRepository {
                   titel: q['titel']?.toString() ?? '',
                   page: (q['page'] is num) ? (q['page'] as num).toInt() : 0,
                   snippet: q['snippet']?.toString() ?? '',
+                  storageUrl: q['storageUrl']?.toString(),
                 ))
             .toList()
         : <NormChatQuelle>[];

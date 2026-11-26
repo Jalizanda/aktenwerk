@@ -218,7 +218,10 @@ class _NormenRagChatDialogState extends ConsumerState<NormenRagChatDialog> {
       final service = ref.read(normRagServiceProvider);
       final me = _historie.lastWhere((m) => m.rolle == 'user');
       final frageText = text.isEmpty
-          ? 'Analysiere das angehängte Foto / Dokument.'
+          ? 'Beantworte alle Fragen auf dem angehängten Blatt/Foto kurz und präzise '
+            '(bei Multiple-Choice: Frage Nr. + Antwort A, B, C... Richtig + kurze Begründung; '
+            'bei offenen Fragen: Frage Nr. + kurze, präzise Antwort auf den Punkt). '
+            'Falls kein Fragebogen vorliegt, analysiere das Foto/Dokument fachlich.'
           : text;
       final antwort = await service.frage(
         frage: frageText,
@@ -285,18 +288,154 @@ class _NormenRagChatDialogState extends ConsumerState<NormenRagChatDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _zumEnde());
   }
 
-  Future<void> _quelleOeffnen(NormChatQuelle q) async {
-    if (q.normId == null) return;
-    final norm = await ref.read(normenRepositoryProvider).byId(q.normId!);
-    final url = norm?.pdfStorageUrl;
+  Future<String?> _ermittlePdfUrl(NormChatQuelle q) async {
+    // 1. Direkt vom Backend mitgelieferte storageUrl prüfen
+    if (q.storageUrl != null && q.storageUrl!.trim().isNotEmpty) {
+      return q.storageUrl!.trim();
+    }
+    // 2. Gecachten normPdfsSnapshotProvider prüfen (0 extra Firestore-Reads, wenn geladen)
+    final snap = ref.read(normPdfsSnapshotProvider).valueOrNull;
+    final targetKey = q.pdfKey ?? (q.normId != null ? 'norm_${q.normId}' : null);
+    if (snap != null) {
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        if ((targetKey != null && doc.id == targetKey) ||
+            (q.normId != null && d['normId'] == q.normId) ||
+            (q.nummer.isNotEmpty && d['nummer'] == q.nummer)) {
+          final u = d['storageUrl']?.toString();
+          if (u != null && u.isNotEmpty) return u;
+        }
+      }
+    }
+    // 3. Lokale Drift-Datenbank prüfen
+    if (q.normId != null) {
+      final norm = await ref.read(normenRepositoryProvider).byId(q.normId!);
+      final u = norm?.pdfStorageUrl;
+      if (u != null && u.isNotEmpty) return u;
+    }
+    return null;
+  }
+
+  Future<void> _pdfDirektOeffnen(NormChatQuelle q) async {
+    final url = await _ermittlePdfUrl(q);
     if (url == null || url.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PDF-Quelle nicht verfügbar.')));
       return;
     }
-    final uri = Uri.parse('$url#page=${q.page}');
+    final baseUri = Uri.tryParse(url);
+    final uri = baseUri != null
+        ? baseUri.replace(fragment: 'page=${q.page}')
+        : Uri.parse('$url#page=${q.page}');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _quelleOeffnen(NormChatQuelle q) async {
+    final url = await _ermittlePdfUrl(q);
+    if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        titlePadding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        title: Row(
+          children: [
+            const Icon(Icons.menu_book_outlined, color: AwTokens.orange, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${q.nummer} · Seite ${q.page}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620, maxHeight: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (q.titel.trim().isNotEmpty) ...[
+                Text(
+                  q.titel.trim(),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              const Text(
+                'Gefundene Original-Textstelle:',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      q.snippet.trim().isEmpty
+                          ? '(Kein Textauszug verfügbar)'
+                          : q.snippet.trim(),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(
+                text: '[${q.nummer} · S. ${q.page}]\n${q.snippet.trim()}',
+              ));
+              if (ctx.mounted) {
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Textstelle in Zwischenablage kopiert.')),
+                );
+              }
+            },
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('Zitat kopieren'),
+          ),
+          if (url != null && url.isNotEmpty)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AwTokens.orange),
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                final baseUri = Uri.tryParse(url);
+                final uri = baseUri != null
+                    ? baseUri.replace(fragment: 'page=${q.page}')
+                    : Uri.parse('$url#page=${q.page}');
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+              icon: const Icon(Icons.picture_as_pdf, size: 16),
+              label: Text('PDF auf S. ${q.page} öffnen'),
+            ),
+        ],
+      ),
+    );
   }
 
   /// Kontextmenü-Aktionen pro Chat-Eintrag in der Sidebar.
@@ -606,6 +745,7 @@ class _NormenRagChatDialogState extends ConsumerState<NormenRagChatDialog> {
                   itemBuilder: (_, i) => _ChatEintrag(
                     nachricht: _historie[i],
                     onQuelleTap: _quelleOeffnen,
+                    onPdfDirektTap: _pdfDirektOeffnen,
                   ),
                 ),
         ),
@@ -736,6 +876,7 @@ class _NormenRagChatDialogState extends ConsumerState<NormenRagChatDialog> {
                         itemBuilder: (_, i) => _ChatEintrag(
                           nachricht: _historie[i],
                           onQuelleTap: _quelleOeffnen,
+                          onPdfDirektTap: _pdfDirektOeffnen,
                         ),
                       ),
               ),
@@ -1347,9 +1488,11 @@ class _ChatEintrag extends StatelessWidget {
   const _ChatEintrag({
     required this.nachricht,
     required this.onQuelleTap,
+    required this.onPdfDirektTap,
   });
   final NormChatNachricht nachricht;
   final void Function(NormChatQuelle) onQuelleTap;
+  final void Function(NormChatQuelle) onPdfDirektTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1485,17 +1628,59 @@ class _ChatEintrag extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       for (final q in nachricht.quellen)
-                        ActionChip(
-                          avatar: const Icon(Icons.menu_book_outlined,
-                              size: 14),
-                          label: Text(
-                            '${q.nummer} · S. ${q.page}',
-                            style: const TextStyle(fontSize: 11),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerLowest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: scheme.outlineVariant),
                           ),
-                          tooltip: q.snippet.length > 200
-                              ? '${q.snippet.substring(0, 200)} …'
-                              : q.snippet,
-                          onPressed: () => onQuelleTap(q),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                borderRadius: const BorderRadius.horizontal(
+                                    left: Radius.circular(8)),
+                                onTap: () => onQuelleTap(q),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.menu_book_outlined,
+                                          size: 14, color: AwTokens.orange),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        '${q.nummer} · S. ${q.page}',
+                                        style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 20,
+                                color: scheme.outlineVariant,
+                              ),
+                              Tooltip(
+                                message: 'Original-PDF direkt auf Seite ${q.page} öffnen',
+                                child: InkWell(
+                                  borderRadius: const BorderRadius.horizontal(
+                                      right: Radius.circular(8)),
+                                  onTap: () => onPdfDirektTap(q),
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 6),
+                                    child: Icon(Icons.picture_as_pdf,
+                                        size: 15, color: AwTokens.red),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                     ],
                   ),

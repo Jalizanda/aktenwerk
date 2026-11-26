@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'gutachten_wysiwyg_embeds.dart';
+
 /// Quill-Embed-Builder, der `{insert: {image: 'data:image/...;base64,...'}}`
 /// als reales Bild rendert. Ohne diesen Builder zeigt Flutter Quill nur
 /// einen leeren Platzhalter (graues Rechteck), weil das image-Embed
@@ -126,4 +128,7 @@ class _ImageBox extends StatelessWidget {
 
 const List<quill.EmbedBuilder> kAktenwerkEmbedBuilders = [
   QuillImageEmbedBuilder(),
+  AwTableEmbedBuilder(),
+  AwFormulaEmbedBuilder(),
+  AwPageBreakEmbedBuilder(),
 ];

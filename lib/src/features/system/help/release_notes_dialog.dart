@@ -18,6 +18,81 @@ class _ReleaseNotesDialog extends StatelessWidget {
 
   static const _releases = <_Release>[
     _Release(
+      version: '0.21.0',
+      datum: '2026-10-18',
+      titel:
+          'GutachtenManager-Funktionen: Word-Vorlagen, JVEG 2025 korrekt, Nachweise, Zusatzfelder, Datenübernahme',
+      changes: [
+        _Change(_ChangeType.fix,
+            'JVEG 2025 (KostBRÄG 2025, ab 01.06.2025) korrigiert: Bau-'
+            'Sachverständige rechnen nach Sachgebieten der Anlage 1 Teil 1 '
+            '(z. B. 4.1 Rohbau 114 €, 4.2 Dach 104 €, 4.6 Haustechnik '
+            '109 €) statt nach M1–M3 – diese Honorargruppen gelten nur für '
+            'medizinische/psychologische Gutachten (87/98/131 €). Alle 68 '
+            'Sachgebiete sind hinterlegt und in Akte, Erläuterungen, '
+            'Einstellungen und JVEG-Rechner wählbar; alte Akten zeigen ihren '
+            'bisherigen Wert weiter an.'),
+        _Change(_ChangeType.fix,
+            'Rundung nach § 8 Abs. 2 S. 2 JVEG: Die letzte begonnene Stunde '
+            'wird nur noch einmal auf die Gesamtzeit gerundet (bis 30 Min. '
+            '→ halbe, darüber → volle Stunde) – nicht mehr je Tätigkeit. '
+            'Die Liquidation zeigt jede Tätigkeit mit echter Zeit plus eine '
+            'Zeile „Aufrundung der letzten begonnenen Stunde“.'),
+        _Change(_ChangeType.fix,
+            'JVEG-Rechner: Lichtbilder nach § 12 jetzt richtig (2,00 € je '
+            'Erstabzug + 0,50 € je weiterem Abzug pro Mehrfertigung); '
+            'Rundung nach § 8 zuschaltbar.'),
+        _Change(_ChangeType.feature,
+            'Word-Dokument aus eigener Vorlage (Akte › Mehr › Word-Dokument): '
+            '.docx-Vorlage wählen, Aktenwerk füllt \$Platzhalter, '
+            '«Seriendruckfelder», PH-Felder und {{…}}-Tokens (u. a. '
+            '\$GerichtsAZ, \$Aktenzeichen, \$Adresse, \$Anrede, \$Ad1Name …, '
+            '\$Verteiler, \$BeteiligtePersonenAllInfo), wiederholt Tabellen'
+            'zeilen («TableStart:…»), setzt #Beweisfragen ein und erzeugt bei '
+            'Serienbrief-Feldern je Empfänger einen Brief mit eigener '
+            'Seitenzählung. Optional mit hinterlegtem Briefkopf. Das '
+            'Ergebnis wird in den Akten-Dokumenten abgelegt und geöffnet.'),
+        _Change(_ChangeType.feature,
+            'Neue Ausdrucke je Akte: Leistungsnachweis (Zeiten), '
+            'Kostennachweis (Auslagen) und Aktendeckel als PDF sowie '
+            'Ortstermin als Kalenderdatei (.ics) für Apple/Outlook/Google.'),
+        _Change(_ChangeType.feature,
+            'Zusatzfelder je Akte (Akte › Mehr › Zusatzfelder): eigene '
+            'Felder mit Platzhalternamen, nutzbar in Briefen ({{zf.Name}}) '
+            'und Word-Vorlagen (\$Name / #Name).'),
+        _Change(_ChangeType.feature,
+            'Rechnungen & Angebote: Button „Zu-/Abschlag“ für Nachlass oder '
+            'Allgemeinkostenzuschlag in Prozent – automatisch getrennt nach '
+            'USt-Satz.'),
+        _Change(_ChangeType.feature,
+            'Gerichts-Schnellbriefe erweitert: Sachstandsmitteilung, '
+            'Terminabstimmung Ortstermin, Anforderung Urteils-/'
+            'Vergleichsabschrift. Neuer Platzhalter \$Verteiler.'),
+        _Change(_ChangeType.feature,
+            'Gerichtsverzeichnis stark erweitert: rund 1.040 Gerichte und '
+            'Staatsanwaltschaften (Deutschland 879, Österreich 159) mit '
+            'Anschrift, Telefon und Fax – alle Amts-, Land- und '
+            'Oberlandesgerichte inkl. Zweigstellen, österreichische Bezirks-'
+            'und Landesgerichte. Bisherige Einträge wurden mit aktuellen '
+            'Anschriften abgeglichen (u. a. Landgericht Berlin I/II). Bei '
+            'Auswahl eines Gerichts im Auftraggeber wird auch die Faxnummer '
+            'übernommen.'),
+        _Change(_ChangeType.feature,
+            'Einstellungen › „Word-Vorlagen, Gerichte & Datenübernahme“: '
+            'Briefkopf (.docx) hinterlegen, eigenes Gerichtsverzeichnis per '
+            'CSV/JSON ergänzen (z. B. österreichische Gerichte) und Akten aus '
+            'dem GutachtenManager übernehmen (CSV-Export der Datenbank, '
+            'Skript tool/gm_export.sh). Übernommen werden Auftraggeber, '
+            'Akten, Beteiligte, Zeiten und Auslagen.'),
+        _Change(_ChangeType.feature,
+            'iPhone-Fotos (HEIC) werden beim Hochladen automatisch in JPEG '
+            'umgewandelt (Mac-App immer, im Browser mit Safari).'),
+        _Change(_ChangeType.fix,
+            'Mac-App: Netzwerkzugriff und Speichern/Öffnen von Dateien im '
+            'Sandbox-Modus freigegeben (Release-Build).'),
+      ],
+    ),
+    _Release(
       version: '0.20.0',
       datum: '2026-10-14',
       titel:

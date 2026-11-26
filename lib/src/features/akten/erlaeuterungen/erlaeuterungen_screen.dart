@@ -1,3 +1,4 @@
+import '../../../core/jveg/jveg_tabelle.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,7 +135,7 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
   DateTime? _vergueteAm;
   TimeOfDay _uhrzeit = const TimeOfDay(hour: 9, minute: 0);
   String _status = 'geplant';
-  String _honorargruppe = 'M2';
+  String _honorargruppe = 'SG 4.3';
 
   late final _gericht = _tec(widget.eintrag?.eintrag.gericht);
   late final _gerichtsort = _tec(widget.eintrag?.eintrag.gerichtsort);
@@ -174,7 +175,7 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
     _ladungsdatum = e?.ladungsdatum;
     _vergueteAm = e?.vergueteAm;
     _status = e?.status ?? 'geplant';
-    _honorargruppe = e?.honorargruppe ?? 'M2';
+    _honorargruppe = e?.honorargruppe ?? 'SG 4.3';
   }
 
   @override
@@ -227,16 +228,35 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
   }
 
   void _applyHonorargruppe(String g) {
-    // M1 = 90 €, M2 = 110 €, M3 = 130 € (JVEG § 9)
-    final map = {'M1': '90', 'M2': '110', 'M3': '130'};
-    if (map.containsKey(g)) {
-      setState(() {
-        _honorargruppe = g;
-        _stundensatz.text = map[g]!;
-      });
-    } else {
-      setState(() => _honorargruppe = g);
+    // Gesetzlicher Satz nach § 9 JVEG / Anlage 1 (Stand 01.06.2025):
+    // Sachgebiete (Teil 1) bzw. M1–M3 (Teil 2, medizinisch).
+    final satz = jvegGesetzlicherSatz(g);
+    setState(() {
+      _honorargruppe = g;
+      if (satz != null) _stundensatz.text = satz.toStringAsFixed(0);
+    });
+  }
+
+  List<DropdownMenuItem<String>> get _honorargruppenItems {
+    final items = <DropdownMenuItem<String>>[
+      for (final sg in jvegSachgebiete)
+        DropdownMenuItem(
+          value: sg.code,
+          child: Text('${sg.nr} ${sg.bezeichnung} (${sg.satz.toStringAsFixed(0)} €/h)',
+              overflow: TextOverflow.ellipsis),
+        ),
+      for (final e in jvegMedizinischeGruppen.entries)
+        DropdownMenuItem(
+          value: e.key,
+          child: Text('${e.key} medizinisch (${e.value.toStringAsFixed(0)} €/h)'),
+        ),
+      const DropdownMenuItem(value: 'custom', child: Text('frei')),
+    ];
+    if (!items.any((i) => i.value == _honorargruppe)) {
+      items.add(DropdownMenuItem(
+          value: _honorargruppe, child: Text(_honorargruppe)));
     }
+    return items;
   }
 
   Future<void> _save() async {
@@ -415,26 +435,14 @@ class _ErlaeuterungFormState extends ConsumerState<_ErlaeuterungForm> {
                         children: [
                           Row2(
                             left: LabeledField(
-                              'Honorargruppe (§ 9)',
+                              'Sachgebiet / Honorargruppe (§ 9 JVEG)',
                               DropdownButtonFormField<String>(
                                 initialValue: _honorargruppe,
                                 isDense: true,
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'M1',
-                                      child: Text('M1 (90 €/h)')),
-                                  DropdownMenuItem(
-                                      value: 'M2',
-                                      child: Text('M2 (110 €/h)')),
-                                  DropdownMenuItem(
-                                      value: 'M3',
-                                      child: Text('M3 (130 €/h)')),
-                                  DropdownMenuItem(
-                                      value: 'custom',
-                                      child: Text('frei')),
-                                ],
+                                isExpanded: true,
+                                items: _honorargruppenItems,
                                 onChanged: (v) =>
-                                    _applyHonorargruppe(v ?? 'M2'),
+                                    _applyHonorargruppe(v ?? 'SG 4.3'),
                               ),
                             ),
                             right: LabeledField(

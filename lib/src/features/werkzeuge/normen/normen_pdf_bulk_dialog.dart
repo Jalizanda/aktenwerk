@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/aw_tokens.dart';
+import '../../../core/web/web_compat.dart';
 import 'normen_pdf_bulk.dart';
 import 'normen_repository.dart';
 
 /// Dialog für den Massen-Upload von Normen-PDFs.
 /// Ablauf:
-/// 1. Datei-Picker auswählen (Multi-Select).
+/// 1. Datei-Picker auswählen (Multi-Select) ODER per Drag & Drop ablegen.
 /// 2. Match-Tabelle zeigen — zugeordnet / nicht zugeordnet.
 /// 3. Überschreibe-Option toggeln.
 /// 4. Upload starten → Fortschritt → Ergebnis.
@@ -26,8 +27,11 @@ enum _Phase { auswahl, vorschau, upload, fertig }
 class _NormenPdfBulkDialogState
     extends ConsumerState<NormenPdfBulkDialog> {
   _Phase _phase = _Phase.auswahl;
+  final Map<String, Uint8List> _ausgewaehlteDateien = {};
   List<PdfMatchResult> _kandidaten = [];
   bool _ueberschreibe = true;
+  bool _isDraggingOver = false;
+  void Function()? _unregisterDropListener;
 
   // Fortschritt
   int _aktuell = 0;
@@ -37,6 +41,69 @@ class _NormenPdfBulkDialogState
   // Ergebnis
   NormenPdfUploadReport? _ergebnis;
   String? _fehler;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregisterDropListener = registerFileDropListener(
+      onDragStateChanged: (dragging) {
+        if (!mounted) return;
+        if (_phase != _Phase.auswahl && _phase != _Phase.vorschau) return;
+        setState(() => _isDraggingOver = dragging);
+      },
+      onFilesDropped: (files) {
+        if (!mounted) return;
+        if (_phase != _Phase.auswahl && _phase != _Phase.vorschau) return;
+        _onDroppedFiles(files);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _unregisterDropListener?.call();
+    super.dispose();
+  }
+
+  void _onDroppedFiles(List<DroppedWebFile> files) {
+    final neuePdfs = <String, Uint8List>{};
+    var ignoriert = 0;
+    for (final f in files) {
+      final isPdf = f.name.toLowerCase().endsWith('.pdf') ||
+          f.mimeType.toLowerCase().contains('pdf');
+      if (isPdf && f.bytes.isNotEmpty) {
+        neuePdfs[f.name] = f.bytes;
+      } else {
+        ignoriert++;
+      }
+    }
+
+    if (neuePdfs.isEmpty) {
+      if (ignoriert > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bitte nur PDF-Dateien (.pdf) ablegen.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    _fuegeDateienHinzu(neuePdfs);
+  }
+
+  void _fuegeDateienHinzu(Map<String, Uint8List> neueDateien) {
+    _ausgewaehlteDateien.addAll(neueDateien);
+    final normenAsync = ref.read(normenListProvider);
+    final normen = normenAsync.valueOrNull ?? const [];
+
+    final matches =
+        matchePdfs(dateien: _ausgewaehlteDateien, normen: normen);
+    setState(() {
+      _kandidaten = matches;
+      _phase = _Phase.vorschau;
+    });
+  }
 
   Future<void> _dateienWaehlen() async {
     final res = await FilePicker.platform.pickFiles(
@@ -54,14 +121,7 @@ class _NormenPdfBulkDialogState
     }
     if (dateien.isEmpty) return;
 
-    final normenAsync = ref.read(normenListProvider);
-    final normen = normenAsync.valueOrNull ?? const [];
-
-    final matches = matchePdfs(dateien: dateien, normen: normen);
-    setState(() {
-      _kandidaten = matches;
-      _phase = _Phase.vorschau;
-    });
+    _fuegeDateienHinzu(dateien);
   }
 
   Future<void> _hochladen() async {
@@ -177,31 +237,63 @@ class _NormenPdfBulkDialogState
   }
 
   Widget _auswahl(ColorScheme scheme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder_open, size: 64, color: scheme.primary),
-            const SizedBox(height: 16),
-            Text('PDF-Dateien auswählen',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            const Text(
-              'Wähle eine oder mehrere PDF-Dateien aus.\n'
-              'Bestehende Katalog-Normen werden automatisch gematcht.\n'
-              'Für noch nicht existierende Normen wird automatisch ein neuer Katalog-Eintrag angelegt.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+    final active = _isDraggingOver;
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: InkWell(
+        onTap: _dateienWaehlen,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          decoration: BoxDecoration(
+            color: active
+                ? scheme.primary.withValues(alpha: 0.08)
+                : scheme.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: active
+                  ? scheme.primary
+                  : scheme.outlineVariant,
+              width: active ? 2.5 : 1.5,
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('PDFs auswählen…'),
-              onPressed: _dateienWaehlen,
+          ),
+          padding: const EdgeInsets.all(32),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  active ? Icons.file_download_outlined : Icons.folder_open,
+                  size: 64,
+                  color: scheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  active
+                      ? 'PDF-Dateien jetzt hier ablegen'
+                      : 'PDF-Dateien hierher ziehen & ablegen',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: active ? scheme.primary : null,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Ziehe eine oder mehrere PDF-Dateien direkt auf diesen Dialog oder wähle sie per Klick aus.\n'
+                  'Bestehende Katalog-Normen werden automatisch gematcht.\n'
+                  'Für noch nicht existierende Normen wird automatisch ein neuer Katalog-Eintrag angelegt.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('PDFs auswählen…'),
+                  onPressed: _dateienWaehlen,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -214,106 +306,160 @@ class _NormenPdfBulkDialogState
     final dubletten = _kandidaten.where((k) => k.ist1zu1Dublette).length;
     final gesamtGroesse =
         _kandidaten.fold<int>(0, (s, k) => s + k.groesse);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        Container(
-          color: scheme.surfaceContainerHighest,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Row(
-            children: [
-              _kennzahl(scheme, '${_kandidaten.length} Dateien',
-                  '${(gesamtGroesse / 1024 / 1024).toStringAsFixed(1)} MB'),
-              const SizedBox(width: 24),
-              if (bestehend > 0) ...[
-                _kennzahl(
-                    scheme, '$bestehend bestehend', 'werden aktualisiert',
-                    grun: true),
-                const SizedBox(width: 24),
-              ],
-              if (neuAnzulegen > 0) ...[
-                _kennzahl(
-                    scheme, '$neuAnzulegen neu', 'werden neu angelegt',
-                    blau: true),
-                const SizedBox(width: 24),
-              ],
-              if (dubletten > 0) ...[
-                _kennzahl(
-                    scheme, '$dubletten Dubletten', 'werden übersprungen',
-                    rot: true),
-                const SizedBox(width: 24),
-              ],
-              const Spacer(),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              color: scheme.surfaceContainerHighest,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
                 children: [
-                  Checkbox(
-                    value: _ueberschreibe,
-                    onChanged: (v) =>
-                        setState(() => _ueberschreibe = v ?? true),
+                  _kennzahl(scheme, '${_kandidaten.length} Dateien',
+                      '${(gesamtGroesse / 1024 / 1024).toStringAsFixed(1)} MB'),
+                  const SizedBox(width: 24),
+                  if (bestehend > 0) ...[
+                    _kennzahl(
+                        scheme, '$bestehend bestehend', 'werden aktualisiert',
+                        grun: true),
+                    const SizedBox(width: 24),
+                  ],
+                  if (neuAnzulegen > 0) ...[
+                    _kennzahl(
+                        scheme, '$neuAnzulegen neu', 'werden neu angelegt',
+                        blau: true),
+                    const SizedBox(width: 24),
+                  ],
+                  if (dubletten > 0) ...[
+                    _kennzahl(
+                        scheme, '$dubletten Dubletten', 'werden übersprungen',
+                        rot: true),
+                    const SizedBox(width: 24),
+                  ],
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Weitere PDFs'),
+                    onPressed: _dateienWaehlen,
                   ),
-                  const Text('Vorhandene PDFs überschreiben',
-                      style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 12),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: _ueberschreibe,
+                        onChanged: (v) =>
+                            setState(() => _ueberschreibe = v ?? true),
+                      ),
+                      const Text('Vorhandene PDFs überschreiben',
+                          style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: _kandidaten.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final k = _kandidaten[i];
+                  final istDublette = k.ist1zu1Dublette;
+                  final istNeu = k.istNeueNorm;
+
+                  final IconData icon = istDublette
+                      ? Icons.block
+                      : (istNeu ? Icons.add_circle_outline : Icons.check_circle);
+                  final Color iconColor = istDublette
+                      ? Colors.orange.shade800
+                      : (istNeu ? Colors.blue.shade700 : scheme.primary);
+
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(
+                      icon,
+                      color: iconColor,
+                      size: 20,
+                    ),
+                    title: Text(k.dateiname,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            decoration: istDublette ? TextDecoration.lineThrough : null)),
+                    subtitle: Text(
+                      istDublette
+                          ? '🚫 1:1 Inhaltlich identische Dublette — wird übersprungen (${k.matchGrund})'
+                          : (istNeu
+                              ? '→ Neue Norm wird angelegt: ${k.zugeordneteNorm!.nummer}'
+                                  ' (${k.zugeordneteNorm!.herausgeber})'
+                              : '→ Bestehende Norm: ${k.zugeordneteNorm!.nummer}'
+                                  '${k.zugeordneteNorm!.titel != null ? " · ${k.zugeordneteNorm!.titel}" : ""}'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: istDublette ? Colors.red.shade700 : null,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Text(
+                      '${(k.groesse / 1024).toStringAsFixed(0)} KB',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: _kandidaten.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final k = _kandidaten[i];
-              final istDublette = k.ist1zu1Dublette;
-              final istNeu = k.istNeueNorm;
-
-              final IconData icon = istDublette
-                  ? Icons.block
-                  : (istNeu ? Icons.add_circle_outline : Icons.check_circle);
-              final Color iconColor = istDublette
-                  ? Colors.orange.shade800
-                  : (istNeu ? Colors.blue.shade700 : scheme.primary);
-
-              return ListTile(
-                dense: true,
-                leading: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
+        if (_isDraggingOver)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                margin: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: scheme.primary, width: 2.5),
                 ),
-                title: Text(k.dateiname,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        decoration: istDublette ? TextDecoration.lineThrough : null)),
-                subtitle: Text(
-                  istDublette
-                      ? '🚫 1:1 Inhaltlich identische Dublette — wird übersprungen (${k.matchGrund})'
-                      : (istNeu
-                          ? '→ Neue Norm wird angelegt: ${k.zugeordneteNorm!.nummer}'
-                              ' (${k.zugeordneteNorm!.herausgeber})'
-                          : '→ Bestehende Norm: ${k.zugeordneteNorm!.nummer}'
-                              '${k.zugeordneteNorm!.titel != null ? " · ${k.zugeordneteNorm!.titel}" : ""}'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: istDublette ? Colors.red.shade700 : null,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.file_download_outlined,
+                            color: scheme.primary),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Weitere PDF-Dateien hier ablegen…',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: scheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                trailing: Text(
-                  '${(k.groesse / 1024).toStringAsFixed(0)} KB',
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontFeatures: [FontFeature.tabularFigures()]),
-                ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -496,6 +642,7 @@ class _NormenPdfBulkDialogState
           if (_phase == _Phase.vorschau) ...[
             TextButton(
               onPressed: () => setState(() {
+                _ausgewaehlteDateien.clear();
                 _kandidaten = [];
                 _phase = _Phase.auswahl;
               }),

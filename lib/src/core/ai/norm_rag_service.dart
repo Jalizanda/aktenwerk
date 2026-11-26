@@ -40,28 +40,34 @@ extension NormIndexStatusX on NormIndexStatus {
 /// einzelnen Chunk aus `norm_chunks`.
 class NormChatQuelle {
   final String chunkId;
+  final String? pdfKey;
   final int? normId;
   final String nummer;
   final String titel;
   final int page;
   final String snippet;
+  final String? storageUrl;
 
   const NormChatQuelle({
     required this.chunkId,
+    this.pdfKey,
     required this.normId,
     required this.nummer,
     required this.titel,
     required this.page,
     required this.snippet,
+    this.storageUrl,
   });
 
   factory NormChatQuelle.fromMap(Map m) => NormChatQuelle(
         chunkId: m['chunkId']?.toString() ?? '',
+        pdfKey: m['pdfKey']?.toString(),
         normId: _toIntOrNull(m['normId']),
         nummer: m['nummer']?.toString() ?? '',
         titel: m['titel']?.toString() ?? '',
         page: _toIntOrNull(m['page']) ?? 0,
         snippet: m['snippet']?.toString() ?? '',
+        storageUrl: m['storageUrl']?.toString(),
       );
 }
 
@@ -460,15 +466,21 @@ final normRagServiceProvider = Provider<NormRagService>((ref) {
   return NormRagService();
 });
 
+/// Zentraler, gecachter Stream auf die `norm_pdfs`-Collection, damit die
+/// gesamte App höchstens EINEN einzigen Firestore-Collection-Listener öffnet
+/// (statt hunderter Einzel-Dokument-Listener pro Zeile).
+final normPdfsSnapshotProvider =
+    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+  return FirebaseFirestore.instance.collection('norm_pdfs').snapshots();
+});
+
 /// Live-Map normId → Indexierungsstatus, für Sortierung und Anzeige in der
-/// Normen-Liste. Liest die `norm_pdfs`-Collection als Stream und projiziert
-/// auf einen schnellen Lookup-Key.
+/// Normen-Liste. Abgeleitet aus [normPdfsSnapshotProvider] ohne zusätzlichen
+/// Firestore-Read.
 final normIndexStatusMapProvider =
-    StreamProvider<Map<int, NormIndexStatus>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('norm_pdfs')
-      .snapshots()
-      .map((snap) {
+    Provider<AsyncValue<Map<int, NormIndexStatus>>>((ref) {
+  final snapAsync = ref.watch(normPdfsSnapshotProvider);
+  return snapAsync.whenData((snap) {
     final result = <int, NormIndexStatus>{};
     for (final doc in snap.docs) {
       final id = doc.data()['normId'];
@@ -479,3 +491,60 @@ final normIndexStatusMapProvider =
     return result;
   });
 });
+
+/// Berechnet den aggregierten [NormIndexFortschritt] direkt aus einem bereits
+/// geladenen [QuerySnapshot] von `norm_pdfs`.
+NormIndexFortschritt berechneNormIndexFortschritt(
+  QuerySnapshot<Map<String, dynamic>> snap,
+  List<int> normIdsMitPdf,
+) {
+  final gesamt = normIdsMitPdf.length;
+  if (gesamt == 0) {
+    return const NormIndexFortschritt(
+      gesamt: 0,
+      indexed: 0,
+      indexing: 0,
+      pending: 0,
+      failed: 0,
+      unbekannt: 0,
+      chunks: 0,
+    );
+  }
+  int indexed = 0, indexing = 0, pending = 0, failed = 0, chunks = 0;
+  final idSet = normIdsMitPdf.toSet();
+  final dokumentierteIds = <int>{};
+  for (final doc in snap.docs) {
+    final data = doc.data();
+    final normId = data['normId'];
+    if (normId is! int) continue;
+    if (!idSet.contains(normId)) continue;
+    dokumentierteIds.add(normId);
+    final status = data['status']?.toString();
+    switch (status) {
+      case 'indexed':
+        indexed++;
+        final c = data['chunkCount'];
+        if (c is int) chunks += c;
+        break;
+      case 'indexing':
+        indexing++;
+        break;
+      case 'pending':
+        pending++;
+        break;
+      case 'failed':
+        failed++;
+        break;
+    }
+  }
+  final unbekannt = gesamt - dokumentierteIds.length;
+  return NormIndexFortschritt(
+    gesamt: gesamt,
+    indexed: indexed,
+    indexing: indexing,
+    pending: pending,
+    failed: failed,
+    unbekannt: unbekannt,
+    chunks: chunks,
+  );
+}

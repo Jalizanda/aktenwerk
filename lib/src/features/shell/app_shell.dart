@@ -68,9 +68,13 @@ class _AppShellState extends ConsumerState<AppShell> {
         if (mounted) showOrgOnboardingDialog(context);
       });
     } else if (!hasOrg && orgs.isNotEmpty) {
-      // User hat Orgs, aber keine ausgewählt → erste auswählen.
+      // User hat Orgs, aber keine ausgewählt → erste auswählen (bevorzugt Nicht-Demo).
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(currentOrgIdProvider.notifier).set(orgs.first.id);
+        final bevorzugteOrg = orgs.firstWhere(
+          (o) => o.id != 'demo',
+          orElse: () => orgs.first,
+        );
+        ref.read(currentOrgIdProvider.notifier).set(bevorzugteOrg.id);
       });
     }
   }
@@ -392,7 +396,8 @@ class _UserMenu extends ConsumerWidget {
         .join()
         .toUpperCase();
 
-    final orgs = ref.watch(myOrgsProvider).valueOrNull ?? const [];
+    final orgsAsync = ref.watch(myOrgsProvider);
+    final orgs = orgsAsync.valueOrNull ?? const [];
     final currentOrgId = ref.watch(currentOrgIdProvider).valueOrNull;
 
     return PopupMenuButton<String>(
@@ -471,7 +476,25 @@ class _UserMenu extends ConsumerWidget {
             ),
           ),
         ),
-        if (orgs.isEmpty)
+        if (orgsAsync.isLoading && orgs.isEmpty)
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Organisationen laden…',
+                  style: TextStyle(fontSize: 12, color: AwTokens.mute),
+                ),
+              ],
+            ),
+          )
+        else if (orgs.isEmpty)
           const PopupMenuItem<String>(
             enabled: false,
             child: Text(
@@ -997,7 +1020,7 @@ class _VersionFooter extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               const Text(
-                'Aktenwerk v1.0',
+                'Aktenwerk v0.21.0',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/jveg/jveg_tabelle.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 
@@ -17,25 +18,11 @@ class JvegRechnerScreen extends ConsumerStatefulWidget {
 }
 
 class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
-  // Honorargruppen JVEG § 9.
-  // M1–M3 sind die üblichen Gruppen für Bau-Gutachten; darüber hinaus bis M12
-  // als Vorgriff auf künftige Sachgebiete.
-  static const Map<int, double> _honorarJeStunde = {
-    1: 100, // M1
-    2: 114, // M2
-    3: 135, // M3
-    4: 100,
-    5: 105,
-    6: 115,
-    7: 120,
-    8: 125,
-    9: 135,
-    10: 140,
-    11: 150,
-    12: 165,
-  };
-
-  int _stufe = 2; // M2 (110 €) als Default
+  // § 9 JVEG / Anlage 1 (Stand 01.06.2025): Sachgebiete (Teil 1) mit festem
+  // Stundensatz; M1–M3 nur für medizinische/psychologische Gutachten (Teil 2).
+  // Zentrale Tabelle: core/jveg/jveg_tabelle.dart
+  String _code = 'SG 4.3'; // Bauwesen – Schadensfeststellung (114 €)
+  bool _rundenNachP8 = true;
   final _stunden = TextEditingController(text: '1,0');
   final _wartezeitStd = TextEditingController(text: '0,0');
   final _km = TextEditingController(text: '0');
@@ -75,8 +62,12 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
       int.tryParse(c.text.trim()) ?? fallback;
 
   _Berechnung _berechne() {
-    final satz = _honorarJeStunde[_stufe] ?? 0;
-    final stunden = _parse(_stunden);
+    final satz = jvegGesetzlicherSatz(_code) ?? 0;
+    final stundenRoh = _parse(_stunden);
+    // § 8 Abs. 2 S. 2 JVEG: letzte begonnene Stunde voll (> 30 Min.) bzw. halb.
+    final stunden = _rundenNachP8
+        ? jvegAbrechenbareStunden((stundenRoh * 60).round())
+        : stundenRoh;
     final wartezeit = _parse(_wartezeitStd);
     final km = _parse(_km);
     final anschlaege = _parseInt(_schreibAnschlaege);
@@ -97,10 +88,11 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
     final schreibauslagen = schreibErst + schreibWeitere;
 
     // § 7 Abs. 2 JVEG: Lichtbilder
-    //  - 1. Stück: 2,00 €; weitere: 1,00 €
+    // § 12 Abs. 1 S. 2 Nr. 2 JVEG: je Lichtbild 2,00 € für den ersten Abzug,
+    // 0,50 € für jeden weiteren Abzug (z. B. für weitere Ausfertigungen).
     final lichtbilderBetrag = lichtbilder <= 0
         ? 0.0
-        : 2.00 + (lichtbilder - 1) * 1.00;
+        : lichtbilder * 2.00 + lichtbilder * (ausfertigungen - 1) * 0.50;
 
     // § 7 Abs. 2 JVEG: Kopien/Ausdrucke
     //  - S/W: 0,50 € je Seite (1–50), dann 0,15 €
@@ -150,7 +142,7 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
     final buf = StringBuffer();
     buf.writeln('JVEG-Aufstellung');
     buf.writeln('—' * 40);
-    buf.writeln('§ 9 Honorar (M$_stufe · ${_money.format(b.satz)}/h)');
+    buf.writeln('§ 9 Honorar (${jvegCodeLabel(_code)} · ${_money.format(b.satz)}/h)');
     buf.writeln(
         '  ${b.stunden.toStringAsFixed(2)} h × ${_money.format(b.satz)} = ${_money.format(b.honorar)}');
     if (b.wartezeit > 0) {
@@ -219,21 +211,28 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
                         const SizedBox(height: 8),
                         Row2(
                           left: LabeledField(
-                            'Honorarstufe',
-                            DropdownButtonFormField<int>(
-                              initialValue: _stufe,
+                            'Sachgebiet / Honorargruppe',
+                            DropdownButtonFormField<String>(
+                              initialValue: _code,
                               isDense: true,
+                              isExpanded: true,
                               items: [
-                                for (final s in _honorarJeStunde.keys.toList()
-                                  ..sort())
+                                for (final sg in jvegSachgebiete)
                                   DropdownMenuItem(
-                                    value: s,
+                                    value: sg.code,
                                     child: Text(
-                                        'M$s · ${_money.format(_honorarJeStunde[s])}'),
+                                        '${sg.nr} ${sg.bezeichnung} · ${_money.format(sg.satz)}',
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                for (final e in jvegMedizinischeGruppen.entries)
+                                  DropdownMenuItem(
+                                    value: e.key,
+                                    child: Text(
+                                        '${e.key} (medizinisch) · ${_money.format(e.value)}'),
                                   ),
                               ],
                               onChanged: (v) =>
-                                  setState(() => _stufe = v ?? 2),
+                                  setState(() => _code = v ?? 'SG 4.3'),
                             ),
                           ),
                           right: LabeledField(
@@ -247,7 +246,19 @@ class _JvegRechnerScreenState extends ConsumerState<JvegRechnerScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        CheckboxListTile(
+                          value: _rundenNachP8,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: const Text(
+                              'Letzte begonnene Stunde runden (§ 8 Abs. 2 S. 2 JVEG)'),
+                          subtitle: const Text(
+                              'mehr als 30 Minuten → volle Stunde, sonst halbe Stunde'),
+                          onChanged: (v) =>
+                              setState(() => _rundenNachP8 = v ?? true),
+                        ),
+                        const SizedBox(height: 16),
                         Text('§ 5 Fahrt & Wartezeit',
                             style: theme.textTheme.titleMedium),
                         const SizedBox(height: 8),

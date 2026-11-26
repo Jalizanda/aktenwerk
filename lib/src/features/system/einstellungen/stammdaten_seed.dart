@@ -23,8 +23,8 @@ final stammdatenBauelementeExperte = StammdatenProfil(
     SettingsKeys.firmaAnschrift:
         'Auf dem Stemmingholt 21\n46499 Hamminkeln\nDeutschland',
     SettingsKeys.firmaTelefon: '+49 152 519 75 042',
-    SettingsKeys.firmaEmail: 'hello@aktenwerk.app',
-    SettingsKeys.firmaWebsite: 'bauelemente-experte.de',
+    SettingsKeys.firmaEmail: 'alexander.hoepken@gmail.com',
+    SettingsKeys.firmaWebsite: '',
     SettingsKeys.firmaBestellung1:
         'Diplom-Ingenieur (FH) Bauingenieurwesen\n'
             'Master of Engineering – Fenster & Fassade (TH Rosenheim)\n'

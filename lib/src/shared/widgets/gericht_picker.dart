@@ -53,7 +53,7 @@ class _GerichtPickerState extends State<_GerichtPicker> {
                 decoration: const InputDecoration(
                   isDense: true,
                   prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Name, Ort, PLZ, Typ …',
+                  hintText: 'Name, Ort, PLZ, Typ (AG, LG …) oder „AT“ …',
                 ),
                 onChanged: (v) => setState(() => _query = v),
               ),
@@ -88,9 +88,12 @@ class _GerichtPickerState extends State<_GerichtPicker> {
                                 Theme.of(context).colorScheme.primary,
                           ),
                         ),
-                        title: Text(g.name),
-                        subtitle: Text(
-                            '${g.strasse} · ${g.plz} ${g.ort} · ${g.telefon}'),
+                        title: Text(g.land == 'DE' ? g.name : '${g.name} (${g.land})'),
+                        subtitle: Text([
+                          '${g.strasse} · ${g.plz} ${g.ort}',
+                          if (g.telefon.isNotEmpty) 'Tel. ${g.telefon}',
+                          if (g.fax.isNotEmpty) 'Fax ${g.fax}',
+                        ].join(' · ')),
                         onTap: () =>
                             Navigator.of(context, rootNavigator: true)
                                 .pop(g),

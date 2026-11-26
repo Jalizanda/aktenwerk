@@ -1,3 +1,4 @@
+import '../../core/jveg/jveg_tabelle.dart';
 import 'dart:typed_data';
 
 import 'package:intl/intl.dart';
@@ -305,7 +306,7 @@ pw.Widget _bezugBlock(KostenvorschussPdfData d, DateFormat fmt) {
 pw.Widget _aufstellung(KostenvorschussPdfData d, NumberFormat money) {
   final stundenBetrag = d.stunden * d.stundensatz;
   final stundenLabel =
-      '${d.stunden.toStringAsFixed(1).replaceAll('.', ',')} h × ${money.format(d.stundensatz)} (Honorargruppe ${d.auftrag.honorargruppe ?? '—'})';
+      '${d.stunden.toStringAsFixed(1).replaceAll('.', ',')} h × ${money.format(d.stundensatz)} (${jvegCodeLabel(d.auftrag.honorargruppe).isEmpty ? 'Honorargruppe —' : jvegCodeLabel(d.auftrag.honorargruppe)})';
   return pw.Table(
     border: pw.TableBorder(
       top: const pw.BorderSide(color: PdfColors.grey400, width: 0.5),

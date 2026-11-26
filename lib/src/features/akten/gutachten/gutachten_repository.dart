@@ -7,6 +7,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../akte/beteiligte_tab.dart';
 import '../auftraege/auftrag_gm_extras.dart';
+import '../auftraege/zusatzfelder.dart';
 import '../gerichtssache/beweisfragen.dart';
 
 /// Strukturelles Kurz-/Langlabel der 13 Zöller-Abschnitte (+ Anlagen) —
@@ -370,6 +371,8 @@ const List<({String token, String alias, String label})>
   (token: '{{versicherungsnehmer}}', alias: r'$Versicherungsnehmer', label: 'Versicherungsnehmer (VN)'),
   (token: '{{beweisfragen}}', alias: r'$Beweisfragen', label: 'Alle nummerierten Beweisfragen der Akte'),
   (token: '{{geladene_beteiligte}}', alias: r'$GeladeneBeteiligte', label: 'Liste aller zum Ortstermin geladenen Beteiligten'),
+  (token: '{{verteiler}}', alias: r'$Verteiler', label: 'Verteiler: alle Beteiligten mit Rolle (für Briefende)'),
+  (token: '{{zf.Name}}', alias: r'$Name', label: 'Zusatzfelder der Akte (Platzhalter siehe Akte › Zusatzfelder)'),
   (token: '{{aktenbaende_rueckgabe}}', alias: r'$Aktenbaende', label: 'Aufstellung der Gerichtsakten-Bände (Seiten von–bis)'),
   (token: '{{heute}}', alias: r'$Heute', label: 'Heutiges Datum'),
 ];
@@ -450,6 +453,16 @@ Map<String, String> buildAktenwerkPlatzhalter({
           return '• ${b.rolle}$vert: ${b.name.trim()}';
         }).join('\n');
 
+  // Verteiler: alle Beteiligten mit Rolle (GM-Platzhalter $Verteiler)
+  final alleBeteiligten = decodeBeteiligte(auftrag?.beteiligteJson)
+      .where((b) => b.name.trim().isNotEmpty)
+      .toList();
+  final verteilerStr = alleBeteiligten.map((b) {
+    final vert =
+        b.vertritt.trim().isNotEmpty ? ' (für ${b.vertritt.trim()})' : '';
+    return '${b.rolle}$vert: ${b.name.trim()}';
+  }).join('\n');
+
   // Aktenbände-Aufstellung
   final baendeStr = gm.aktenbaende.isEmpty
       ? ''
@@ -508,11 +521,13 @@ Map<String, String> buildAktenwerkPlatzhalter({
     '{{geladene_beteiligte}}': geladeneStr,
     '{{aktenbaende_rueckgabe}}': baendeStr,
     '{{heute}}': fmt(now),
+    '{{verteiler}}': verteilerStr,
 
     // Gutachten-Manager $Variable-Syntax (längere Keys zuerst durch Map-Reihenfolge)
     r'$VersicherungsscheinNr': gm.versicherungsscheinNr,
     r'$Versicherungsnehmer': gm.versicherungsnehmer,
     r'$GeladeneBeteiligte': geladeneStr,
+    r'$Verteiler': verteilerStr,
     r'$OrtsterminUhrzeit': uhrzeitStr,
     r'$OrtsterminAlt': fmt(gm.ortsterminAltAm),
     r'$Schadensnummer': gm.schadensnummer,
@@ -539,8 +554,15 @@ Map<String, String> buildAktenwerkPlatzhalter({
     r'$Sache': sache,
     r'$Heute': fmt(now),
     r'$AZ': auftrag?.aktenzeichen ?? '',
+    // Zusatzfelder der Akte ($Platzhalter / {{zf.Platzhalter}})
+    ...zusatzfelderPlatzhalter(auftrag?.extras),
   };
 }
+
+/// Platzhalter-Keys nach Länge absteigend, damit z. B. `$Sachverhalt`
+/// nicht durch `$Sache` angebrochen wird.
+List<MapEntry<String, String>> _nachLaenge(Map<String, String> map) =>
+    map.entries.toList()..sort((a, b) => b.key.length.compareTo(a.key.length));
 
 String applyVorlagenPlatzhalter(
   String text, {
@@ -554,9 +576,9 @@ String applyVorlagenPlatzhalter(
     ihrZeichenOverride: ihrZeichenOverride,
   );
   var out = text;
-  map.forEach((k, v) {
-    out = out.replaceAll(k, v);
-  });
+  for (final e in _nachLaenge(map)) {
+    out = out.replaceAll(e.key, e.value);
+  }
   return out;
 }
 
@@ -581,9 +603,9 @@ String applyVorlagenPlatzhalterImDelta(
       .replaceAll('\r', r'\r')
       .replaceAll('\t', r'\t');
   var out = deltaJson;
-  map.forEach((k, v) {
-    out = out.replaceAll(k, escape(v));
-  });
+  for (final e in _nachLaenge(map)) {
+    out = out.replaceAll(e.key, escape(e.value));
+  }
   return out;
 }
 

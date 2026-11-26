@@ -87,6 +87,17 @@ class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
                     );
                   },
                 ),
+                IconButton(
+                  tooltip: 'PDF herunterladen (mit aktiven Normen-Links)',
+                  icon: const Icon(Icons.download_outlined),
+                  onPressed: () async {
+                    final bytes = await widget.builder();
+                    await Printing.sharePdf(
+                      bytes: bytes,
+                      filename: widget.dateiname ?? 'dokument.pdf',
+                    );
+                  },
+                ),
                 if (widget.csvBuilder != null)
                   IconButton(
                     tooltip: 'CSV-Export für Excel',

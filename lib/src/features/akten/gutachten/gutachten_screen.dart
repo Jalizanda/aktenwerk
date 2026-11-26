@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'gutachten_wysiwyg_embeds.dart';
 import 'quill_image_embed.dart';
 
 import '../../../core/web/web_compat.dart';
@@ -19,11 +20,9 @@ import '../../../core/ai/rechtschreibung_service.dart';
 import '../../../data/sync/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
-import '../../../core/theme/aw_tokens.dart';
 
 import '../../../shared/widgets/date_field.dart';
 import '../../../shared/widgets/form_widgets.dart';
-import '../../../core/web/web_compat.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../core/ai/beweisbeschluss_scanner.dart';
@@ -32,7 +31,6 @@ import '../../../features/akten/akte/normen_picker_dialog.dart';
 import '../../../features/akten/auftraege/auftrag_picker.dart';
 import '../../../features/akten/auftraege/auftraege_repository.dart';
 import '../../../features/akten/dokumente/dokumente_repository.dart';
-import '../../../features/akten/gutachten/gutachten_abschnitt_popup.dart';
 import '../../../features/akten/lv/lv_insert_dialog.dart';
 import '../../../features/system/einstellungen/absender_service.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
@@ -44,10 +42,10 @@ import '../../../shared/pdf/gutachten_pdf.dart';
 import '../../../shared/pdf/pdf_preview_dialog.dart';
 import '../../../shared/richtext/quill_editor.dart';
 import '../../../shared/widgets/badges.dart';
-import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import 'gutachten_repository.dart';
-import 'quill_image_embed.dart';
+import 'gutachten_verzeichnisse_generator.dart';
+import 'ki_gutachten_wizard_dialog.dart';
 
 class GutachtenScreen extends ConsumerWidget {
   const GutachtenScreen({super.key});
@@ -75,6 +73,12 @@ class GutachtenScreen extends ConsumerWidget {
           subtitle:
               'Strukturierte Gutachten nach Zöller (13 Abschnitte) mit Textbausteinen',
           actions: [
+            FilledButton.tonalIcon(
+              icon: const Icon(Icons.auto_awesome, color: AwTokens.amber),
+              label: const Text('KI-Gutachten-Wizard (Fotos & Unterlagen)'),
+              onPressed: () => showKiGutachtenWizardDialog(context),
+            ),
+            const SizedBox(width: 8),
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neues Gutachten'),
@@ -273,6 +277,9 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
   DateTime? _datum;
   DateTime? _ortstermin;
   DateTime? _abgabe;
+  bool _linksImPdfAktiv = true;
+  bool _doppelseitig = true;
+  bool _notizrandLinien = true;
   late Map<String, String> _abschnitte;
 
   /// Separate Controller pro Abschnitts-Textarea, damit Cursor &
@@ -332,6 +339,15 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     _ortstermin = g?.ortsterminAm;
     _abgabe = g?.abgabeAm;
     _abschnitte = abschnitteFromJson(g?.abschnitteJson);
+    if (_abschnitte.containsKey('_opt_links')) {
+      _linksImPdfAktiv = _abschnitte['_opt_links'] != 'false';
+    }
+    if (_abschnitte.containsKey('_opt_doppelseitig')) {
+      _doppelseitig = _abschnitte['_opt_doppelseitig'] != 'false';
+    }
+    if (_abschnitte.containsKey('_opt_notizrand_linien')) {
+      _notizrandLinien = _abschnitte['_opt_notizrand_linien'] != 'false';
+    }
     // Beim Initialisieren extrahieren wir aus jedem Abschnitt den
     // anzeigbaren Plain-Text und merken uns separat das volle Quill-Delta
     // (für Read-Only-Rendering im Dialog inkl. Bilder).
@@ -1140,6 +1156,85 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     }
   }
 
+  /// Erzeugt automatisch aus den geschriebenen Gutachten-Abschnitten und den
+  /// Stammdaten der verknüpften Akte:
+  /// - II.1 Akten und Unterlagen ([A1], [OT], [A2]..[An])
+  /// - II.2 Gesetze, Regelwerke und Fachquellen ([Q1]..[Qn], [N])
+  /// - II.3 Ortstermin (behält bestehenden Block oder erzeugt Standard)
+  /// - II.4 Abkürzungen und Formelzeichen (Tabellen)
+  /// - Anlagenverzeichnis (s_anlagen)
+  Future<void> _verzeichnisseAutomatischErzeugen() async {
+    final db = ref.read(appDatabaseProvider);
+    AuftraegeData? auftrag;
+    var aktenDokumente = const <DokumenteData>[];
+    var aktenNormen = const <NormenData>[];
+    var anlagen = const <GutachtenAnlage>[];
+
+    if (_auftragId != null) {
+      final list = await ref.read(auftraegeRepositoryProvider).watchAll().first;
+      auftrag =
+          list.where((a) => a.auftrag.id == _auftragId).firstOrNull?.auftrag;
+      aktenDokumente = await (db.select(db.dokumente)
+            ..where((t) => t.auftragId.equals(_auftragId!))
+            ..orderBy([(t) => OrderingTerm(expression: t.id)]))
+          .get();
+      aktenNormen = await (db.select(db.normen)
+            ..where((t) => t.auftragId.equals(_auftragId!))
+            ..orderBy([(t) => OrderingTerm(expression: t.nummer)]))
+          .get();
+    }
+
+    if (_isEdit && widget.gutachten != null) {
+      final dbGutachten = await (db.select(db.gutachten)
+            ..where((t) => t.id.equals(widget.gutachten!.id)))
+          .getSingleOrNull();
+      anlagen = anlagenFromJson(
+        dbGutachten?.anlagenJson ?? widget.gutachten?.anlagenJson,
+      );
+    }
+
+    final abschnittePlain = <String, String>{
+      for (final e in _sektionCtrls.entries) e.key: e.value.text,
+    };
+
+    final res = GutachtenVerzeichnisseGenerator.generate(
+      abschnittePlain: abschnittePlain,
+      auftrag: auftrag,
+      ortsterminAm: _ortstermin,
+      anlagen: anlagen,
+      aktenDokumente: aktenDokumente,
+      aktenNormen: aktenNormen,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      final ctrlGrundlage = _sektionCtrls['s_grundlage'];
+      if (ctrlGrundlage != null) {
+        ctrlGrundlage.text = res.sGrundlageText;
+        _abschnitte['s_grundlage'] = res.sGrundlageText;
+        _richDeltas.remove('s_grundlage');
+      }
+      final ctrlAnlagen = _sektionCtrls['s_anlagen'];
+      if (ctrlAnlagen != null && res.anzahlAnlagen > 0) {
+        ctrlAnlagen.text = res.sAnlagenText;
+        _abschnitte['s_anlagen'] = res.sAnlagenText;
+        _richDeltas.remove('s_anlagen');
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Verzeichnisse erzeugt: ${res.anzahlUnterlagen} Unterlagen, '
+          '${res.anzahlQuellen} Normen/Quellen, '
+          '${res.anzahlAbkuerzungen} Abkürzungen, '
+          '${res.anzahlFormelzeichen} Formelzeichen, '
+          '${res.anzahlAnlagen} Anlagen.',
+        ),
+      ),
+    );
+  }
+
   /// Druck-und-Archivieren-Workflow:
   /// 1) Falls Gutachten noch keine Nummer hat → eine aus dem
   ///    Gutachten-Nummernkreis ziehen (Default `{aktenzeichen}-G{N}`).
@@ -1397,6 +1492,10 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
               ..where((t) => t.id.equals(a.dokumentId)))
             .getSingleOrNull();
         if (dok == null) continue;
+        // Sicherheits-Check: Keine Dokumente fremder Akten ins Gutachten einbinden!
+        if (_auftragId != null && dok.auftragId != null && dok.auftragId != _auftragId) {
+          continue;
+        }
         Uint8List? bytes;
         if (dok.daten != null && dok.daten!.isNotEmpty) {
           bytes = dok.daten;
@@ -1455,6 +1554,9 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
       lichtbilder: lichtbilder,
       anlagen: anlagen,
       logoPfad2: logoPfad2,
+      linksAktivieren: _linksImPdfAktiv,
+      doppelseitig: _doppelseitig,
+      notizrandLinien: _notizrandLinien,
     );
   }
 
@@ -1493,6 +1595,9 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
 
   Map<String, String> _currentAbschnitte() => {
         for (final e in _sektionCtrls.entries) e.key: e.value.text,
+        '_opt_links': _linksImPdfAktiv ? 'true' : 'false',
+        '_opt_doppelseitig': _doppelseitig ? 'true' : 'false',
+        '_opt_notizrand_linien': _notizrandLinien ? 'true' : 'false',
       };
 
   Future<void> _save({bool silent = false}) async {
@@ -1626,6 +1731,10 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
     final dbAbschnitte = abschnitteFromJson(dbGutachten.abschnitteJson);
     final merged = <String, String>{...dbAbschnitte};
     for (final e in lokal.entries) {
+      if (e.key.startsWith('_opt_')) {
+        merged[e.key] = e.value;
+        continue;
+      }
       final initial = _initialAbschnitte[e.key] ?? '';
       // Nur überschreiben, wenn der Nutzer im Dialog tatsächlich getippt hat.
       if (e.value != initial) {
@@ -1656,6 +1765,46 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           // Kompakte Icon-Buttons mit Tooltip.
+          IconButton(
+            icon: const Icon(Icons.auto_fix_high, color: AwTokens.amber),
+            tooltip:
+                'KI-Gutachten-Wizard: Fotos & Unterlagen hochladen und alle Abschnitte/Stammdaten schrittweise befüllen',
+            onPressed: _saving
+                ? null
+                : () async {
+                    final updated = await showKiGutachtenWizardDialog(
+                      context,
+                      initialAuftragId: _auftragId,
+                      existingGutachten: widget.gutachten,
+                    );
+                    if (updated != null && mounted) {
+                      final neueAbschnitte =
+                          abschnitteFromJson(updated.abschnitteJson);
+                      setState(() {
+                        _auftragId = updated.auftragId ?? _auftragId;
+                        if ((updated.bezeichnung ?? '').isNotEmpty) {
+                          _bezeichnung.text = updated.bezeichnung!;
+                        }
+                        if ((updated.titel ?? '').isNotEmpty) {
+                          _titel.text = updated.titel!;
+                        }
+                        for (final a in gutachtenAbschnitte) {
+                          final val = neueAbschnitte[a.key] ?? '';
+                          _sektionCtrls[a.key]?.text = val;
+                          _abschnitte[a.key] = val;
+                          _initialAbschnitte[a.key] = val;
+                          _richDeltas.remove(a.key);
+                        }
+                      });
+                    }
+                  },
+          ),
+          IconButton(
+            icon: const Icon(Icons.fact_check_outlined),
+            tooltip:
+                'Verzeichnisse automatisch erzeugen (Unterlagen, Normen/Quellen, Abkürzungen, Formelzeichen, Anlagen)',
+            onPressed: _saving ? null : _verzeichnisseAutomatischErzeugen,
+          ),
           IconButton(
             icon: const Icon(Icons.spellcheck),
             tooltip: 'Sprach-Check (Rechtschreibung & Grammatik)',
@@ -1719,6 +1868,75 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
           ),
           const SizedBox(width: 8),
           Container(width: 1, height: 24, color: Colors.grey.shade400),
+          const SizedBox(width: 8),
+          FilterChip(
+            avatar: Icon(
+              _doppelseitig ? Icons.menu_book_outlined : Icons.description_outlined,
+              size: 15,
+              color: _doppelseitig ? const Color(0xFF1A56DB) : Colors.grey.shade600,
+            ),
+            label: Text(
+              _doppelseitig ? 'Doppelseitig' : 'Einseitig (Rand rechts)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: _doppelseitig ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            selected: _doppelseitig,
+            onSelected: (val) {
+              setState(() => _doppelseitig = val);
+              _planeAutoSave();
+            },
+            tooltip: _doppelseitig
+                ? 'Doppelseitiger Satz: Breiter Rand wechselt zwischen rechts (ungerade Seiten) und links (gerade Seiten).'
+                : 'Einseitiger Satz: Breiter Rand liegt auf allen Seiten rechts.',
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            avatar: Icon(
+              _notizrandLinien ? Icons.format_align_right : Icons.crop_free,
+              size: 15,
+              color: _notizrandLinien ? const Color(0xFF1A56DB) : Colors.grey.shade600,
+            ),
+            label: Text(
+              _notizrandLinien ? 'Notizlinien' : 'Freier Rand',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: _notizrandLinien ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            selected: _notizrandLinien,
+            onSelected: (val) {
+              setState(() => _notizrandLinien = val);
+              _planeAutoSave();
+            },
+            tooltip: _notizrandLinien
+                ? 'Trennlinie und horizontale Notizlinien im Seitenrand einblenden.'
+                : 'Seitenrand ohne Trennlinie und ohne horizontale Striche als freien Rand lassen.',
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            avatar: Icon(
+              _linksImPdfAktiv ? Icons.link : Icons.link_off,
+              size: 15,
+              color: _linksImPdfAktiv ? const Color(0xFF1A56DB) : Colors.grey.shade600,
+            ),
+            label: Text(
+              _linksImPdfAktiv ? 'Links aktiv' : 'Ohne Links (Druck)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: _linksImPdfAktiv ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            selected: _linksImPdfAktiv,
+            onSelected: (val) {
+              setState(() => _linksImPdfAktiv = val);
+              _planeAutoSave();
+            },
+            tooltip: _linksImPdfAktiv
+                ? 'Hyperlinks zu Normen und Fundstellen sind im PDF aktiv & anklickbar.'
+                : 'PDF wird im neutralen Druckstil ohne anklickbare Links generiert.',
+          ),
           const SizedBox(width: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
@@ -2310,6 +2528,11 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
           ),
           const SizedBox(width: 8),
           TextButton.icon(
+            icon: const Icon(Icons.fact_check_outlined, size: 14),
+            label: const Text('Verzeichnisse erzeugen'),
+            onPressed: _verzeichnisseAutomatischErzeugen,
+          ),
+          TextButton.icon(
             icon: const Icon(Icons.search, size: 14),
             label: const Text('Sprach-Check'),
             onPressed: _runSprachCheck,
@@ -2479,6 +2702,12 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
                 label: const Text('Beteiligte'),
                 onPressed: () => _pickBeteiligte(a),
               ),
+            if (a.key == 's_grundlage')
+              TextButton.icon(
+                icon: const Icon(Icons.fact_check_outlined, size: 14),
+                label: const Text('Verzeichnisse automatisch erzeugen'),
+                onPressed: _verzeichnisseAutomatischErzeugen,
+              ),
             if (a.key == 's_anlagen')
               TextButton.icon(
                 icon: const Icon(Icons.attach_file, size: 14),
@@ -2506,15 +2735,16 @@ class _GutachtenEditorState extends ConsumerState<_GutachtenEditor> {
             onEdit: () => _vergroessern(a),
           )
         else
-          TextFormField(
-            controller: _sektionCtrls[a.key],
+          GutachtenInlineWysiwygField(
+            controller: _sektionCtrls[a.key]!,
+            embedBuilders: kAktenwerkEmbedBuilders,
             minLines: a.rows,
-            maxLines: a.rows + 4,
-            decoration: InputDecoration(
-              hintText: a.placeholder,
-              alignLabelWithHint: true,
-            ),
-            onChanged: (v) => _abschnitte[a.key] = v,
+            placeholder: a.placeholder ?? '',
+            onChanged: (v) {
+              _abschnitte[a.key] = v;
+              _planeAutoSave();
+            },
+            onOpenFullscreen: () => _vergroessern(a),
           ),
       ],
     );
@@ -2556,17 +2786,11 @@ class _RichSektionViewState extends State<_RichSektionView> {
   }
 
   quill.QuillController _build(String raw) {
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        return quill.QuillController(
-          document: quill.Document.fromJson(decoded),
-          selection: const TextSelection.collapsed(offset: 0),
-          readOnly: true,
-        );
-      }
-    } catch (_) {}
-    return quill.QuillController.basic();
+    return quill.QuillController(
+      document: parseGutachtenSectionToQuillDocument(raw),
+      selection: const TextSelection.collapsed(offset: 0),
+      readOnly: true,
+    );
   }
 
   @override
@@ -2596,10 +2820,16 @@ class _RichSektionViewState extends State<_RichSektionView> {
               controller: _ctrl,
               focusNode: _focus,
               scrollController: _scroll,
-              config: const quill.QuillEditorConfig(
+              config: quill.QuillEditorConfig(
                 padding: EdgeInsets.zero,
                 showCursor: false,
                 embedBuilders: kAktenwerkEmbedBuilders,
+                onLaunchUrl: (url) async {
+                  final uri = Uri.tryParse(url);
+                  if (uri != null) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
               ),
             ),
             Positioned(

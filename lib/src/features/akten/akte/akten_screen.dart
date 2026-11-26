@@ -10,6 +10,7 @@ import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
 import '../auftraege/auftraege_form.dart';
 import '../auftraege/auftraege_repository.dart';
+import '../gutachten/ki_gutachten_wizard_dialog.dart';
 import '../kunden/kunden_repository.dart';
 import '../rechnungen/rechnungen_repository.dart';
 import 'akte_counts.dart';
@@ -85,6 +86,12 @@ class _AktenScreenState extends ConsumerState<AktenScreen> {
           subtitle:
               'Der zentrale Drehpunkt: pro Auftrag alle Dokumente, Rechnungen, Angebote, Gutachten …',
           actions: [
+            FilledButton.tonalIcon(
+              icon: const Icon(Icons.auto_awesome, color: AwTokens.amber),
+              label: const Text('KI-Akten- & Gutachten-Wizard'),
+              onPressed: () => showKiGutachtenWizardDialog(context),
+            ),
+            const SizedBox(width: 8),
             FilledButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Neue Akte'),

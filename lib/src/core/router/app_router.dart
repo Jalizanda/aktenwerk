@@ -59,6 +59,13 @@ GoRouter buildRouter() {
           state.uri.path == '/') {
         return '/chat';
       }
+      if ((host == 'norm.aktenwerk.app' ||
+              host == 'normen.aktenwerk.app' ||
+              host.startsWith('norm.') ||
+              host.startsWith('normen.')) &&
+          state.uri.path == '/') {
+        return '/norm-portal';
+      }
       return null;
     },
     routes: [
@@ -172,6 +179,9 @@ GoRouter buildRouter() {
       ),
       // Standalone-Route außerhalb der Shell: wird als eigenes Browser-
       // Fenster verwendet, damit der Nutzer parallel weiterarbeiten kann.
+      GoRoute(
+          path: '/norm-portal',
+          builder: (_, _) => const NormenScreen(standalonePortal: true)),
       GoRoute(
           path: '/normen/chat',
           builder: (_, _) => const NormenChatScreen()),

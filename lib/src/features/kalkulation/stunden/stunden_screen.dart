@@ -557,7 +557,7 @@ class _StundenFormState extends ConsumerState<_StundenForm> {
   Future<void> _prefillSatz() async {
     if (_satz.text.isNotEmpty) return;
     final repo = ref.read(einstellungenRepositoryProvider);
-    // 1) Wenn die zugeordnete Akte einer JVEG-Honorargruppe (M1/M2/M3)
+    // 1) Wenn die zugeordnete Akte einem JVEG-Sachgebiet bzw. einer Honorargruppe
     //    angehört, deren Satz aus den Einstellungen ziehen.
     if (_auftragId != null) {
       final db = ref.read(appDatabaseProvider);

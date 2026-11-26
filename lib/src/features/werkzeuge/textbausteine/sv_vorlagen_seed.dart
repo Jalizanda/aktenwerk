@@ -918,7 +918,7 @@ Phase 7 — Vergütung
 ☐ Vergütungsantrag (GA 111) binnen 3 Monaten nach Beendigung der Tätigkeit (§ 2 Abs. 1 JVEG)?
 ☐ Alle Auslagen belegt — Fahrtnachweise, Belege, Stundenzettel?
 ☐ Richtigkeit und Vollständigkeit versichert?
-☐ Honorargruppe M1/M2/M3 korrekt angesetzt?
+☐ JVEG-Sachgebiet (Anlage 1) bzw. Honorargruppe korrekt angesetzt?
 
 Phase 8 — Archivierung
 ☐ Akte vollständig digital und analog abgelegt?

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/geo/geo_service.dart';
 import '../../../core/geo/plz_autofill.dart';
+import '../../../core/jveg/jveg_tabelle.dart';
 import '../../../data/seed/lastzonen.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
@@ -169,7 +170,15 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
     'Sonstiges',
   ];
 
-  static const _honorargruppen = ['M1', 'M2', 'M3', 'Sonstige'];
+  /// Auswahl „JVEG-Sachgebiet / Honorargruppe“: Sachgebiete nach Anlage 1
+  /// Teil 1 (Bausachverständige), M1–M3 nur für medizinische Gutachten.
+  static final List<(String, String)> _honorargruppen = [
+    for (final sg in jvegSachgebiete)
+      (sg.code, '${sg.nr} ${sg.bezeichnung} – ${sg.satz.toStringAsFixed(0)} €/h'),
+    for (final e in jvegMedizinischeGruppen.entries)
+      (e.key, '${e.key} (medizinisch) – ${e.value.toStringAsFixed(0)} €/h'),
+    ('Sonstige', 'Sonstige / frei vereinbart'),
+  ];
 
   static const _verfahrensarten = [
     'Zivilverfahren',
@@ -252,6 +261,17 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
         .previewNumber(NummernkreisTyp.akte);
     if (mounted && _aktenzeichen.text.isEmpty) {
       _aktenzeichen.text = zeichen;
+    }
+    // Neue Akte: Standard-Sachgebiet (JVEG) aus den Einstellungen vorbelegen.
+    if (widget.auftrag == null && _honorargruppe.text.isEmpty) {
+      final std = await ref
+          .read(einstellungenRepositoryProvider)
+          .get(SettingsKeys.stundensatzJvegGruppe);
+      if (mounted && std != null && jvegGesetzlicherSatz(std) != null) {
+        _honorargruppe.text = std;
+        final sg = jvegSachgebietFuer(std);
+        if (sg != null && _sachgebiet.text.isEmpty) _sachgebiet.text = sg.label;
+      }
     }
     if (_stundensatz.text.isEmpty) {
       final settingSatz = await ref
@@ -1178,17 +1198,31 @@ class _AuftragFormDialogState extends ConsumerState<_AuftragFormDialog>
               ),
             ),
             c: LabeledField(
-              'JVEG-Honorargruppe',
+              'JVEG-Sachgebiet / Honorargruppe',
               DropdownButtonFormField<String>(
-                initialValue: _honorargruppen.contains(_honorargruppe.text)
+                initialValue: _honorargruppen
+                        .any((h) => h.$1 == _honorargruppe.text)
                     ? _honorargruppe.text
                     : null,
                 isDense: true,
+                isExpanded: true,
                 items: [
                   for (final h in _honorargruppen)
-                    DropdownMenuItem(value: h, child: Text(h)),
+                    DropdownMenuItem(
+                      value: h.$1,
+                      child: Text(h.$2, overflow: TextOverflow.ellipsis),
+                    ),
                 ],
-                onChanged: (v) => setState(() => _honorargruppe.text = v ?? ''),
+                onChanged: (v) => setState(() {
+                  _honorargruppe.text = v ?? '';
+                  // Gesetzlichen Satz und Sachgebiet direkt übernehmen.
+                  final satz = jvegGesetzlicherSatz(v);
+                  if (satz != null) {
+                    _stundensatz.text = satz.toStringAsFixed(2);
+                  }
+                  final sg = jvegSachgebietFuer(v);
+                  if (sg != null) _sachgebiet.text = sg.label;
+                }),
               ),
             ),
           ),

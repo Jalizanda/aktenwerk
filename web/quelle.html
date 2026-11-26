@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aktenwerk · Quellen-Ansicht mit Fundstellen-Marker</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --bg: #1E2430;
+      --bar: #0F172A;
+      --bar-border: #334155;
+      --text: #F8FAFC;
+      --muted: #94A3B8;
+      --marker-yellow: rgba(255, 230, 0, 0.52);
+      --marker-border: rgba(217, 119, 6, 0.75);
+      --accent: #3B82F6;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: var(--bar);
+      border-bottom: 1px solid var(--bar-border);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      z-index: 20;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .badge-quelle {
+      background: #1E3A8A;
+      color: #93C5FD;
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 5px;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .doc-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #F8FAFC;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 440px;
+    }
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: #1E293B;
+      color: #E2E8F0;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn:hover:not(:disabled) {
+      background: #334155;
+      border-color: #475569;
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .btn-marker {
+      background: rgba(250, 204, 21, 0.16);
+      color: #FDE047;
+      border-color: rgba(250, 204, 21, 0.45);
+      font-weight: 600;
+    }
+    .btn-marker.off {
+      background: #1E293B;
+      color: #94A3B8;
+      border-color: #334155;
+    }
+    .page-indicator {
+      font-family: 'Geist Mono', monospace;
+      font-size: 12px;
+      color: #E2E8F0;
+      padding: 0 6px;
+    }
+    .info-banner {
+      background: #172033;
+      border-bottom: 1px solid #293548;
+      padding: 7px 18px;
+      font-size: 12px;
+      color: #CBD5E1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .marker-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .marker-chip {
+      background: #FEF08A;
+      color: #1E293B;
+      font-weight: 600;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    #viewer-container {
+      flex: 1;
+      overflow: auto;
+      padding: 24px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .page-wrapper {
+      position: relative;
+      background: #FFFFFF;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .page-wrapper canvas {
+      display: block;
+    }
+    .highlight-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    .highlight-box {
+      position: absolute;
+      background: var(--marker-yellow);
+      border-bottom: 2px solid var(--marker-border);
+      border-radius: 3px;
+      box-shadow: 0 0 0 2px rgba(255, 230, 0, 0.28);
+      animation: markerPulse 1.8s ease-out 1;
+    }
+    @keyframes markerPulse {
+      0% { transform: scale(1.06); background: rgba(255, 215, 0, 0.85); }
+      100% { transform: scale(1); background: var(--marker-yellow); }
+    }
+    .status-msg {
+      margin-top: 80px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-group">
+      <span class="badge-quelle" id="ref-badge">QUELLE</span>
+      <span class="doc-title" id="doc-title">Quelldokument wird geladen …</span>
+    </div>
+    <div class="controls-group">
+      <button class="btn" id="prev-page" title="Vorherige Seite">◀</button>
+      <span class="page-indicator" id="page-num">Seite – / –</span>
+      <button class="btn" id="next-page" title="Nächste Seite">▶</button>
+      <button class="btn" id="zoom-out" title="Verkleinern">−</button>
+      <button class="btn" id="zoom-in" title="Vergrößern">+</button>
+      <button class="btn btn-marker" id="toggle-marker" title="Temporären gelben Textmarker ein-/ausschalten">
+        🖍️ Gelber Marker: AN
+      </button>
+      <a class="btn" id="raw-pdf-link" href="#" target="_blank" rel="noopener">
+        Original-PDF (unmarkiert) ↗
+      </a>
+    </div>
+  </header>
+
+  <div class="info-banner" id="info-banner">
+    <div class="marker-chips" id="marker-chips">
+      <span>Temporär markierte Fundstellen im Aufruf:</span>
+    </div>
+    <span style="color:#94A3B8;font-size:11px;">
+      Hinweis: Die gelbe Hervorhebung wird nur temporär über diese Ansicht gelegt – die PDF-Datei selbst bleibt unverändert.
+    </span>
+  </div>
+
+  <div id="viewer-container">
+    <div class="status-msg" id="status-msg">Lade PDF und markiere Fundstelle …</div>
+  </div>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const pdfUrl = params.get('src') || '';
+    const initialPage = Math.max(1, parseInt(params.get('page') || '1', 10) || 1);
+    const rawMark = params.get('mark') || '';
+    const docTitle = params.get('title') || 'Technisches Regelwerk / Quelle';
+    const refCode = params.get('ref') || 'QUELLE';
+
+    document.getElementById('doc-title').textContent = docTitle;
+    document.getElementById('ref-badge').textContent = refCode;
+    document.title = `${refCode} · ${docTitle} (S. ${initialPage})`;
+
+    const rawLink = document.getElementById('raw-pdf-link');
+    if (pdfUrl) {
+      rawLink.href = `${pdfUrl}#page=${initialPage}`;
+    } else {
+      rawLink.style.display = 'none';
+    }
+
+    // Suchbegriffe für den gelben Marker vorbereiten
+    const markTerms = rawMark
+      .split('|')
+      .map(s => s.trim())
+      .filter(s => s.length >= 2);
+
+    const chipsContainer = document.getElementById('marker-chips');
+    if (markTerms.length > 0) {
+      markTerms.forEach(term => {
+        const chip = document.createElement('span');
+        chip.className = 'marker-chip';
+        chip.textContent = term;
+        chipsContainer.appendChild(chip);
+      });
+    } else {
+      const chip = document.createElement('span');
+      chip.className = 'marker-chip';
+      chip.textContent = `Seite ${initialPage}`;
+      chipsContainer.appendChild(chip);
+    }
+
+    let pdfDoc = null;
+    let currentPage = initialPage;
+    let scale = 1.45;
+    let markersVisible = true;
+
+    const container = document.getElementById('viewer-container');
+    const pageNumEl = document.getElementById('page-num');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    const toggleMarkerBtn = document.getElementById('toggle-marker');
+
+    function normalizeText(str) {
+      return (str || '')
+        .toLowerCase()
+        .replace(/\u00ad/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    async function renderPage(num) {
+      if (!pdfDoc) return;
+      currentPage = Math.min(Math.max(1, num), pdfDoc.numPages);
+      pageNumEl.textContent = `Seite ${currentPage} / ${pdfDoc.numPages}`;
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= pdfDoc.numPages;
+      rawLink.href = `${pdfUrl}#page=${currentPage}`;
+
+      container.innerHTML = '';
+      const page = await pdfDoc.getPage(currentPage);
+      const viewport = page.getViewport({ scale });
+      const outputScale = window.devicePixelRatio || 1;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'page-wrapper';
+      wrapper.style.width = `${Math.floor(viewport.width)}px`;
+      wrapper.style.height = `${Math.floor(viewport.height)}px`;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+      const ctx = canvas.getContext('2d');
+      const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+
+      const highlightLayer = document.createElement('div');
+      highlightLayer.className = 'highlight-layer';
+      highlightLayer.style.display = markersVisible ? 'block' : 'none';
+
+      wrapper.appendChild(canvas);
+      wrapper.appendChild(highlightLayer);
+      container.appendChild(wrapper);
+
+      await page.render({ canvasContext: ctx, transform, viewport }).promise;
+
+      // Text-Layer analysieren und passende Stellen gelb markieren
+      const textContent = await page.getTextContent();
+      const normTerms = markTerms.map(normalizeText).filter(Boolean);
+      let firstBox = null;
+
+      // Zeilenweise Gruppierung für zusammenhängende Textmarker-Balken
+      const items = textContent.items || [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const rawStr = item.str || '';
+        const normStr = normalizeText(rawStr);
+        if (!normStr || normStr.length < 2) continue;
+
+        // Prüfen, ob dieser Text-Chunk oder das Paar aus (item[i] + item[i+1]) einen Suchbegriff trifft
+        const nextStr = i + 1 < items.length ? normalizeText(items[i + 1].str || '') : '';
+        const combined = `${normStr} ${nextStr}`.trim();
+
+        const isMatch = normTerms.some(term =>
+          normStr.includes(term) ||
+          (term.length >= 4 && combined.includes(term))
+        );
+
+        if (!isMatch) continue;
+
+        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const fontHeight = Math.hypot(tx[2], tx[3]);
+        const width = (item.width || 0) * viewport.scale;
+        const left = tx[4];
+        const top = tx[5] - fontHeight;
+
+        const box = document.createElement('div');
+        box.className = 'highlight-box';
+        box.style.left = `${Math.max(0, left - 3)}px`;
+        box.style.top = `${Math.max(0, top - 2)}px`;
+        box.style.width = `${Math.max(24, width + 6)}px`;
+        box.style.height = `${Math.max(14, fontHeight + 5)}px`;
+        highlightLayer.appendChild(box);
+
+        if (!firstBox) firstBox = box;
+      }
+
+      if (firstBox) {
+        setTimeout(() => {
+          firstBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 80);
+      }
+    }
+
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 1) renderPage(currentPage - 1);
+    });
+    nextBtn.addEventListener('click', () => {
+      if (pdfDoc && currentPage < pdfDoc.numPages) renderPage(currentPage + 1);
+    });
+    document.getElementById('zoom-in').addEventListener('click', () => {
+      scale = Math.min(3.0, scale + 0.2);
+      renderPage(currentPage);
+    });
+    document.getElementById('zoom-out').addEventListener('click', () => {
+      scale = Math.max(0.7, scale - 0.2);
+      renderPage(currentPage);
+    });
+    toggleMarkerBtn.addEventListener('click', () => {
+      markersVisible = !markersVisible;
+      toggleMarkerBtn.textContent = markersVisible
+        ? '🖍️ Gelber Marker: AN'
+        : '🖍️ Gelber Marker: AUS';
+      toggleMarkerBtn.classList.toggle('off', !markersVisible);
+      const layer = document.querySelector('.highlight-layer');
+      if (layer) layer.style.display = markersVisible ? 'block' : 'none';
+    });
+
+    (async function init() {
+      if (!pdfUrl) {
+        document.getElementById('status-msg').textContent =
+          'Keine PDF-Quelle in der URL übergeben.';
+        return;
+      }
+      try {
+        const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, withCredentials: false });
+        pdfDoc = await loadingTask.promise;
+        await renderPage(initialPage);
+      } catch (err) {
+        console.error('Fehler beim Laden im Quellen-Viewer, leite auf Original-PDF weiter:', err);
+        window.location.replace(`${pdfUrl}#page=${initialPage}`);
+      }
+    })();
+  </script>
+</body>
+</html>

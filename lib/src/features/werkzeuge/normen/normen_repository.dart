@@ -54,12 +54,24 @@ class NormenRepository {
       }
     }
     if (query.trim().isNotEmpty) {
-      final like = '%${query.trim().toLowerCase()}%';
-      q.where((t) =>
-          t.nummer.lower().like(like) |
-          t.titel.lower().like(like) |
-          t.kategorie.lower().like(like) |
-          t.gewerk.lower().like(like));
+      final tokens = query
+          .trim()
+          .toLowerCase()
+          .split(RegExp(r'\s+'))
+          .where((s) => s.isNotEmpty)
+          .toList();
+      for (final tok in tokens) {
+        final like = '%$tok%';
+        q.where((t) =>
+            t.nummer.lower().like(like) |
+            t.titel.lower().like(like) |
+            t.ausgabe.lower().like(like) |
+            t.kategorie.lower().like(like) |
+            t.gewerk.lower().like(like) |
+            t.zusammenfassung.lower().like(like) |
+            t.aktualitaetNotiz.lower().like(like) |
+            t.extras.lower().like(like));
+      }
     }
     q.orderBy([(t) => OrderingTerm(expression: t.nummer)]);
     return q.watch();
@@ -144,12 +156,16 @@ class NormenFilter {
   /// 'unbekannt' / '_unbekannt_oder_leer' für "noch nicht geprüft".
   final String? aktualitaetStatus;
 
+  /// Optional: Filterung auf Normnummern aus dem oberen KI-Chat.
+  final Set<String>? kiTrefferNummern;
+
   const NormenFilter({
     this.query = '',
     this.nurFavoriten = false,
     this.gewerk,
     this.kategorie,
     this.aktualitaetStatus,
+    this.kiTrefferNummern,
   });
   NormenFilter copyWith({
     String? query,
@@ -160,6 +176,7 @@ class NormenFilter {
     Object? gewerkOverride = _sentinel,
     Object? kategorieOverride = _sentinel,
     Object? aktualitaetStatusOverride = _sentinel,
+    Object? kiTrefferNummernOverride = _sentinel,
   }) =>
       NormenFilter(
         query: query ?? this.query,
@@ -173,6 +190,9 @@ class NormenFilter {
         aktualitaetStatus: identical(aktualitaetStatusOverride, _sentinel)
             ? aktualitaetStatus
             : aktualitaetStatusOverride as String?,
+        kiTrefferNummern: identical(kiTrefferNummernOverride, _sentinel)
+            ? kiTrefferNummern
+            : kiTrefferNummernOverride as Set<String>?,
       );
 }
 
@@ -183,7 +203,7 @@ final normenFilterProvider =
 
 final normenListProvider = StreamProvider<List<NormenData>>((ref) {
   final f = ref.watch(normenFilterProvider);
-  return ref
+  final stream = ref
       .watch(normenRepositoryProvider)
       .watchAll(
         query: f.query,
@@ -192,6 +212,15 @@ final normenListProvider = StreamProvider<List<NormenData>>((ref) {
         kategorie: f.kategorie,
         aktualitaetStatus: f.aktualitaetStatus,
       );
+  final kiNummern = f.kiTrefferNummern;
+  if (kiNummern == null || kiNummern.isEmpty) return stream;
+  final normSetLow = kiNummern.map((s) => s.toLowerCase().trim()).toSet();
+  return stream.map((list) {
+    return list.where((n) {
+      final numLow = n.nummer.toLowerCase().trim();
+      return normSetLow.any((k) => numLow.contains(k) || k.contains(numLow));
+    }).toList();
+  });
 });
 
 /// Liste aller im Katalog vorhandenen Gewerke.

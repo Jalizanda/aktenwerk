@@ -200,6 +200,7 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
       telefon: _nullableText(_telefon),
       mobil: _nullableText(_mobil),
       email: _nullableText(_email),
+      fax: _faxAusGericht != null ? Value(_faxAusGericht) : const Value.absent(),
       website: _nullableText(_website),
       ustId: _nullableText(_ustId),
       steuerNr: _nullableText(_steuerNr),
@@ -228,6 +229,9 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
     return Value(v.isEmpty ? null : v);
   }
 
+  /// Faxnummer aus dem Gerichtsverzeichnis (das Formular hat kein Faxfeld).
+  String? _faxAusGericht;
+
   Future<void> _openGerichtsPicker() async {
     final picked = await showDialog<Gericht>(
       context: context,
@@ -244,6 +248,7 @@ class _KundenFormDialogState extends ConsumerState<_KundenFormDialog> {
       _plz.text = picked.plz;
       _ort.text = picked.ort;
       if (_telefon.text.isEmpty) _telefon.text = picked.telefon;
+      if (picked.fax.isNotEmpty) _faxAusGericht = picked.fax;
     });
   }
 
@@ -651,7 +656,7 @@ class _GerichtePickerDialogState extends State<_GerichtePickerDialog> {
                 decoration: const InputDecoration(
                   isDense: true,
                   prefixIcon: Icon(Icons.search, size: 20),
-                  hintText: 'Name, Ort, PLZ, Typ …',
+                  hintText: 'Name, Ort, PLZ, Typ (AG, LG …) oder „AT“ …',
                 ),
                 onChanged: (v) => setState(() => _query = v),
               ),
@@ -683,9 +688,12 @@ class _GerichtePickerDialogState extends State<_GerichtePickerDialog> {
                               color:
                                   Theme.of(context).colorScheme.primary,
                             )),
-                        title: Text(g.name),
-                        subtitle: Text(
-                            '${g.strasse} · ${g.plz} ${g.ort} · ${g.telefon}'),
+                        title: Text(g.land == 'DE' ? g.name : '${g.name} (${g.land})'),
+                        subtitle: Text([
+                          '${g.strasse} · ${g.plz} ${g.ort}',
+                          if (g.telefon.isNotEmpty) 'Tel. ${g.telefon}',
+                          if (g.fax.isNotEmpty) 'Fax ${g.fax}',
+                        ].join(' · ')),
                         onTap: () =>
                             Navigator.of(context, rootNavigator: true)
                                 .pop(g),

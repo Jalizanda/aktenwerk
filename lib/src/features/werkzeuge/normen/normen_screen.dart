@@ -8,14 +8,20 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/ai/norm_rag_service.dart';
+import '../../../core/ai/normen_aktualitaet_ki_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
 import '../../../data/sync/auth_service.dart';
+import '../../../data/sync/auto_sync_service.dart';
+import '../../../data/sync/org_service.dart';
 import '../../../data/sync/storage_service.dart';
+import '../../../data/sync/sync_service.dart';
 import '../../../shared/widgets/form_widgets.dart';
 import '../../../shared/widgets/module_scaffold.dart';
+import '../../shell/auto_sync_badge.dart';
+import '../../system/org/org_switcher.dart';
 
 import 'normen_chat_dialog.dart';
 import 'normen_dubletten_dialog.dart';
@@ -27,7 +33,11 @@ import 'normen_repository.dart';
 enum _MehrAktion { jsonImport, bulkUpload, aktualitaet, indexieren }
 
 class NormenScreen extends ConsumerWidget {
-  const NormenScreen({super.key});
+  const NormenScreen({super.key, this.standalonePortal = false});
+
+  /// Wenn `true` (z. B. unter `norm.aktenwerk.app`), wird die Normen-Bibliothek
+  /// als eigenständige Vollbild-Seite ohne das übrige Aktenwerk-Hauptmenü geladen.
+  final bool standalonePortal;
 
   static final _dateFmt = DateFormat('dd.MM.yyyy', 'de');
 
@@ -37,19 +47,22 @@ class NormenScreen extends ConsumerWidget {
     final filter = ref.watch(normenFilterProvider);
     final isMobile = MediaQuery.sizeOf(context).width < 650;
 
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ModuleHeader(
           icon: Icons.menu_book_outlined,
-          title: 'Normen',
-          subtitle: 'Normen-, Richtlinien- & Gesetze-Katalog',
+          title: standalonePortal
+              ? 'Aktenwerk · Normen-Bibliothek'
+              : 'Normen',
+          subtitle:
+              'Normen-, Richtlinien- & Gesetze-Pool · Suche, KI-Chat & Gültigkeitshistorie (Von – Bis)',
           actions: isMobile
               ? [
                   OutlinedButton.icon(
-                    icon: const Icon(Icons.psychology_alt_outlined, size: 18),
-                    label: const Text('KI-Frage'),
-                    onPressed: () => _oeffneKiChat(context),
+                    icon: const Icon(Icons.fact_check_outlined, size: 18),
+                    label: const Text('KI-Aktualität'),
+                    onPressed: () => _openAktualitaetsDialog(context, ref),
                   ),
                   FilledButton.icon(
                     icon: const Icon(Icons.add),
@@ -93,7 +106,7 @@ class NormenScreen extends ConsumerWidget {
                         child: ListTile(
                           dense: true,
                           leading: Icon(Icons.fact_check_outlined),
-                          title: Text('Aktualität prüfen'),
+                          title: Text('KI-Aktualität prüfen'),
                         ),
                       ),
                       PopupMenuItem(
@@ -110,7 +123,7 @@ class NormenScreen extends ConsumerWidget {
               : [
                   OutlinedButton.icon(
                     icon: const Icon(Icons.psychology_alt_outlined, size: 18),
-                    label: const Text('KI-Frage stellen'),
+                    label: const Text('Vollbild-KI-Chat'),
                     onPressed: () => _oeffneKiChat(context),
                   ),
                   OutlinedButton.icon(
@@ -136,9 +149,9 @@ class NormenScreen extends ConsumerWidget {
                       builder: (_) => const NormenPdfBulkDialog(),
                     ),
                   ),
-                  OutlinedButton.icon(
+                  FilledButton.tonalIcon(
                     icon: const Icon(Icons.fact_check_outlined, size: 18),
-                    label: const Text('Aktualität prüfen'),
+                    label: const Text('KI-Aktualität prüfen'),
                     onPressed: () => _openAktualitaetsDialog(context, ref),
                   ),
                   OutlinedButton.icon(
@@ -152,7 +165,8 @@ class NormenScreen extends ConsumerWidget {
                     onPressed: () => _show(context, ref),
                   ),
                 ],
-          searchHint: 'Suche Nummer, Titel, Kategorie …',
+          searchHint:
+              'Tabelle filtern: Nummer, Titel, Gewerk, Zeitraum (z. B. 2015), Nachfolgenorm …',
           onSearchChanged: (v) => ref
               .read(normenFilterProvider.notifier)
               .update((f) => f.copyWith(query: v)),
@@ -204,19 +218,19 @@ class NormenScreen extends ConsumerWidget {
             DropdownButtonHideUnderline(
               child: DropdownButton<String?>(
                 value: filter.aktualitaetStatus,
-                hint: const Text('Jeder Status'),
+                hint: const Text('Jeder Gültigkeits-Status'),
                 items: const [
                   DropdownMenuItem<String?>(
-                      value: null, child: Text('Jeder Status')),
+                      value: null, child: Text('Alle (Aktuell & Historisch)')),
                   DropdownMenuItem<String?>(
                       value: 'aktuell',
-                      child: Text('Nur aktuelle')),
+                      child: Text('Nur aktuell gültige')),
                   DropdownMenuItem<String?>(
                       value: 'veraltet',
-                      child: Text('Nur veraltete')),
+                      child: Text('Historisch / ersetzt (im Pool)')),
                   DropdownMenuItem<String?>(
                       value: '_unbekannt_oder_leer',
-                      child: Text('Nicht geprüft / unbekannt')),
+                      child: Text('Noch nicht geprüft')),
                 ],
                 onChanged: (v) => ref
                     .read(normenFilterProvider.notifier)
@@ -227,6 +241,40 @@ class NormenScreen extends ConsumerWidget {
           ],
         ),
         const Divider(height: 1),
+        // Direkt oben integrierter KI-Chat über den gesamten Normen-Pool
+        const _TopInlineNormenKiChatBar(),
+        if (filter.kiTrefferNummern != null &&
+            filter.kiTrefferNummern!.isNotEmpty)
+          Container(
+            color: const Color(0xFFEDE9FE),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.filter_alt,
+                    size: 16, color: Color(0xFF5B21B6)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Tabelle gefiltert auf ${filter.kiTrefferNummern!.length} Normen aus dem KI-Chat: '
+                    '${filter.kiTrefferNummern!.join(", ")}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF5B21B6),
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.close, size: 15),
+                  label: const Text('Alle Normen zeigen'),
+                  onPressed: () => ref
+                      .read(normenFilterProvider.notifier)
+                      .update((f) =>
+                          f.copyWith(kiTrefferNummernOverride: null)),
+                ),
+              ],
+            ),
+          ),
         async.maybeWhen(
           data: (items) => _IndexFortschrittWidget(
             normIdsMitPdf: items
@@ -246,7 +294,7 @@ class NormenScreen extends ConsumerWidget {
               if (items.isEmpty) {
                 return const EmptyListState(
                     icon: Icons.menu_book_outlined,
-                    title: 'Keine Normen erfasst');
+                    title: 'Keine passenden Normen gefunden');
               }
               final aktive = items.where((n) => n.aktiv).toList();
               final inaktive = items.where((n) => !n.aktiv).toList();
@@ -256,7 +304,8 @@ class NormenScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _NormenTabelle(
-                      label: 'Aktive Normen',
+                      label:
+                          'Normen-Pool (${aktive.length} Dokumente · aktuelle & historische Fassungen mit Gültigkeitszeitraum)',
                       items: aktive,
                       onEdit: (n) => _show(context, ref, n),
                       onDelete: (n) => _confirm(context, ref, n),
@@ -268,7 +317,7 @@ class NormenScreen extends ConsumerWidget {
                       const SizedBox(height: 24),
                       _NormenTabelle(
                         label:
-                            'Inaktive / abgelaufene Normen (${inaktive.length})',
+                            'Ausgeblendete / inaktive Normen (${inaktive.length})',
                         items: inaktive,
                         dimmed: true,
                         onEdit: (n) => _show(context, ref, n),
@@ -286,6 +335,11 @@ class NormenScreen extends ConsumerWidget {
         ),
       ],
     );
+
+    if (standalonePortal) {
+      return _StandaloneNormenPortalShell(child: content);
+    }
+    return content;
   }
 
   Future<void> _show(BuildContext context, WidgetRef ref,
@@ -466,6 +520,149 @@ class NormenScreen extends ConsumerWidget {
       context: context,
       useRootNavigator: true,
       builder: (_) => const _AktualitaetsDialog(),
+    );
+  }
+}
+
+/// Eigenständige Hülle für `norm.aktenwerk.app` (`/norm-portal`), die
+/// automatisch den Standard-Mandanten („Bauelemente-Experte") setzt und
+/// sofort die Normen-Bibliothek aus Firestore synchronisiert.
+class _StandaloneNormenPortalShell extends ConsumerStatefulWidget {
+  const _StandaloneNormenPortalShell({required this.child});
+  final Widget child;
+
+  @override
+  ConsumerState<_StandaloneNormenPortalShell> createState() =>
+      _StandaloneNormenPortalShellState();
+}
+
+class _StandaloneNormenPortalShellState
+    extends ConsumerState<_StandaloneNormenPortalShell> {
+  String? _lastSyncedOrgId;
+  bool _initialPullRunning = false;
+  bool _autoSyncStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureOrgAndSync();
+    });
+  }
+
+  Future<void> _ensureOrgAndSync() async {
+    if (!mounted) return;
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+
+    final orgs = ref.read(myOrgsProvider).valueOrNull;
+    var currentOrgId = ref.read(currentOrgIdProvider).valueOrNull;
+
+    if (orgs != null && orgs.isNotEmpty) {
+      final hasValidOrg =
+          currentOrgId != null && orgs.any((o) => o.id == currentOrgId);
+      if (!hasValidOrg) {
+        final bevorzugteOrg = orgs.firstWhere(
+          (o) => o.id != 'demo',
+          orElse: () => orgs.first,
+        );
+        currentOrgId = bevorzugteOrg.id;
+        await ref.read(currentOrgIdProvider.notifier).set(currentOrgId);
+      }
+    }
+
+    if (currentOrgId != null && currentOrgId != _lastSyncedOrgId) {
+      _lastSyncedOrgId = currentOrgId;
+      await _pullNormenNow();
+    }
+
+    if (!_autoSyncStarted && mounted) {
+      _autoSyncStarted = true;
+      final aktiv = await AutoSyncService.istAktiviert();
+      if (aktiv && mounted) {
+        ref.read(autoSyncServiceProvider).start();
+      }
+    }
+  }
+
+  Future<void> _pullNormenNow() async {
+    if (_initialPullRunning || !mounted) return;
+    setState(() => _initialPullRunning = true);
+    try {
+      final sync = ref.read(syncServiceProvider);
+      if (sync.enabled) {
+        await sync.pullNormen();
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _initialPullRunning = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(authStateProvider, (_, _) => _ensureOrgAndSync());
+    ref.listen(myOrgsProvider, (_, _) => _ensureOrgAndSync());
+    ref.listen(currentOrgIdProvider, (_, _) => _ensureOrgAndSync());
+
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(color: scheme.outlineVariant),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.verified_user_outlined,
+                      size: 16, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Mandant:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.slate500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const OrgSwitcher(),
+                  const Spacer(),
+                  if (_initialPullRunning) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Synchronisiere Normen-Bibliothek …',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  const AutoSyncBadge(),
+                ],
+              ),
+            ),
+            Expanded(child: widget.child),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -705,11 +902,11 @@ class _ResizableNormenTabelleState extends State<_ResizableNormenTabelle> {
     0: 44.0,   // Fav
     1: 170.0,  // Nummer
     2: 100.0,  // Ausgabe
-    3: 500.0,  // Titel (dynamisch erweitert)
-    4: 160.0,  // Gewerk
-    5: 140.0,  // Kategorie
-    6: 120.0,  // Aktualität
-    7: 120.0,  // Indexiert
+    3: 460.0,  // Titel (dynamisch erweitert)
+    4: 150.0,  // Gewerk
+    5: 130.0,  // Kategorie
+    6: 215.0,  // Aktualität & Zeitraum (Von – Bis)
+    7: 115.0,  // Indexiert
     8: 48.0,   // PDF
     9: 44.0,   // Edit
     10: 44.0,  // Delete
@@ -844,7 +1041,7 @@ class _ResizableNormenTabelleState extends State<_ResizableNormenTabelle> {
                           _buildHeaderCell(3, 'Titel'),
                           _buildHeaderCell(4, 'Gewerk'),
                           _buildHeaderCell(5, 'Kategorie'),
-                          _buildHeaderCell(6, 'Aktualität'),
+                          _buildHeaderCell(6, 'Aktualität & Zeitraum'),
                           _buildHeaderCell(7, 'Indexiert'),
                           _buildHeaderCell(8, 'PDF', sortable: false),
                           _buildHeaderCell(9, '', sortable: false),
@@ -982,7 +1179,11 @@ class _ResizableNormenTabelleState extends State<_ResizableNormenTabelle> {
                                       ),
                                       SizedBox(
                                         width: _colWidths[8],
-                                        child: _PdfCell(norm: n),
+                                        child: _PdfCell(
+                                          norm: n,
+                                          status: widget.statusMap[n.id] ??
+                                              NormIndexStatus.unbekannt,
+                                        ),
                                       ),
                                       SizedBox(
                                         width: _colWidths[9],
@@ -1192,6 +1393,8 @@ class _AktualitaetsPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = norm.aktualitaetStatus;
+    final info = NormGueltigkeitInfo.fromNorm(norm);
+    final zeitraum = info.zeitraumLabel(status);
     final (color, label, icon) = switch (status) {
       'aktuell' => (
           const Color(0xFF16A34A),
@@ -1199,76 +1402,115 @@ class _AktualitaetsPill extends StatelessWidget {
           Icons.check_circle
         ),
       'veraltet' => (
-          AwTokens.red,
-          'veraltet',
-          Icons.cancel
+          const Color(0xFFD97706),
+          'historisch',
+          Icons.history
         ),
       'unbekannt' => (
           const Color(0xFFEAB308),
           'prüfen',
           Icons.help
         ),
-      _ => (AppTheme.slate400, 'nicht geprüft', Icons.radio_button_unchecked),
+      _ => (AppTheme.slate400, 'ungeprüft', Icons.radio_button_unchecked),
     };
     final geprueft = norm.aktualitaetGeprueftAm;
+    final tooltipParts = <String>[
+      if (status == 'aktuell')
+        'Status: Aktuell gültige Ausgabe ($zeitraum)'
+      else if (status == 'veraltet')
+        'Status: Historische / ersetzte Fassung im Pool ($zeitraum)'
+      else
+        'Status: Noch nicht geprüft ($zeitraum)',
+      if (info.ersetztDurch != null && info.ersetztDurch!.isNotEmpty)
+        'Ersetzt durch: ${info.ersetztDurch}',
+      if (geprueft != null)
+        'Zuletzt geprüft: ${NormenScreen._dateFmt.format(geprueft)}',
+      if (norm.aktualitaetNotiz != null &&
+          norm.aktualitaetNotiz!.trim().isNotEmpty)
+        norm.aktualitaetNotiz!,
+    ];
+
     return Tooltip(
-      message: geprueft == null
-          ? 'Noch nicht geprüft'
-          : 'Zuletzt geprüft: ${NormenScreen._dateFmt.format(geprueft)}'
-              '${norm.aktualitaetNotiz == null ? '' : '\n${norm.aktualitaetNotiz}'}',
-      child: Row(
+      message: tooltipParts.join('\n'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: color)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 13.5, color: color),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  zeitraum != '—' ? '$label · $zeitraum' : label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (info.ersetztDurch != null && info.ersetztDurch!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                '↳ ${info.ersetztDurch}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: AppTheme.slate500,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _PdfCell extends ConsumerWidget {
-  const _PdfCell({required this.norm});
+class _PdfCell extends StatelessWidget {
+  const _PdfCell({required this.norm, required this.status});
   final NormenData norm;
+  final NormIndexStatus status;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final url = norm.pdfStorageUrl;
     if (url == null || url.isEmpty) {
       return const SizedBox.shrink();
     }
-    return StreamBuilder<NormIndexStatus>(
-      stream: ref.read(normRagServiceProvider).watchStatus(norm.id),
-      builder: (context, snap) {
-        final status = snap.data ?? NormIndexStatus.unbekannt;
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              tooltip:
-                  '${norm.pdfDateiname ?? 'PDF öffnen'}\nIndexierung: ${status.label}',
-              icon: const Icon(Icons.picture_as_pdf,
-                  size: 20, color: AwTokens.red),
-              onPressed: () async {
-                final uri = Uri.tryParse(url);
-                if (uri != null) {
-                  await launchUrl(uri,
-                      mode: LaunchMode.externalApplication);
-                }
-              },
-            ),
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: _IndexStatusDot(status: status),
-            ),
-          ],
-        );
-      },
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip:
+              '${norm.pdfDateiname ?? 'PDF öffnen'}\nIndexierung: ${status.label}',
+          icon: const Icon(Icons.picture_as_pdf,
+              size: 20, color: AwTokens.red),
+          onPressed: () async {
+            var target = url.trim();
+            if (!target.startsWith(RegExp(r'https?://', caseSensitive: false))) {
+              target = 'https://$target';
+            }
+            final uri = Uri.tryParse(target);
+            if (uri != null) {
+              await launchUrl(uri,
+                  mode: LaunchMode.externalApplication);
+            }
+          },
+        ),
+        Positioned(
+          right: 4,
+          bottom: 4,
+          child: _IndexStatusDot(status: status),
+        ),
+      ],
     );
   }
 }
@@ -1336,7 +1578,318 @@ class _IndexStatusDot extends StatelessWidget {
   }
 }
 
-/// ------------- Aktualitäts-Prüf-Dialog -------------
+/// ------------- Direkt oben eingebetteter KI-Chat über alle Normen -------------
+
+class _TopInlineNormenKiChatBar extends ConsumerStatefulWidget {
+  const _TopInlineNormenKiChatBar();
+
+  @override
+  ConsumerState<_TopInlineNormenKiChatBar> createState() =>
+      _TopInlineNormenKiChatBarState();
+}
+
+class _TopInlineNormenKiChatBarState
+    extends ConsumerState<_TopInlineNormenKiChatBar> {
+  final _ctrl = TextEditingController();
+  bool _loading = false;
+  bool _autoFilterTable = true;
+  bool _answerExpanded = true;
+  String? _lastQuestion;
+  NormChatAntwort? _lastAnswer;
+  String? _error;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _ask() async {
+    final q = _ctrl.text.trim();
+    if (q.isEmpty || _loading) return;
+    setState(() {
+      _loading = true;
+      _lastQuestion = q;
+      _error = null;
+      _answerExpanded = true;
+    });
+
+    try {
+      final rag = ref.read(normRagServiceProvider);
+      final res = await rag.frage(
+        frage: q,
+        fastMode: false,
+      );
+      if (!mounted) return;
+      final nummern = res.quellen
+          .map((s) => s.nummer.trim())
+          .where((s) => s.isNotEmpty)
+          .toSet();
+      setState(() {
+        _lastAnswer = res;
+        _loading = false;
+      });
+      if (_autoFilterTable && nummern.isNotEmpty) {
+        ref
+            .read(normenFilterProvider.notifier)
+            .update((f) => f.copyWith(kiTrefferNummernOverride: nummern));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'KI-Abfrage fehlgeschlagen: $e';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _openQuelle(NormChatQuelle q) async {
+    final rawUrl = q.storageUrl ?? '';
+    if (rawUrl.isEmpty) return;
+    final pageSuffix = q.page > 0 ? '#page=${q.page}' : '';
+    final uri = Uri.tryParse('$rawUrl$pageSuffix');
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final quellenNummern = (_lastAnswer?.quellen ?? const [])
+        .map((s) => s.nummer.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        border: Border(
+          bottom: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome,
+                  size: 18, color: Color(0xFF5B21B6)),
+              const SizedBox(width: 8),
+              const Text(
+                'KI-Chat über alle Normen:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF5B21B6),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _ctrl,
+                  onSubmitted: (_) => _ask(),
+                  decoration: InputDecoration(
+                    hintText:
+                        'Frage an den gesamten Normen-Pool stellen (z. B. „Welche Normen gelten für Geländerhöhe & Feuerverzinkung?") …',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    suffixIcon: _ctrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () {
+                              _ctrl.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                icon: _loading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 15),
+                label: Text(_loading ? 'Suche…' : 'KI fragen'),
+                onPressed: _loading ? null : _ask,
+              ),
+              const SizedBox(width: 10),
+              Tooltip(
+                message:
+                    'Wenn aktiv, wird die Normen-Tabelle unten automatisch auf die von der KI gefundenen Normen gefiltert.',
+                child: FilterChip(
+                  selected: _autoFilterTable,
+                  label: const Text('Tabelle filtern',
+                      style: TextStyle(fontSize: 11.5)),
+                  onSelected: (v) {
+                    setState(() => _autoFilterTable = v);
+                    if (v && quellenNummern.isNotEmpty) {
+                      ref.read(normenFilterProvider.notifier).update(
+                            (f) => f.copyWith(
+                                kiTrefferNummernOverride: quellenNummern),
+                          );
+                    } else if (!v) {
+                      ref.read(normenFilterProvider.notifier).update(
+                            (f) =>
+                                f.copyWith(kiTrefferNummernOverride: null),
+                          );
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!,
+                style: const TextStyle(fontSize: 12, color: AwTokens.red)),
+          ],
+          if (_lastAnswer != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: const Color(0xFF5B21B6).withValues(alpha: 0.25)),
+              ),
+              padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.psychology_alt_outlined,
+                          size: 16, color: Color(0xFF5B21B6)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'KI-Antwort zu: „${_lastQuestion ?? ""}"',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF5B21B6),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (quellenNummern.isNotEmpty)
+                        TextButton.icon(
+                          icon: const Icon(Icons.filter_list, size: 15),
+                          label: Text(
+                            'Tabelle auf ${quellenNummern.length} Treffer filtern',
+                            style: const TextStyle(fontSize: 11.5),
+                          ),
+                          onPressed: () => ref
+                              .read(normenFilterProvider.notifier)
+                              .update((f) => f.copyWith(
+                                  kiTrefferNummernOverride: quellenNummern)),
+                        ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip:
+                            _answerExpanded ? 'Antwort einklappen' : 'Antwort ausklappen',
+                        icon: Icon(
+                          _answerExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(
+                            () => _answerExpanded = !_answerExpanded),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'KI-Antwort schließen & Filter zurücksetzen',
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: () {
+                          setState(() {
+                            _lastAnswer = null;
+                            _lastQuestion = null;
+                          });
+                          ref.read(normenFilterProvider.notifier).update(
+                                (f) => f.copyWith(
+                                    kiTrefferNummernOverride: null),
+                              );
+                        },
+                      ),
+                    ],
+                  ),
+                  if (_answerExpanded) ...[
+                    const SizedBox(height: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          _lastAnswer!.antwort,
+                          style:
+                              const TextStyle(fontSize: 13, height: 1.45),
+                        ),
+                      ),
+                    ),
+                    if (_lastAnswer!.quellen.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final q in _lastAnswer!.quellen)
+                            InkWell(
+                              onTap: () => _openQuelle(q),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border:
+                                      Border.all(color: AppTheme.slate200),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.picture_as_pdf,
+                                        size: 13, color: AwTokens.red),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${q.nummer}${q.page > 0 ? " · S. ${q.page}" : ""}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// ------------- KI-gestützter Aktualitäts- & Gültigkeitszeitraum-Dialog -------------
 
 class _AktualitaetsDialog extends ConsumerStatefulWidget {
   const _AktualitaetsDialog();
@@ -1346,43 +1899,137 @@ class _AktualitaetsDialog extends ConsumerStatefulWidget {
 }
 
 class _AktualitaetsDialogState extends ConsumerState<_AktualitaetsDialog> {
+  bool _batchRunning = false;
+  bool _cancelRequested = false;
+  int _batchDone = 0;
+  int _batchTotal = 0;
+  String _filterStatus = 'alle'; // 'alle' | 'ungeprueft' | 'aktuell' | 'veraltet'
+  String _searchQuery = '';
+  final Set<int> _singleCheckingIds = {};
+  String? _statusMsg;
+
+  Future<void> _startKiBatchCheck({
+    required List<NormenData> zuPruefen,
+    required List<NormenData> kompletterPool,
+  }) async {
+    if (zuPruefen.isEmpty || _batchRunning) return;
+    setState(() {
+      _batchRunning = true;
+      _cancelRequested = false;
+      _batchDone = 0;
+      _batchTotal = zuPruefen.length;
+      _statusMsg = null;
+    });
+
+    final service = ref.read(normenAktualitaetKiServiceProvider);
+    final normById = {for (final n in kompletterPool) n.id: n};
+    const batchSize = 15;
+    var aktualisiert = 0;
+
+    try {
+      for (var i = 0; i < zuPruefen.length; i += batchSize) {
+        if (_cancelRequested || !mounted) break;
+        final chunk = zuPruefen.skip(i).take(batchSize).toList();
+        final ergebnisse = await service.pruefeBatch(
+          chunk,
+          kompletterPool: kompletterPool,
+        );
+        if (!mounted) break;
+        await service.speichereErgebnisse(ergebnisse, normById);
+        aktualisiert += ergebnisse.length;
+        setState(() {
+          _batchDone = (i + chunk.length).clamp(0, zuPruefen.length);
+        });
+      }
+      if (!mounted) return;
+      setState(() {
+        _batchRunning = false;
+        _statusMsg = _cancelRequested
+            ? 'Prüfung gestoppt ($aktualisiert Normen aktualisiert).'
+            : 'KI-Prüfung abgeschlossen: $aktualisiert Normen mit Gültigkeitszeitraum (Von – Bis) aktualisiert.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _batchRunning = false;
+        _statusMsg = 'Fehler bei der KI-Prüfung: $e';
+      });
+    }
+  }
+
+  Future<void> _pruefeEinzeln(
+    NormenData norm,
+    List<NormenData> kompletterPool,
+  ) async {
+    if (_singleCheckingIds.contains(norm.id)) return;
+    setState(() => _singleCheckingIds.add(norm.id));
+    try {
+      final service = ref.read(normenAktualitaetKiServiceProvider);
+      final ergebnisse = await service.pruefeBatch(
+        [norm],
+        kompletterPool: kompletterPool,
+      );
+      await service.speichereErgebnisse(
+        ergebnisse,
+        {norm.id: norm},
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KI-Prüfung fehlgeschlagen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _singleCheckingIds.remove(norm.id));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(normenListProvider);
+    final scheme = Theme.of(context).colorScheme;
     return Dialog(
+      insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 640),
+        constraints: const BoxConstraints(maxWidth: 960, maxHeight: 740),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
               child: Row(
                 children: [
-                  const Icon(Icons.fact_check_outlined, size: 20),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.fact_check_outlined, size: 22),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Aktualität prüfen',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Globale KI-Aktualitätsprüfung & Gültigkeitszeiträume (Von – Bis)',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          'Alle Normen (auch historische/ersetzte) bleiben aktiv im Pool, erhalten aber ihren exakten Gültigkeitszeitraum und ihre Nachfolgenorm.',
+                          style: TextStyle(
+                              fontSize: 12, color: AppTheme.slate500),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
+                    onPressed: _batchRunning
+                        ? null
+                        : () =>
+                            Navigator.of(context, rootNavigator: true).pop(),
                   ),
                 ],
               ),
             ),
             const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Text(
-                'Klicke auf „Recherchieren", um die Norm im DIN-Katalog '
-                'und bei Beuth in einem neuen Tab zu öffnen. Anschließend '
-                'kannst du den Status per Ampel-Button setzen.',
-                style: TextStyle(fontSize: 12, color: AppTheme.slate500),
-              ),
-            ),
             Expanded(
               child: async.when(
                 loading: () =>
@@ -1390,15 +2037,203 @@ class _AktualitaetsDialogState extends ConsumerState<_AktualitaetsDialog> {
                 error: (e, _) => Center(child: Text('Fehler: $e')),
                 data: (items) {
                   final aktive = items.where((n) => n.aktiv).toList();
-                  if (aktive.isEmpty) {
-                    return const Center(
-                        child: Text('Keine aktiven Normen.'));
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: aktive.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (_, i) => _AktualitaetsRow(norm: aktive[i]),
+                  final ungepruefte = aktive
+                      .where((n) =>
+                          n.aktualitaetStatus == null ||
+                          n.aktualitaetStatus == 'unbekannt')
+                      .toList();
+                  final aktuelleCount = aktive
+                      .where((n) => n.aktualitaetStatus == 'aktuell')
+                      .length;
+                  final historischeCount = aktive
+                      .where((n) => n.aktualitaetStatus == 'veraltet')
+                      .length;
+
+                  final filtered = aktive.where((n) {
+                    if (_filterStatus == 'ungeprueft' &&
+                        n.aktualitaetStatus != null &&
+                        n.aktualitaetStatus != 'unbekannt') {
+                      return false;
+                    }
+                    if (_filterStatus == 'aktuell' &&
+                        n.aktualitaetStatus != 'aktuell') {
+                      return false;
+                    }
+                    if (_filterStatus == 'veraltet' &&
+                        n.aktualitaetStatus != 'veraltet') {
+                      return false;
+                    }
+                    if (_searchQuery.trim().isNotEmpty) {
+                      final q = _searchQuery.trim().toLowerCase();
+                      final info = NormGueltigkeitInfo.fromNorm(n);
+                      final hay =
+                          '${n.nummer} ${n.ausgabe ?? ""} ${n.titel ?? ""} ${info.gueltigVon ?? ""} ${info.gueltigBis ?? ""} ${info.ersetztDurch ?? ""}'
+                              .toLowerCase();
+                      if (!hay.contains(q)) return false;
+                    }
+                    return true;
+                  }).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        color: scheme.surfaceContainerLowest,
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                FilledButton.icon(
+                                  icon: const Icon(Icons.auto_awesome,
+                                      size: 16),
+                                  label: Text(
+                                    'Ungeprüfte KI-prüfen (${ungepruefte.length})',
+                                  ),
+                                  onPressed:
+                                      _batchRunning || ungepruefte.isEmpty
+                                          ? null
+                                          : () => _startKiBatchCheck(
+                                                zuPruefen: ungepruefte,
+                                                kompletterPool: aktive,
+                                              ),
+                                ),
+                                OutlinedButton.icon(
+                                  icon: const Icon(
+                                      Icons.playlist_add_check,
+                                      size: 18),
+                                  label: Text(
+                                    'Gesamten Pool KI-prüfen (${aktive.length})',
+                                  ),
+                                  onPressed: _batchRunning || aktive.isEmpty
+                                      ? null
+                                      : () => _startKiBatchCheck(
+                                            zuPruefen: aktive,
+                                            kompletterPool: aktive,
+                                          ),
+                                ),
+                                if (_batchRunning)
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.stop_circle,
+                                        color: AwTokens.red, size: 18),
+                                    label: const Text('Stopp',
+                                        style:
+                                            TextStyle(color: AwTokens.red)),
+                                    onPressed: () => setState(
+                                        () => _cancelRequested = true),
+                                  ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: Text('Alle (${aktive.length})'),
+                                  selected: _filterStatus == 'alle',
+                                  onSelected: (_) => setState(
+                                      () => _filterStatus = 'alle'),
+                                ),
+                                ChoiceChip(
+                                  label: Text(
+                                      'Ungeprüft (${ungepruefte.length})'),
+                                  selected: _filterStatus == 'ungeprueft',
+                                  onSelected: (_) => setState(
+                                      () => _filterStatus = 'ungeprueft'),
+                                ),
+                                ChoiceChip(
+                                  label: Text('Aktuell ($aktuelleCount)'),
+                                  selected: _filterStatus == 'aktuell',
+                                  onSelected: (_) => setState(
+                                      () => _filterStatus = 'aktuell'),
+                                ),
+                                ChoiceChip(
+                                  label: Text(
+                                      'Historisch im Pool ($historischeCount)'),
+                                  selected: _filterStatus == 'veraltet',
+                                  onSelected: (_) => setState(
+                                      () => _filterStatus = 'veraltet'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.search, size: 18),
+                                hintText:
+                                    'In Liste suchen (Normnummer, Titel, Jahr, Nachfolgenorm …)',
+                                isDense: true,
+                              ),
+                              onChanged: (v) =>
+                                  setState(() => _searchQuery = v),
+                            ),
+                            if (_batchRunning) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'KI ermittelt Gültigkeitszeiträume (Von – Bis) & Nachfolgenormen: '
+                                      '$_batchDone / $_batchTotal …',
+                                      style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              LinearProgressIndicator(
+                                value: _batchTotal == 0
+                                    ? 0
+                                    : _batchDone / _batchTotal,
+                              ),
+                            ],
+                            if (_statusMsg != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                _statusMsg!,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF16A34A),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? const Center(
+                                child: Text('Keine Normen für diesen Filter.'),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, _) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (_, i) {
+                                  final n = filtered[i];
+                                  return _AktualitaetsRow(
+                                    norm: n,
+                                    checking:
+                                        _singleCheckingIds.contains(n.id),
+                                    onKiCheck: () =>
+                                        _pruefeEinzeln(n, aktive),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -1410,8 +2245,10 @@ class _AktualitaetsDialogState extends ConsumerState<_AktualitaetsDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   FilledButton(
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
+                    onPressed: _batchRunning
+                        ? null
+                        : () =>
+                            Navigator.of(context, rootNavigator: true).pop(),
                     child: const Text('Schließen'),
                   ),
                 ],
@@ -1425,11 +2262,18 @@ class _AktualitaetsDialogState extends ConsumerState<_AktualitaetsDialog> {
 }
 
 class _AktualitaetsRow extends ConsumerWidget {
-  const _AktualitaetsRow({required this.norm});
+  const _AktualitaetsRow({
+    required this.norm,
+    required this.checking,
+    required this.onKiCheck,
+  });
   final NormenData norm;
+  final bool checking;
+  final VoidCallback onKiCheck;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final info = NormGueltigkeitInfo.fromNorm(norm);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Row(
@@ -1445,32 +2289,82 @@ class _AktualitaetsRow extends ConsumerWidget {
                         style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontFamily: 'monospace')),
-                    if (norm.ausgabe != null) ...[
+                    if (norm.ausgabe != null &&
+                        norm.ausgabe!.trim().isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      Text(norm.ausgabe!,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.slate100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Ausgabe ${norm.ausgabe!}',
                           style: TextStyle(
-                              fontSize: 12, color: AppTheme.slate500)),
+                              fontSize: 11, color: AppTheme.slate700),
+                        ),
+                      ),
                     ],
                   ],
                 ),
-                if (norm.titel != null)
-                  Text(norm.titel!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 4),
-                _AktualitaetsPill(norm: norm),
+                if (norm.titel != null && norm.titel!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(norm.titel!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    _AktualitaetsPill(norm: norm),
+                    if (norm.aktualitaetNotiz != null &&
+                        norm.aktualitaetNotiz!.trim().isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          norm.aktualitaetNotiz!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11, color: AppTheme.slate500),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
+          OutlinedButton.icon(
+            icon: checking
+                ? const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome, size: 15),
+            label: const Text('KI-Check', style: TextStyle(fontSize: 12)),
+            onPressed: checking ? null : onKiCheck,
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip:
+                'Gültigkeitszeitraum (Von – Bis) & Nachfolgenorm bearbeiten',
+            icon: const Icon(Icons.date_range_outlined, size: 20),
+            onPressed: () =>
+                _editGueltigkeit(context, ref, norm, info),
+          ),
           IconButton(
             tooltip: 'Im DIN-Katalog suchen',
             icon: const Icon(Icons.travel_explore, size: 20),
             onPressed: () => _recherchieren(norm),
           ),
           IconButton(
-            tooltip: 'Als aktuell markieren',
+            tooltip: 'Als aktuell gültig markieren',
             icon: const Icon(Icons.check_circle,
                 size: 22, color: Color(0xFF16A34A)),
             onPressed: () => ref
@@ -1478,10 +2372,11 @@ class _AktualitaetsRow extends ConsumerWidget {
                 .setAktualitaet(norm.id, status: 'aktuell'),
           ),
           IconButton(
-            tooltip: 'Als veraltet markieren',
-            icon: const Icon(Icons.cancel,
-                size: 22, color: AwTokens.red),
-            onPressed: () => _markVeraltet(context, ref, norm),
+            tooltip: 'Als historisch / ersetzt markieren (bleibt im Pool)',
+            icon: const Icon(Icons.history,
+                size: 22, color: Color(0xFFD97706)),
+            onPressed: () =>
+                _editGueltigkeit(context, ref, norm, info, preselectStatus: 'veraltet'),
           ),
         ],
       ),
@@ -1490,61 +2385,154 @@ class _AktualitaetsRow extends ConsumerWidget {
 
   Future<void> _recherchieren(NormenData norm) async {
     final q = Uri.encodeQueryComponent(norm.nummer);
-    final url = Uri.parse('https://www.beuth.de/de/suche?query=$q');
+    final url = Uri.parse('https://www.din.de/de/meta/suche/62730!search?query=$q');
     await launchUrl(url, mode: LaunchMode.externalApplication);
-    final url2 = Uri.parse('https://www.dinmedia.de/de/suche/-/search/$q');
-    await launchUrl(url2, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _markVeraltet(
-      BuildContext context, WidgetRef ref, NormenData n) async {
+  Future<void> _editGueltigkeit(
+    BuildContext context,
+    WidgetRef ref,
+    NormenData n,
+    NormGueltigkeitInfo info, {
+    String? preselectStatus,
+  }) async {
+    var status = preselectStatus ?? n.aktualitaetStatus ?? 'aktuell';
+    final vonCtrl =
+        TextEditingController(text: info.gueltigVon ?? n.ausgabe ?? '');
+    final bisCtrl = TextEditingController(
+      text: info.gueltigBis ?? (status == 'aktuell' ? 'heute' : ''),
+    );
+    final ersetztCtrl =
+        TextEditingController(text: info.ersetztDurch ?? '');
     final notizCtrl = TextEditingController(text: n.aktualitaetNotiz ?? '');
     final quelleCtrl = TextEditingController(text: n.aktualitaetQuelle ?? '');
+
     final ok = await showDialog<bool>(
       context: context,
       useRootNavigator: true,
-      builder: (_) => AlertDialog(
-        title: Text('${n.nummer} als veraltet markieren'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: notizCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Hinweis (z. B. ersetzt durch …)',
-              ),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Gültigkeitszeitraum: ${n.nummer}'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'aktuell',
+                      icon: Icon(Icons.check_circle_outline, size: 16),
+                      label: Text('Aktuell gültig'),
+                    ),
+                    ButtonSegment(
+                      value: 'veraltet',
+                      icon: Icon(Icons.history, size: 16),
+                      label: Text('Historisch (im Pool)'),
+                    ),
+                  ],
+                  selected: {
+                    status == 'veraltet' ? 'veraltet' : 'aktuell',
+                  },
+                  onSelectionChanged: (s) {
+                    setDialogState(() {
+                      status = s.first;
+                      if (status == 'aktuell' && bisCtrl.text.trim().isEmpty) {
+                        bisCtrl.text = 'heute';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: vonCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Gültig von (JJJJ-MM)',
+                          hintText: 'z. B. 2009-09',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: bisCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Gültig bis (JJJJ-MM)',
+                          hintText: status == 'aktuell'
+                              ? 'heute'
+                              : 'z. B. 2022-12',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ersetztCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Ersetzt durch (Nachfolgenorm & Ausgabe)',
+                    hintText: 'z. B. DIN EN ISO 1461 (2022-12)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notizCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Notiz zur Historie / Übergangsfrist',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: quelleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Quelle / URL (optional)',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: quelleCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Quelle / URL der neuen Fassung',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).pop(true),
+              child: const Text('Speichern'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.of(context, rootNavigator: true).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(context, rootNavigator: true).pop(true),
-            child: const Text('Speichern'),
-          ),
-        ],
       ),
     );
     if (ok == true) {
-      await ref.read(normenRepositoryProvider).setAktualitaet(
-            n.id,
-            status: 'veraltet',
-            notiz: notizCtrl.text,
-            quelle: quelleCtrl.text,
-          );
+      final updatedInfo = NormGueltigkeitInfo(
+        gueltigVon: vonCtrl.text.trim(),
+        gueltigBis: bisCtrl.text.trim(),
+        ersetztDurch: ersetztCtrl.text.trim(),
+        ersetztVorgaenger: info.ersetztVorgaenger,
+      );
+      final mergedExtras = updatedInfo.mergeIntoExtras(n.extras);
+      final db = ref.read(appDatabaseProvider);
+      await (db.update(db.normen)..where((t) => t.id.equals(n.id))).write(
+        NormenCompanion(
+          aktualitaetStatus: Value(status),
+          aktualitaetGeprueftAm: Value(DateTime.now()),
+          aktualitaetNotiz: Value(
+              notizCtrl.text.trim().isEmpty ? null : notizCtrl.text.trim()),
+          aktualitaetQuelle: Value(
+              quelleCtrl.text.trim().isEmpty ? null : quelleCtrl.text.trim()),
+          extras: Value(mergedExtras),
+          aktiv: const Value(true),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
     }
   }
 }
@@ -1579,6 +2567,21 @@ class _NormFormState extends ConsumerState<_NormForm> {
       TextEditingController(text: widget.norm?.aktualitaetQuelle ?? '');
   late final _aktNotiz =
       TextEditingController(text: widget.norm?.aktualitaetNotiz ?? '');
+  late final _gueltigVonCtrl = TextEditingController(
+    text: widget.norm != null
+        ? (NormGueltigkeitInfo.fromNorm(widget.norm!).gueltigVon ?? '')
+        : '',
+  );
+  late final _gueltigBisCtrl = TextEditingController(
+    text: widget.norm != null
+        ? (NormGueltigkeitInfo.fromNorm(widget.norm!).gueltigBis ?? '')
+        : '',
+  );
+  late final _ersetztDurchCtrl = TextEditingController(
+    text: widget.norm != null
+        ? (NormGueltigkeitInfo.fromNorm(widget.norm!).ersetztDurch ?? '')
+        : '',
+  );
 
   String _art = 'DIN-Norm';
   String _kategorie = 'Norm';
@@ -1589,6 +2592,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
   bool _favorit = false;
   bool _saving = false;
   bool _uploading = false;
+  bool _kiChecking = false;
 
   String? _pdfStorageUrl;
   String? _pdfDateiname;
@@ -1631,6 +2635,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
       _nr, _titel, _ausgabe, _herausgeber,
       _zusammenfassung, _zitat, _beschreibung, _gewerk,
       _aktQuelle, _aktNotiz,
+      _gueltigVonCtrl, _gueltigBisCtrl, _ersetztDurchCtrl,
     ]) {
       c.dispose();
     }
@@ -1698,9 +2703,83 @@ class _NormFormState extends ConsumerState<_NormForm> {
     });
   }
 
+  Future<void> _kiAktualitaetCheckForm() async {
+    if (_nr.text.trim().isEmpty || _kiChecking) return;
+    setState(() => _kiChecking = true);
+    try {
+      final pool = ref.read(normenListProvider).valueOrNull ?? const [];
+      final tempNorm = NormenData(
+        id: widget.norm?.id ?? -1,
+        auftragId: null,
+        nummer: _nr.text.trim(),
+        titel: _titel.text.trim(),
+        ausgabe: _ausgabe.text.trim(),
+        kategorie: _kategorie,
+        art: _art,
+        herausgeber: _herausgeber.text.trim(),
+        relevanz: _relevanz,
+        zusammenfassung: null,
+        zitat: null,
+        beschreibung: null,
+        notiz: null,
+        gewerk: _gewerk.text.trim(),
+        pdfPfad: null,
+        pdfStorageUrl: _pdfStorageUrl,
+        pdfMimeType: _pdfMimeType,
+        pdfGroesse: _pdfGroesse,
+        pdfDateiname: _pdfDateiname,
+        aktiv: true,
+        favorit: _favorit,
+        aktualitaetStatus: _aktStatus,
+        aktualitaetGeprueftAm: _aktGeprueftAm,
+        aktualitaetQuelle: _aktQuelle.text.trim(),
+        aktualitaetNotiz: _aktNotiz.text.trim(),
+        extras: widget.norm?.extras,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final res = await ref
+          .read(normenAktualitaetKiServiceProvider)
+          .pruefeBatch([tempNorm], kompletterPool: pool);
+      if (!mounted || res.isEmpty) return;
+      final r = res.first;
+      setState(() {
+        _aktStatus = r.status;
+        _aktGeprueftAm = DateTime.now();
+        if (r.gueltigVon.isNotEmpty) _gueltigVonCtrl.text = r.gueltigVon;
+        _gueltigBisCtrl.text =
+            r.status == 'aktuell' ? 'heute' : r.gueltigBis;
+        _ersetztDurchCtrl.text =
+            r.status == 'aktuell' ? '' : r.ersetztDurch;
+        if (r.notiz.isNotEmpty) _aktNotiz.text = r.notiz;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KI-Aktualitätsprüfung fehlgeschlagen: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _kiChecking = false);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    final prevInfo = widget.norm != null
+        ? NormGueltigkeitInfo.fromNorm(widget.norm!)
+        : const NormGueltigkeitInfo();
+    final updatedInfo = NormGueltigkeitInfo(
+      gueltigVon: _gueltigVonCtrl.text.trim().isNotEmpty
+          ? _gueltigVonCtrl.text.trim()
+          : _ausgabe.text.trim(),
+      gueltigBis: _gueltigBisCtrl.text.trim(),
+      ersetztDurch: _ersetztDurchCtrl.text.trim(),
+      ersetztVorgaenger: prevInfo.ersetztVorgaenger,
+    );
+    final mergedExtras = updatedInfo.mergeIntoExtras(widget.norm?.extras);
+
     final companion = NormenCompanion(
       id: _isEdit ? Value(widget.norm!.id) : const Value.absent(),
       nummer: Value(_nr.text.trim()),
@@ -1724,6 +2803,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
       aktualitaetGeprueftAm: Value(_aktGeprueftAm),
       aktualitaetQuelle: _nt(_aktQuelle),
       aktualitaetNotiz: _nt(_aktNotiz),
+      extras: Value(mergedExtras),
     );
     try {
       final id = await ref.read(normenRepositoryProvider).upsert(companion);
@@ -1758,7 +2838,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
     final n = _nr.text.trim();
     if (n.isEmpty) return;
     final q = Uri.encodeQueryComponent(n);
-    final url = Uri.parse('https://www.beuth.de/de/suche?query=$q');
+    final url = Uri.parse('https://www.din.de/de/meta/suche/62730!search?query=$q');
     await launchUrl(url, mode: LaunchMode.externalApplication);
     setState(() => _aktGeprueftAm = DateTime.now());
   }
@@ -1895,10 +2975,18 @@ class _NormFormState extends ConsumerState<_NormForm> {
                 onStatusChanged: (s) => setState(() {
                   _aktStatus = s;
                   _aktGeprueftAm = DateTime.now();
+                  if (s == 'aktuell' && _gueltigBisCtrl.text.trim().isEmpty) {
+                    _gueltigBisCtrl.text = 'heute';
+                  }
                 }),
+                gueltigVonCtrl: _gueltigVonCtrl,
+                gueltigBisCtrl: _gueltigBisCtrl,
+                ersetztDurchCtrl: _ersetztDurchCtrl,
                 quelleCtrl: _aktQuelle,
                 notizCtrl: _aktNotiz,
                 onRecherche: _recherchieren,
+                onKiCheck: _kiAktualitaetCheckForm,
+                kiChecking: _kiChecking,
               ),
               const SizedBox(height: 20),
               const Divider(),
@@ -1918,6 +3006,15 @@ class _NormFormState extends ConsumerState<_NormForm> {
                 pdfUrl: _pdfStorageUrl,
                 nummer: _nr.text,
                 titel: _titel.text,
+                onAdoptZusammenfassung: (text) {
+                  setState(() => _zusammenfassung.text = text);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'KI-Zusammenfassung in das Feld „Zusammenfassung" übernommen.'),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               Row(children: [
@@ -1925,7 +3022,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
                     value: _aktiv,
                     onChanged: (v) => setState(() => _aktiv = v)),
                 const SizedBox(width: 6),
-                const Text('Aktiv'),
+                const Text('Im Normen-Pool aktiv'),
                 const SizedBox(width: 20),
                 Switch(
                     value: _favorit,
@@ -1934,7 +3031,7 @@ class _NormFormState extends ConsumerState<_NormForm> {
                 const Text('Favorit'),
                 const Spacer(),
                 if (!_aktiv)
-                  Text('→ erscheint in Tabelle der inaktiven Normen',
+                  Text('→ erscheint in Tabelle der ausgeblendeten Normen',
                       style: TextStyle(
                           fontSize: 12, color: AppTheme.slate500)),
               ]),
@@ -1946,23 +3043,33 @@ class _NormFormState extends ConsumerState<_NormForm> {
   }
 }
 
-/// ------------- Aktualitäts-Section -------------
+/// ------------- Aktualitäts- & Gültigkeitszeitraum-Section -------------
 
 class _AktualitaetsSection extends StatelessWidget {
   const _AktualitaetsSection({
     required this.status,
     required this.geprueftAm,
     required this.onStatusChanged,
+    required this.gueltigVonCtrl,
+    required this.gueltigBisCtrl,
+    required this.ersetztDurchCtrl,
     required this.quelleCtrl,
     required this.notizCtrl,
     required this.onRecherche,
+    required this.onKiCheck,
+    required this.kiChecking,
   });
   final String? status;
   final DateTime? geprueftAm;
   final ValueChanged<String> onStatusChanged;
+  final TextEditingController gueltigVonCtrl;
+  final TextEditingController gueltigBisCtrl;
+  final TextEditingController ersetztDurchCtrl;
   final TextEditingController quelleCtrl;
   final TextEditingController notizCtrl;
   final VoidCallback onRecherche;
+  final VoidCallback onKiCheck;
+  final bool kiChecking;
 
   @override
   Widget build(BuildContext context) {
@@ -1970,10 +3077,13 @@ class _AktualitaetsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Aktualitäts-Status',
+        Text('Aktualitäts-Status & Gültigkeitszeitraum (Von – Bis)',
             style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 10),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _StatusButton(
               label: 'aktuell',
@@ -1982,15 +3092,13 @@ class _AktualitaetsSection extends StatelessWidget {
               active: status == 'aktuell',
               onPressed: () => onStatusChanged('aktuell'),
             ),
-            const SizedBox(width: 8),
             _StatusButton(
-              label: 'veraltet',
-              color: AwTokens.red,
-              icon: Icons.cancel,
+              label: 'historisch / ersetzt (im Pool)',
+              color: const Color(0xFFD97706),
+              icon: Icons.history,
               active: status == 'veraltet',
               onPressed: () => onStatusChanged('veraltet'),
             ),
-            const SizedBox(width: 8),
             _StatusButton(
               label: 'unbekannt',
               color: const Color(0xFFEAB308),
@@ -1998,10 +3106,20 @@ class _AktualitaetsSection extends StatelessWidget {
               active: status == 'unbekannt',
               onPressed: () => onStatusChanged('unbekannt'),
             ),
-            const Spacer(),
+            FilledButton.tonalIcon(
+              icon: kiChecking
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 16),
+              label: Text(kiChecking ? 'Prüfe…' : 'KI-Aktualitäts-Check'),
+              onPressed: kiChecking ? null : onKiCheck,
+            ),
             OutlinedButton.icon(
               icon: const Icon(Icons.travel_explore, size: 16),
-              label: const Text('Online recherchieren'),
+              label: const Text('DIN-Katalog'),
               onPressed: onRecherche,
             ),
           ],
@@ -2011,6 +3129,37 @@ class _AktualitaetsSection extends StatelessWidget {
           Text('Zuletzt geprüft: ${fmt.format(geprueftAm!)}',
               style: TextStyle(
                   fontSize: 12, color: AppTheme.slate500)),
+        const SizedBox(height: 12),
+        Row2(
+          left: LabeledField(
+            'Gültig von (JJJJ-MM)',
+            TextFormField(
+              controller: gueltigVonCtrl,
+              decoration: const InputDecoration(
+                hintText: 'z. B. 2009-09',
+              ),
+            ),
+          ),
+          right: LabeledField(
+            'Gültig bis (JJJJ-MM oder heute)',
+            TextFormField(
+              controller: gueltigBisCtrl,
+              decoration: const InputDecoration(
+                hintText: 'z. B. 2022-12 oder heute',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        LabeledField(
+          'Ersetzt durch (Nachfolgenorm & Ausgabe)',
+          TextFormField(
+            controller: ersetztDurchCtrl,
+            decoration: const InputDecoration(
+              hintText: 'z. B. DIN EN ISO 1461 (2022-12)',
+            ),
+          ),
+        ),
         const SizedBox(height: 10),
         LabeledField(
             'Quelle / URL',
@@ -2020,7 +3169,7 @@ class _AktualitaetsSection extends StatelessWidget {
                     hintText: 'https://www.beuth.de/…'))),
         const SizedBox(height: 10),
         LabeledField(
-            'Notiz zur Aktualität',
+            'Notiz zur Aktualität / Historie',
             TextFormField(
                 controller: notizCtrl, minLines: 1, maxLines: 3)),
       ],
@@ -2126,7 +3275,11 @@ class _PdfSection extends StatelessWidget {
                   tooltip: 'Im neuen Tab öffnen',
                   icon: const Icon(Icons.open_in_new, size: 18),
                   onPressed: () async {
-                    final uri = Uri.tryParse(storageUrl!);
+                    var target = storageUrl!.trim();
+                    if (!target.startsWith(RegExp(r'https?://', caseSensitive: false))) {
+                      target = 'https://$target';
+                    }
+                    final uri = Uri.tryParse(target);
                     if (uri != null) {
                       await launchUrl(uri,
                           mode: LaunchMode.externalApplication);
@@ -2157,24 +3310,27 @@ class _PdfSection extends StatelessWidget {
   }
 }
 
-/// ------------- KI-Section (Zusammenfassung + Chat, Placeholder) -------------
+/// ------------- KI-Section (Zusammenfassung + Chat über NormRagService) -------------
 
-class _KiSection extends StatefulWidget {
+class _KiSection extends ConsumerStatefulWidget {
   const _KiSection({
     required this.pdfUrl,
     required this.nummer,
     required this.titel,
+    this.onAdoptZusammenfassung,
   });
   final String? pdfUrl;
   final String nummer;
   final String titel;
+  final ValueChanged<String>? onAdoptZusammenfassung;
 
   @override
-  State<_KiSection> createState() => _KiSectionState();
+  ConsumerState<_KiSection> createState() => _KiSectionState();
 }
 
-class _KiSectionState extends State<_KiSection> {
+class _KiSectionState extends ConsumerState<_KiSection> {
   String? _zusammenfassung;
+  String? _zfError;
   bool _zfLoading = false;
 
   bool get _hasPdf => widget.pdfUrl != null && widget.pdfUrl!.isNotEmpty;
@@ -2184,18 +3340,30 @@ class _KiSectionState extends State<_KiSection> {
     setState(() {
       _zfLoading = true;
       _zusammenfassung = null;
+      _zfError = null;
     });
-    // TODO: echte KI-Anbindung. Aktuell Mock.
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() {
-      _zfLoading = false;
-      _zusammenfassung =
-          'KI-Zusammenfassung wird in einer späteren Version generiert.\n\n'
-          'Die Analyse wird auf Basis des hinterlegten PDFs erfolgen und '
-          'die wichtigsten Aussagen, Anwendungsbereich, Prüfverfahren und '
-          'Grenzwerte zu „${widget.nummer}${widget.titel.isNotEmpty ? " — ${widget.titel}" : ""}" strukturiert zusammenfassen.';
-    });
+    try {
+      final rag = ref.read(normRagServiceProvider);
+      final res = await rag.frage(
+        frage:
+            'Erstelle eine strukturierte, fachlich präzise Zusammenfassung der Norm '
+            '„${widget.nummer}${widget.titel.isNotEmpty ? " — ${widget.titel}" : ""}" '
+            'für einen Bausachverständigen (1. Anwendungsbereich, 2. Wesentliche Anforderungen, '
+            'Grenzwerte & Toleranzen, 3. Prüf- und Nachweisverfahren). Nenne Abschnitte und Seiten.',
+        fastMode: false,
+      );
+      if (!mounted) return;
+      setState(() {
+        _zfLoading = false;
+        _zusammenfassung = res.antwort.trim();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _zfLoading = false;
+        _zfError = 'Fehler bei der KI-Zusammenfassung: $e';
+      });
+    }
   }
 
   Future<void> _frageStellen() async {
@@ -2206,6 +3374,7 @@ class _KiSectionState extends State<_KiSection> {
       builder: (_) => _KiChatDialog(
         nummer: widget.nummer,
         titel: widget.titel,
+        pdfUrl: widget.pdfUrl,
       ),
     );
   }
@@ -2230,7 +3399,7 @@ class _KiSectionState extends State<_KiSection> {
                 color: const Color(0xFFEDE9FE),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Text('Beta',
+              child: const Text('Vertex AI · RAG',
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -2269,6 +3438,11 @@ class _KiSectionState extends State<_KiSection> {
           Text(disabledHint,
               style: TextStyle(fontSize: 11, color: AppTheme.slate500)),
         ],
+        if (_zfError != null) ...[
+          const SizedBox(height: 10),
+          Text(_zfError!,
+              style: const TextStyle(fontSize: 12, color: AwTokens.red)),
+        ],
         if (_zusammenfassung != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -2287,11 +3461,20 @@ class _KiSectionState extends State<_KiSection> {
                     const Icon(Icons.auto_fix_high,
                         size: 14, color: Color(0xFF5B21B6)),
                     const SizedBox(width: 6),
-                    Text('Zusammenfassung',
+                    Text('KI-Zusammenfassung',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.slate500)),
+                    const Spacer(),
+                    if (widget.onAdoptZusammenfassung != null)
+                      TextButton.icon(
+                        icon: const Icon(Icons.download_done, size: 15),
+                        label: const Text('In Zusammenfassung übernehmen',
+                            style: TextStyle(fontSize: 11.5)),
+                        onPressed: () =>
+                            widget.onAdoptZusammenfassung!(_zusammenfassung!),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -2308,22 +3491,33 @@ class _KiSectionState extends State<_KiSection> {
   }
 }
 
-/// KI-Chat-Dialog (Placeholder, echte Anbindung folgt).
-class _KiChatDialog extends StatefulWidget {
-  const _KiChatDialog({required this.nummer, required this.titel});
+/// KI-Chat-Dialog für eine einzelne Norm (echte Vertex-AI-RAG-Anbindung).
+class _KiChatDialog extends ConsumerStatefulWidget {
+  const _KiChatDialog({
+    required this.nummer,
+    required this.titel,
+    this.pdfUrl,
+  });
   final String nummer;
   final String titel;
+  final String? pdfUrl;
+
   @override
-  State<_KiChatDialog> createState() => _KiChatDialogState();
+  ConsumerState<_KiChatDialog> createState() => _KiChatDialogState();
 }
 
 class _KiChatMessage {
   final String role; // 'user' | 'assistant'
   final String text;
-  const _KiChatMessage(this.role, this.text);
+  final List<NormChatQuelle> quellen;
+  const _KiChatMessage(
+    this.role,
+    this.text, {
+    this.quellen = const [],
+  });
 }
 
-class _KiChatDialogState extends State<_KiChatDialog> {
+class _KiChatDialogState extends ConsumerState<_KiChatDialog> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final List<_KiChatMessage> _messages = [];
@@ -2336,8 +3530,8 @@ class _KiChatDialogState extends State<_KiChatDialog> {
       'assistant',
       'Hallo — ich bin dein KI-Assistent für '
           '„${widget.nummer}${widget.titel.isNotEmpty ? " — ${widget.titel}" : ""}".\n'
-          'Stelle mir eine Frage zum Dokument. (Die Anbindung an das echte '
-          'Sprachmodell erfolgt in einer späteren Version — aktuell Platzhalter.)',
+          'Stelle mir eine Frage zu diesem Dokument — ich durchsuche den hinterlegten '
+          'Volltext und zitiere dir die genauen Abschnitte und Seiten.',
     ));
   }
 
@@ -2357,17 +3551,49 @@ class _KiChatDialogState extends State<_KiChatDialog> {
       _sending = true;
     });
     _scrollDown();
-    // TODO: echte KI-Anbindung.
-    await Future.delayed(const Duration(milliseconds: 650));
-    if (!mounted) return;
-    setState(() {
-      _messages.add(const _KiChatMessage(
-        'assistant',
-        '(Platzhalter-Antwort) Diese Frage wird später von der KI '
-            'beantwortet. Die Antwort stützt sich auf das hinterlegte PDF.',
-      ));
-      _sending = false;
-    });
+
+    try {
+      final rag = ref.read(normRagServiceProvider);
+      final historie = _messages
+          .skip(1) // Begrüßung überspringen
+          .take(_messages.length - 2)
+          .map(
+            (m) => NormChatNachricht(
+              rolle: m.role,
+              text: m.text,
+              zeit: DateTime.now(),
+            ),
+          )
+          .toList();
+
+      final normContextPrefix =
+          '[Fokus-Norm: ${widget.nummer}${widget.titel.isNotEmpty ? " — ${widget.titel}" : ""}]\n';
+      final res = await rag.frage(
+        frage: '$normContextPrefix$text',
+        historie: historie,
+        fastMode: false,
+      );
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_KiChatMessage(
+          'assistant',
+          res.antwort.trim().isNotEmpty
+              ? res.antwort.trim()
+              : 'Keine passende Textstelle gefunden.',
+          quellen: res.quellen,
+        ));
+        _sending = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_KiChatMessage(
+          'assistant',
+          'Fehler bei der KI-Abfrage: $e',
+        ));
+        _sending = false;
+      });
+    }
     _scrollDown();
   }
 
@@ -2383,11 +3609,23 @@ class _KiChatDialogState extends State<_KiChatDialog> {
     });
   }
 
+  Future<void> _openQuelle(NormChatQuelle q) async {
+    final rawUrl = (q.storageUrl != null && q.storageUrl!.isNotEmpty)
+        ? q.storageUrl!
+        : (widget.pdfUrl ?? '');
+    if (rawUrl.isEmpty) return;
+    final pageSuffix = q.page > 0 ? '#page=${q.page}' : '';
+    final uri = Uri.tryParse('$rawUrl$pageSuffix');
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 680),
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 720),
         child: Column(
           children: [
             Padding(
@@ -2433,20 +3671,72 @@ class _KiChatDialogState extends State<_KiChatDialog> {
                   if (_sending && i == _messages.length) {
                     return const _ChatBubble(
                       role: 'assistant',
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 10),
+                          Text('Durchsuche Norm-PDF…',
+                              style: TextStyle(fontSize: 12.5)),
+                        ],
                       ),
                     );
                   }
                   final m = _messages[i];
                   return _ChatBubble(
                     role: m.role,
-                    child: SelectableText(
-                      m.text,
-                      style: const TextStyle(
-                          fontSize: 13, height: 1.4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SelectableText(
+                          m.text,
+                          style: const TextStyle(
+                              fontSize: 13, height: 1.45),
+                        ),
+                        if (m.quellen.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final q in m.quellen)
+                                InkWell(
+                                  onTap: () => _openQuelle(q),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: AppTheme.slate200),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.picture_as_pdf,
+                                            size: 13, color: AwTokens.red),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${q.nummer}${q.page > 0 ? " · S. ${q.page}" : ""}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   );
                 },
@@ -2530,34 +3820,10 @@ class _IndexFortschrittWidgetState
     extends ConsumerState<_IndexFortschrittWidget> {
   bool _expanded = false;
   Timer? _collapseTimer;
-  StreamSubscription<NormIndexFortschritt>? _sub;
-  NormIndexFortschritt? _letzter;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.normIdsMitPdf.isEmpty) return;
-    _sub = ref
-        .read(normRagServiceProvider)
-        .watchFortschritt(widget.normIdsMitPdf)
-        .listen((f) {
-      if (!mounted) return;
-      setState(() => _letzter = f);
-      if (f.laeuft && !_expanded) {
-        _collapseTimer?.cancel();
-        setState(() => _expanded = true);
-      } else if (f.istFertig && _expanded) {
-        _collapseTimer?.cancel();
-        _collapseTimer = Timer(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _expanded = false);
-        });
-      }
-    });
-  }
+  bool _warAmLaufen = false;
 
   @override
   void dispose() {
-    _sub?.cancel();
     _collapseTimer?.cancel();
     super.dispose();
   }
@@ -2567,11 +3833,35 @@ class _IndexFortschrittWidgetState
     setState(() => _expanded = !_expanded);
   }
 
+  void _syncExpandState(NormIndexFortschritt f) {
+    if (f.laeuft && !_warAmLaufen) {
+      _warAmLaufen = true;
+      _collapseTimer?.cancel();
+      if (!_expanded) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _expanded = true);
+        });
+      }
+    } else if (!f.laeuft && _warAmLaufen) {
+      _warAmLaufen = false;
+      if (f.istFertig && _expanded) {
+        _collapseTimer?.cancel();
+        _collapseTimer = Timer(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _expanded = false);
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.normIdsMitPdf.isEmpty) return const SizedBox.shrink();
-    final f = _letzter;
-    if (f == null) return const SizedBox.shrink();
+    final snapAsync = ref.watch(normPdfsSnapshotProvider);
+    final snap = snapAsync.valueOrNull;
+    if (snap == null) return const SizedBox.shrink();
+
+    final f = berechneNormIndexFortschritt(snap, widget.normIdsMitPdf);
+    _syncExpandState(f);
 
     if (!_expanded) {
       // Kompakter Status-Chip — immer sichtbar, Tap öffnet den Balken.

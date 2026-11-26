@@ -50,7 +50,8 @@ class SettingsKeys {
   static const standardZahlungszielTage = 'standard.zahlungsziel_tage';
   // JVEG-Honorargruppen — werden in Stunden, Kostenvorschuss und JVEG-
   // Rechnungen automatisch angewendet, wenn die Akte einer Honorargruppe
-  // zugeordnet ist. Defaults entsprechen JVEG 2021.
+  // zugeordnet ist. Defaults entsprechen JVEG 2025 (M1 87 €, M2 98 €, M3 131 €).
+  // Bausachverständige: Sachgebiete nach Anlage 1 Teil 1 (core/jveg/jveg_tabelle.dart).
   static const honorargruppeM1Satz = 'honorar.gruppe_m1';
   static const honorargruppeM2Satz = 'honorar.gruppe_m2';
   static const honorargruppeM3Satz = 'honorar.gruppe_m3';
@@ -148,6 +149,11 @@ class SettingsKeys {
   static const taetigkeitBerichtVorwort = 'taetigkeit.vorwort';
   static const taetigkeitBerichtEidesstatt =
       'taetigkeit.eidesstattliche_erklaerung';
+
+  // ---------- Word-Vorlagen ----------
+  /// Briefkopf (.docx, Base64) für „Word-Dokument aus Vorlage“.
+  static const wordBriefkopfBase64 = 'word.briefkopf_base64';
+  static const wordBriefkopfName = 'word.briefkopf_name';
 
   // ---------- UI ----------
   static const theme = 'ui.theme'; // 'system' | 'light' | 'dark'

@@ -10,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/jveg/jveg_tabelle.dart';
+import 'akte_mehr_aktionen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/aw_tokens.dart';
 import '../../../data/database/app_database.dart';
@@ -33,6 +35,7 @@ import '../../kalkulation/stunden/stunden_screen.dart';
 import '../../kalkulation/auslagen/auslagen_repository.dart';
 import '../../kalkulation/auslagen/auslagen_screen.dart';
 import '../gutachten/gutachten_screen.dart';
+import '../gutachten/ki_gutachten_wizard_dialog.dart';
 import '../dokumente/dokument_viewer.dart';
 import '../dokumente/dokumente_repository.dart';
 import '../dokumente/dokumente_screen.dart';
@@ -226,6 +229,16 @@ class _AkteHeader extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
               ],
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.auto_awesome,
+                    size: 18, color: AwTokens.amber),
+                label: const Text('KI-Gutachten-Wizard'),
+                onPressed: () => showKiGutachtenWizardDialog(
+                  context,
+                  initialAuftragId: auftrag.id,
+                ),
+              ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 icon: const Icon(Icons.assignment_outlined, size: 18),
                 label: const Text('Arbeitsblatt Ortstermin'),
@@ -240,6 +253,8 @@ class _AkteHeader extends ConsumerWidget {
                   );
                 },
               ),
+              const SizedBox(width: 8),
+              AkteMehrMenu(auftrag: auftrag, kunde: kunde),
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 icon: const Icon(Icons.edit_outlined, size: 18),
@@ -454,7 +469,7 @@ class _AkteInfoCard extends StatelessWidget {
           if ((auftrag.kategorie ?? '').isNotEmpty)
             _kv('Kategorie', auftrag.kategorie!),
           _kv('Sachgebiet', auftrag.sachgebiet ?? '—'),
-          _kv('Honorargruppe', auftrag.honorargruppe ?? '—'),
+          _kv('JVEG-Sachgebiet', auftrag.honorargruppe == null ? '—' : jvegCodeLabel(auftrag.honorargruppe)),
           if (auftrag.stundensatz != null)
             _kv('Stundensatz',
                 '${auftrag.stundensatz!.toStringAsFixed(2)} €/h'),
@@ -1429,11 +1444,51 @@ class _GutachtenTab extends ConsumerWidget {
       builder: (ctx, snap) {
         final items = snap.data ?? const [];
         if (items.isEmpty) {
-          return _emptyTab(ctx, Icons.description_outlined,
-              'Noch kein Gutachten angelegt.', '/gutachten',
-              createLabel: '+ Neues Gutachten',
-              onCreate: () => showGutachtenEditor(ctx,
-                  prefillAuftragId: auftragId));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.description_outlined,
+                      size: 44, color: AppTheme.slate400),
+                  const SizedBox(height: 10),
+                  Text('Noch kein Gutachten angelegt.',
+                      style:
+                          TextStyle(color: AppTheme.slate600, fontSize: 13)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: () => showKiGutachtenWizardDialog(
+                          ctx,
+                          initialAuftragId: auftragId,
+                        ),
+                        icon: const Icon(Icons.auto_awesome,
+                            size: 16, color: AwTokens.amber),
+                        label: const Text(
+                            'KI-Gutachten-Wizard (Fotos & Unterlagen)'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => showGutachtenEditor(ctx,
+                            prefillAuftragId: auftragId),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('+ Neues Gutachten'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => ctx.go('/gutachten'),
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: const Text('Modul öffnen'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         return _listWrapper(
           ctx,
@@ -1442,6 +1497,17 @@ class _GutachtenTab extends ConsumerWidget {
           createLabel: '+ Neues Gutachten',
           onCreate: () => showGutachtenEditor(ctx,
               prefillAuftragId: auftragId),
+          extraActions: [
+            FilledButton.tonalIcon(
+              onPressed: () => showKiGutachtenWizardDialog(
+                ctx,
+                initialAuftragId: auftragId,
+              ),
+              icon: const Icon(Icons.auto_awesome,
+                  size: 16, color: AwTokens.amber),
+              label: const Text('KI-Gutachten-Wizard'),
+            ),
+          ],
           table: DataTable(
             showCheckboxColumn: false,
             columns: const [

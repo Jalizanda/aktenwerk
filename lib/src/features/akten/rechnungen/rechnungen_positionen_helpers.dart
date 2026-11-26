@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/app_database.dart';
 import '../../../data/database/database_provider.dart';
+import '../../../core/jveg/jveg_tabelle.dart';
 import '../../../features/system/einstellungen/einstellungen_repository.dart';
+import '../../../features/system/einstellungen/honorargruppe_service.dart';
 import '../../../shared/positionen/position_model.dart';
 import '../../../shared/richtext/quill_editor.dart';
 
@@ -30,59 +32,94 @@ class RechnungenPositionenHelper {
     final auftrag = await (_db.select(_db.auftraege)
           ..where((t) => t.id.equals(auftragId)))
         .getSingleOrNull();
+    final istJveg = rechnungTyp == 'jveg';
     final defaultSatz = double.tryParse(
             await _settings.getOr(SettingsKeys.standardStundensatz, '140')) ??
         140;
-    final jvegGruppenSatz = switch ((auftrag?.honorargruppe ?? '').trim().toUpperCase()) {
-      'M1' => 100.0,
-      'M2' => 114.0,
-      'M3' => 135.0,
-      _ => null,
-    };
+    // JVEG: Satz aus Sachgebiet (Anlage 1 Teil 1) bzw. Honorargruppe M1–M3
+    // (Anlage 1 Teil 2) – einheitlich über den Honorargruppen-Service.
+    final hg = (auftrag?.honorargruppe ?? '').trim();
+    final double? jvegGruppenSatz = (istJveg && hg.isNotEmpty)
+        ? await stundensatzFuerHonorargruppe(_settings, hg)
+        : null;
     final fallback = auftrag?.stundensatz ??
-        (rechnungTyp == 'jveg' ? (jvegGruppenSatz ?? defaultSatz) : defaultSatz);
+        (istJveg ? (jvegGruppenSatz ?? defaultSatz) : defaultSatz);
+    final hgLabel = jvegCodeLabel(hg);
 
     final grouped = <String, _AggPos>{};
     for (final s in rows) {
       final taetigkeit = (s.taetigkeit == null || s.taetigkeit!.trim().isEmpty)
-          ? (rechnungTyp == 'jveg'
-              ? 'Zeitaufwand Sachverständiger (§ 9 JVEG${auftrag?.honorargruppe != null ? ", ${auftrag!.honorargruppe}" : ""})'
+          ? (istJveg
+              ? 'Zeitaufwand Sachverständiger (§ 9 JVEG${hgLabel.isNotEmpty ? ", $hgLabel" : ""})'
               : 'Tätigkeit')
           : s.taetigkeit!.trim();
       final satz = s.satz ?? fallback;
-      final stunden = s.minuten / 60.0;
       final key = '$taetigkeit|${satz.toStringAsFixed(2)}';
       final agg = grouped.putIfAbsent(
           key, () => _AggPos(taetigkeit: taetigkeit, satz: satz));
-      if (rechnungTyp == 'jveg') {
-        agg.minuten += s.minuten;
-      } else {
-        agg.menge += stunden;
-      }
+      agg.minuten += s.minuten;
+      agg.menge += s.minuten / 60.0;
     }
-    return grouped.values
-        .map((a) {
-          double menge = a.menge;
-          if (rechnungTyp == 'jveg' && a.minuten > 0) {
-            final h = (a.minuten / 60).floor();
-            final rest = a.minuten % 60;
-            if (rest > 30) {
-              menge = (h + 1).toDouble();
-            } else if (rest > 0) {
-              menge = h + 0.5;
-            } else {
-              menge = h.toDouble();
-            }
-          }
-          return Position(
-              bezeichnung: a.taetigkeit,
-              menge: _round2(menge),
-              einheit: 'h',
-              einzelpreis: _round2(a.satz),
-              ustSatz: 19,
-            );
-        })
-        .toList();
+
+    if (!istJveg) {
+      return grouped.values
+          .map((a) => Position(
+                bezeichnung: a.taetigkeit,
+                menge: _round2(a.menge),
+                einheit: 'h',
+                einzelpreis: _round2(a.satz),
+                ustSatz: 19,
+              ))
+          .toList();
+    }
+
+    // JVEG § 8 Abs. 2 S. 2: Gerundet wird nur die letzte begonnene Stunde
+    // des GESAMTEN Zeitaufwands (je Stundensatz), nicht jede Tätigkeit
+    // einzeln. Die Tätigkeiten werden mit ihrer tatsächlichen Dauer
+    // ausgewiesen, die Aufrundung als eigene Zeile.
+    final result = <Position>[];
+    final buckets = <double, List<_AggPos>>{};
+    for (final a in grouped.values) {
+      buckets.putIfAbsent(a.satz, () => []).add(a);
+    }
+    for (final entry in buckets.entries) {
+      final satz = entry.key;
+      final gruppen = entry.value;
+      final minutenGesamt = gruppen.fold<int>(0, (s, a) => s + a.minuten);
+      final abrechenbar = jvegAbrechenbareStunden(minutenGesamt);
+      final zeilen = <Position>[
+        for (final a in gruppen)
+          Position(
+            bezeichnung: a.taetigkeit,
+            langtext: 'Zeitaufwand ${a.minuten ~/ 60} Std. '
+                '${(a.minuten % 60).toString().padLeft(2, '0')} Min.',
+            menge: _round2(a.minuten / 60.0),
+            einheit: 'h',
+            einzelpreis: _round2(satz),
+            ustSatz: 19,
+          ),
+      ];
+      final summe = zeilen.fold<double>(0, (s, p) => s + p.menge);
+      final diff = _round2(abrechenbar - summe);
+      if (diff < 0 && zeilen.isNotEmpty) {
+        final last = zeilen.removeLast();
+        zeilen.add(last.copyWith(menge: _round2(last.menge + diff)));
+      } else if (diff >= 0.01) {
+        zeilen.add(Position(
+          bezeichnung:
+              'Aufrundung der letzten begonnenen Stunde (§ 8 Abs. 2 S. 2 JVEG)',
+          langtext: 'Gesamter Zeitaufwand ${minutenGesamt ~/ 60} Std. '
+              '${(minutenGesamt % 60).toString().padLeft(2, '0')} Min., '
+              'abrechenbar ${abrechenbar.toStringAsFixed(1).replaceAll('.', ',')} Std.',
+          menge: diff,
+          einheit: 'h',
+          einzelpreis: _round2(satz),
+          ustSatz: 19,
+        ));
+      }
+      result.addAll(zeilen);
+    }
+    return result;
   }
 
   /// Übernimmt Auslagen eines Auftrags als Rechnungs-Positionen

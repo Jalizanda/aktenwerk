@@ -2,8 +2,110 @@
 /// dass die rufende Stelle nichts davon mitbekommt.
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
+
+/// Repräsentiert eine per Browser-Drag-&-Drop abgelegte Datei.
+class DroppedWebFile {
+  const DroppedWebFile({
+    required this.name,
+    required this.bytes,
+    required this.mimeType,
+  });
+  final String name;
+  final Uint8List bytes;
+  final String mimeType;
+}
+
+/// Registriert einen Browser-weiten Drag-&-Drop-Listener für Dateien.
+/// Gibt eine Callback-Funktion zurück, mit der der Listener in `dispose()`
+/// wieder entfernt wird.
+void Function() registerFileDropListener({
+  void Function(bool isDragging)? onDragStateChanged,
+  required void Function(List<DroppedWebFile> files) onFilesDropped,
+}) {
+  var dragging = false;
+  Timer? leaveTimer;
+
+  void setDragging(bool value) {
+    if (dragging == value) return;
+    dragging = value;
+    onDragStateChanged?.call(value);
+  }
+
+  final onDragOver = ((web.Event event) {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      final dragEvent = event as web.DragEvent;
+      if (dragEvent.dataTransfer != null) {
+        dragEvent.dataTransfer!.dropEffect = 'copy';
+      }
+    } catch (_) {}
+    setDragging(true);
+    leaveTimer?.cancel();
+    leaveTimer = Timer(const Duration(milliseconds: 180), () {
+      setDragging(false);
+    });
+  }).toJS;
+
+  final onDragLeave = ((web.Event event) {
+    try {
+      final dragEvent = event as web.DragEvent;
+      if (dragEvent.clientX <= 0 ||
+          dragEvent.clientY <= 0 ||
+          dragEvent.clientX >= web.window.innerWidth ||
+          dragEvent.clientY >= web.window.innerHeight) {
+        leaveTimer?.cancel();
+        setDragging(false);
+      }
+    } catch (_) {}
+  }).toJS;
+
+  final onDrop = ((web.Event event) {
+    event.preventDefault();
+    event.stopPropagation();
+    leaveTimer?.cancel();
+    setDragging(false);
+
+    Future<void>(() async {
+      try {
+        final dragEvent = event as web.DragEvent;
+        final fileList = dragEvent.dataTransfer?.files;
+        if (fileList == null || fileList.length == 0) return;
+        final dropped = <DroppedWebFile>[];
+        for (var i = 0; i < fileList.length; i++) {
+          final file = fileList.item(i);
+          if (file == null) continue;
+          final arrayBuffer = await file.arrayBuffer().toDart;
+          final bytes = arrayBuffer.toDart.asUint8List();
+          dropped.add(
+            DroppedWebFile(
+              name: file.name,
+              bytes: bytes,
+              mimeType: file.type,
+            ),
+          );
+        }
+        if (dropped.isNotEmpty) {
+          onFilesDropped(dropped);
+        }
+      } catch (_) {}
+    });
+  }).toJS;
+
+  web.window.addEventListener('dragover', onDragOver);
+  web.window.addEventListener('dragleave', onDragLeave);
+  web.window.addEventListener('drop', onDrop);
+
+  return () {
+    leaveTimer?.cancel();
+    web.window.removeEventListener('dragover', onDragOver);
+    web.window.removeEventListener('dragleave', onDragLeave);
+    web.window.removeEventListener('drop', onDrop);
+  };
+}
 
 void openInNewWindow(String url,
     {String name = '_blank', String features = ''}) {
